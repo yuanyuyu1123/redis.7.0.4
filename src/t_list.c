@@ -87,6 +87,7 @@ unsigned long listTypeLength(const robj *subject) {
 }
 
 /* Initialize an iterator at the specified index. */
+//在指定索引处初始化迭代器。
 listTypeIterator *listTypeInitIterator(robj *subject, long index,
                                        unsigned char direction) {
     listTypeIterator *li = zmalloc(sizeof(listTypeIterator));
@@ -96,6 +97,7 @@ listTypeIterator *listTypeInitIterator(robj *subject, long index,
     li->iter = NULL;
     /* LIST_HEAD means start at TAIL and move *towards* head.
      * LIST_TAIL means start at HEAD and move *towards tail. */
+    //LIST_HEAD 表示从 TAIL 开始向头部移动。 LIST_TAIL 表示从 HEAD 开始向尾部移动。
     int iter_direction =
         direction == LIST_HEAD ? AL_START_TAIL : AL_START_HEAD;
     if (li->encoding == OBJ_ENCODING_QUICKLIST) {
@@ -107,7 +109,7 @@ listTypeIterator *listTypeInitIterator(robj *subject, long index,
     return li;
 }
 
-/* Sets the direction of an iterator. */
+/* Sets the direction of an iterator. 设置迭代器的方向。*/
 void listTypeSetIteratorDirection(listTypeIterator *li, unsigned char direction) {
     li->direction = direction;
     int dir = direction == LIST_HEAD ? AL_START_TAIL : AL_START_HEAD;
@@ -123,6 +125,7 @@ void listTypeReleaseIterator(listTypeIterator *li) {
 /* Stores pointer to current the entry in the provided entry structure
  * and advances the position of the iterator. Returns 1 when the current
  * entry is in fact an entry, 0 otherwise. */
+//在提供的条目结构中存储指向当前条目的指针并推进迭代器的位置。当当前条目实际上是一个条目时返回 1，否则返回 0。
 int listTypeNext(listTypeIterator *li, listTypeEntry *entry) {
     /* Protect from converting when iterating */
     serverAssert(li->subject->encoding == li->encoding);
@@ -137,6 +140,7 @@ int listTypeNext(listTypeIterator *li, listTypeEntry *entry) {
 }
 
 /* Return entry or NULL at the current position of the iterator. */
+//在迭代器的当前位置返回条目或 NULL。
 robj *listTypeGet(listTypeEntry *entry) {
     robj *value = NULL;
     if (entry->li->encoding == OBJ_ENCODING_QUICKLIST) {
@@ -169,6 +173,7 @@ void listTypeInsert(listTypeEntry *entry, robj *value, int where) {
 }
 
 /* Replaces entry at the current position of the iterator. */
+//替换迭代器当前位置的条目。
 void listTypeReplace(listTypeEntry *entry, robj *value) {
     if (entry->li->encoding == OBJ_ENCODING_QUICKLIST) {
         value = getDecodedObject(value);
@@ -182,6 +187,7 @@ void listTypeReplace(listTypeEntry *entry, robj *value) {
 }
 
 /* Compare the given object with the entry at the current position. */
+//将给定对象与当前位置的条目进行比较。
 int listTypeEqual(listTypeEntry *entry, robj *o) {
     if (entry->li->encoding == OBJ_ENCODING_QUICKLIST) {
         serverAssertWithInfo(NULL,o,sdsEncodedObject(o));
@@ -191,7 +197,7 @@ int listTypeEqual(listTypeEntry *entry, robj *o) {
     }
 }
 
-/* Delete the element pointed to. */
+/* Delete the element pointed to. 删除指向的元素。*/
 void listTypeDelete(listTypeIterator *iter, listTypeEntry *entry) {
     if (entry->li->encoding == OBJ_ENCODING_QUICKLIST) {
         quicklistDelEntry(iter->iter, &entry->entry);
@@ -205,6 +211,7 @@ void listTypeDelete(listTypeIterator *iter, listTypeEntry *entry) {
  * has the same encoding as the original one.
  *
  * The resulting object always has refcount set to 1 */
+//这是 COPY 命令的辅助函数。复制一个列表对象，并保证返回的对象与原始对象具有相同的编码。结果对象始终将 refcount 设置为 1
 robj *listTypeDup(robj *o) {
     robj *lobj;
 
@@ -223,6 +230,7 @@ robj *listTypeDup(robj *o) {
 }
 
 /* Delete a range of elements from the list. */
+//从列表中删除一系列元素。
 int listTypeDelRange(robj *subject, long start, long count) {
     if (subject->encoding == OBJ_ENCODING_QUICKLIST) {
         return quicklistDelRange(subject->ptr, start, count);
@@ -403,6 +411,15 @@ void lsetCommand(client *c) {
  *
  * 'deleted' is an optional output argument to get an indication
  * if the key got deleted by this function. */
+/**
+ * 像 addListRangeReply 这样的辅助函数，更多细节见下文。不同之处在于，这里我们返回嵌套数组，例如：
+ *   1) keyname
+ *   2)
+ *     1) element1
+ *     2) element2
+ * 并且实际上还通过调用 listElementsRemoved 从列表中弹出。我们在那里维护 server.dirty 和通知。
+ * 'deleted' 是一个可选的输出参数，用于指示键是否被此函数删除。
+ * */
 void listPopRangeAndReplyWithKey(client *c, robj *o, robj *key, int where, long count, int *deleted) {
     long llen = listTypeLength(o);
     long rangelen = (count > llen) ? llen : count;
@@ -426,6 +443,11 @@ void listPopRangeAndReplyWithKey(client *c, robj *o, robj *key, int where, long 
  * must be less than end or an empty array is returned. When the reverse
  * argument is set to a non-zero value, the reply is reversed so that elements
  * are returned from end to start. */
+/**
+ * 一个帮助器，用于将包含开始和结束索引之间的列表范围作为多批量回复，并支持负索引。
+ * 注意 start 必须小于 end 否则返回一个空数组。
+ * 当 reverse 参数设置为非零值时，回复将反转，以便从 end 到 start 返回元素。
+ * */
 void addListRangeReply(client *c, robj *o, long start, long end, int reverse) {
     long rangelen, llen = listTypeLength(o);
 
@@ -470,6 +492,7 @@ void addListRangeReply(client *c, robj *o, long start, long end, int reverse) {
  *
  * 'deleted' is an optional output argument to get an indication
  * if the key got deleted by this function. */
+//列表元素弹出任务的管家助手。 'deleted' 是一个可选的输出参数，用于指示键是否被此函数删除。
 void listElementsRemoved(client *c, robj *key, int where, robj *o, long count, int *deleted) {
     char *event = (where == LIST_HEAD) ? "lpop" : "rpop";
 
@@ -490,6 +513,7 @@ void listElementsRemoved(client *c, robj *key, int where, robj *o, long count, i
  * The where argument specifies which end of the list is operated on. An
  * optional count may be provided as the third argument of the client's
  * command. */
+//实现 LPOPRPOP 的通用列表弹出操作。 where 参数指定操作列表的哪一端。可以提供一个可选的计数作为客户端命令的第三个参数。
 void popGenericCommand(client *c, int where) {
     int hascount = (c->argc == 3);
     long count = 0;
@@ -544,6 +568,10 @@ void popGenericCommand(client *c, int where) {
  * 'count' is the number of elements requested to pop.
  *
  * Always reply with array. */
+/**
+ * 与 popGenericCommand 类似，但可以使用多个键。获取多个键并从一个键返回多个元素。
+ * 'numkeys' 键的数量。 'count' 是请求弹出的元素数。总是用数组回复。
+ * */
 void mpopGenericCommand(client *c, robj **keys, int numkeys, int where, long count) {
     int j;
     robj *o;
@@ -666,6 +694,14 @@ void ltrimCommand(client *c) {
  *
  * The returned elements indexes are always referring to what LINDEX
  * would return. So first element from head is 0, and so forth. */
+/**
+ * LPOS key element [RANK rank] [COUNT num-matches] [MAXLEN len] “rank”是匹配的位置，所以如果是1，
+ * 返回第一个匹配，如果是2，返回第二个匹配等等。默认为 1。如果否定具有相同的含义，但从列表末尾开始执行搜索。
+ * 如果给出了 COUNT，则不返回单个元素，而是返回直到“num-matches”的所有匹配元素的列表。
+ * COUNT 可以与 RANK 结合使用，以便仅返回从第 N 个开始的元素。如果 COUNT 为零，则返回所有匹配的元素。
+ * MAXLEN 告诉命令扫描最大 len 个元素。如果为零（默认值），则在需要时扫描列表中的所有元素。
+ * 返回的元素索引始终指的是 LINDEX 将返回的内容。所以 head 的第一个元素是 0，依此类推。
+ * */
 void lposCommand(client *c) {
     robj *o, *ele;
     ele = c->argv[2];
@@ -913,6 +949,8 @@ void lmoveCommand(client *c) {
  * The idea is to be able to get an element from a list in a reliable way
  * since the element is not just returned but pushed against another list
  * as well. This command was originally proposed by Ezra Zygmuntowicz.
+ * 这个想法是能够以可靠的方式从列表中获取元素，因为该元素不仅被返回，而且还被推送到另一个列表中。
+ * 这个命令最初是由 Ezra Zygmuntowicz 提出的。
  */
 void rpoplpushCommand(client *c) {
     lmoveGenericCommand(c, LIST_TAIL, LIST_HEAD);
@@ -943,6 +981,16 @@ void rpoplpushCommand(client *c) {
  *
  * 'deleted' is an optional output argument to get an indication
  * if the key got deleted by this function. */
+/**
+ * 这是 handleClientsBlockedOnKeys() 的辅助函数。
+ * 它的工作是为在指定'db'的上下文中被'key'阻塞的特定客户端（接收器）提供服务，执行以下操作：
+ *   1）为客户端提供'value'元素或一系列元素。我们将在这里进行弹出，调用者不需要打扰返回。
+ *   2) 如果 dstkey 不为 NULL（我们正在为 BLMOVE 提供服务），也将 'value' 元素推送到目标列表中（命令的“推送”端）。
+ *   3) 将生成的 BRPOP、BLPOP、BLMPOP 和额外的 xPUSH（如果有）传播到 AOF 和复制通道中。
+ * 参数 'wherefrom' 是 LIST_TAIL 或 LIST_HEAD，并指示 'value' 元素是从头部（BLPOP）还是尾部（BRPOP）弹出，
+ * 以便我们可以正确地传播命令。参数 'whereto' 是 LIST_TAIL 或 LIST_HEAD，并指示是否要将 'value' 元素推到头部或尾部，
+ * 以便我们可以正确地传播命令。 'deleted' 是一个可选的输出参数，用于指示键是否被此函数删除。
+ * */
 void serveClientBlockedOnList(client *receiver, robj *o, robj *key, robj *dstkey, redisDb *db, int wherefrom, int whereto, int *deleted)
 {
     robj *argv[5];
@@ -1020,7 +1068,8 @@ void serveClientBlockedOnList(client *receiver, robj *o, robj *key, robj *dstkey
         notifyKeyspaceEvent(NOTIFY_GENERIC, "del", key, receiver->db->id);
     }
     /* We don't call signalModifiedKey() as it was already called
-     * when an element was pushed on the list. */
+     * when an element was pushed on the list.
+     * 我们不调用 signalModifiedKey() ，因为它在元素被推入列表时已被调用。*/
 }
 
 /* Blocking RPOP/LPOP/LMPOP
@@ -1032,6 +1081,11 @@ void serveClientBlockedOnList(client *receiver, robj *o, robj *key, robj *dstkey
  *
  * When count is -1, a reply of a single bulk-string will be used.
  * When count > 0, an array reply will be used. */
+/**
+ * 'numkeys' 是键的数量。 'timeout_idx' 参数块超时位置。 'where' LIST_HEAD 为 LEFT，LIST_TAIL 为 RIGHT
+ * 。 'count' 是请求弹出的元素数，或 -1 表示普通的单个弹出。当 count 为 -1 时，将使用单个批量字符串的回复。
+ * 当 count > 0 时，将使用数组回复。
+ * */
 void blockingPopGenericCommand(client *c, robj **keys, int numkeys, int where, int timeout_idx, long count) {
     robj *o;
     robj *key;
@@ -1155,6 +1209,7 @@ void brpoplpushCommand(client *c) {
  *
  * 'numkeys_idx' parameter position of key number.
  * 'is_block' this indicates whether it is a blocking variant. */
+//numkeys_idx' 参数键号位置。 'is_block' 这表明它是否是一个阻塞变体。
 void lmpopGenericCommand(client *c, int numkeys_idx, int is_block) {
     long j;
     long numkeys = 0;      /* Number of keys. */

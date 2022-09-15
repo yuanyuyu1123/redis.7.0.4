@@ -264,11 +264,9 @@ static int connSocketAccept(connection *conn, ConnectionCallbackFunc accept_hand
  * always called before and not after the read handler in a single event
  * loop.
  */
-/**
- * 注册一个写处理程序，当连接可写时调用。如果为 NULL，则移除现有的处理程序。
+/**注册一个写处理程序，当连接可写时调用。如果为 NULL，则移除现有的处理程序。
  * 屏障标志表示请求了写入屏障，从而设置了 CONN_FLAG_WRITE_BARRIER。
- * 这将确保在单个事件循环中始终在读取处理程序之前而不是之后调用写入处理程序。
- * */
+ * 这将确保在单个事件循环中始终在读取处理程序之前而不是之后调用写入处理程序。*/
 static int connSocketSetWriteHandler(connection *conn, ConnectionCallbackFunc func, int barrier) {
     if (func == conn->write_handler) return C_OK;
 
@@ -339,12 +337,10 @@ static void connSocketEventHandler(struct aeEventLoop *el, int fd, void *clientD
      * This is useful when, for instance, we want to do things
      * in the beforeSleep() hook, like fsync'ing a file to disk,
      * before replying to a client. */
-    /**
-     * 通常我们先执行可读事件，然后再执行可写事件。这很有用，因为有时我们可以在处理查询后立即提供查询的回复。
+    /**通常我们先执行可读事件，然后再执行可写事件。这很有用，因为有时我们可以在处理查询后立即提供查询的回复。
      * 但是，如果在掩码中设置了 WRITE_BARRIER，我们的应用程序会要求我们做相反的事情：永远不要在可读事件之后触发可写事件。
      * 在这种情况下，我们反转调用。例如，当我们想在 beforeSleep() 钩子中做一些事情时，这很有用，
-     * 比如在回复客户端之前将文件同步到磁盘。
-     * */
+     * 比如在回复客户端之前将文件同步到磁盘。*/
     int invert = conn->flags & CONN_FLAG_WRITE_BARRIER;
 
     int call_write = (mask & AE_WRITABLE) && conn->write_handler;
@@ -386,7 +382,8 @@ static int connSocketBlockingConnect(connection *conn, const char *addr, int por
 
 /* Connection-based versions of syncio.c functions.
  * NOTE: This should ideally be refactored out in favor of pure async work.
- * syncio.c 函数的基于连接的版本。注意：理想情况下，这应该被重构以支持纯异步工作。
+ * syncio.c 函数的基于连接的版本。
+ * 注意：理想情况下，这应该被重构以支持纯异步工作。
  */
 
 static ssize_t connSocketSyncWrite(connection *conn, char *ptr, ssize_t size, long long timeout) {

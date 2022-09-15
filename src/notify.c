@@ -37,6 +37,10 @@
  *
  * The function returns -1 if the input contains characters not mapping to
  * any class. */
+/**
+ * 该文件通过 PubSub 实现键空间事件通知，并在 https:redis.iotopicsnotifications 中进行了描述。
+ * 将表示通知类的字符串转换为表示异或通知类标志的整数。如果输入包含未映射到任何类的字符，则该函数返回 -1。
+ * */
 int keyspaceEventsStringToFlags(char *classes) {
     char *p = classes;
     int c, flags = 0;
@@ -68,6 +72,10 @@ int keyspaceEventsStringToFlags(char *classes) {
  * as input an integer with the xored flags and returns a string representing
  * the selected classes. The string returned is an sds string that needs to
  * be released with sdsfree(). */
+/**
+ * 这个函数与上面的函数完全相反：它获取一个带有异或标志的整数作为输入，并返回一个代表所选类的字符串。
+ * 返回的字符串是一个 sds 字符串，需要用 sdsfree() 释放。
+ * */
 sds keyspaceEventsFlagsToString(int flags) {
     sds res;
 
@@ -101,6 +109,14 @@ sds keyspaceEventsFlagsToString(int flags) {
  * 'event' is a C string representing the event name.
  * 'key' is a Redis object representing the key name.
  * 'dbid' is the database ID where the key lives.  */
+/**
+ * 提供给 Redis 核心其余部分的 API 是一个简单的函数：
+ *   notifyKeyspaceEvent(int type, char event, robj key, int dbid);
+ * 'type' 是我们在 `server.h` 中定义的通知类。
+ * 'event' 是一个表示事件名称的 C 字符串。
+ * 'key' 是一个 Redis 对象，表示键名。
+ * 'dbid' 是密钥所在的数据库 ID。
+ * */
 void notifyKeyspaceEvent(int type, char *event, robj *key, int dbid) {
     sds chan;
     robj *chanobj, *eventobj;
@@ -111,9 +127,12 @@ void notifyKeyspaceEvent(int type, char *event, robj *key, int dbid) {
      * This bypasses the notifications configuration, but the module engine
      * will only call event subscribers if the event type matches the types
      * they are interested in. */
+    //如果有任何模块对事件感兴趣，请立即通知模块系统。
+    // 这绕过了通知配置，但是如果事件类型与他们感兴趣的类型匹配，模块引擎只会调用事件订阅者。
      moduleNotifyKeyspaceEvent(type, event, key, dbid);
 
     /* If notifications for this class of events are off, return ASAP. */
+    //如果此类事件的通知已关闭，请尽快返回。
     if (!(server.notify_keyspace_events & type)) return;
 
     eventobj = createStringObject(event,strlen(event));

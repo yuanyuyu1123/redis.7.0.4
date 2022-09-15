@@ -1,4 +1,5 @@
 /* Synchronous socket and file I/O operations useful across the core.
+ *跨内核的同步套接字和文件 IO 操作很有用。
  *
  * Copyright (c) 2009-2010, Salvatore Sanfilippo <antirez at gmail dot com>
  * All rights reserved.
@@ -39,13 +40,22 @@
  * the key). This is why need the following blocking I/O functions.
  *
  * All the functions take the timeout in milliseconds. */
+/**
+ * Redis 以非阻塞方式执行大部分 IO，除了 SYNC 命令（从属以阻塞方式执行）和 MIGRATE 命令
+ * 必须阻塞以便从两个实例的角度来看是原子的（一个迁移密钥，一个接收密钥）。这就是为什么需要以下阻塞 IO 函数的原因。
+ * 所有函数都以毫秒为单位超时。
+ * */
 
-#define SYNCIO__RESOLUTION 10 /* Resolution in milliseconds */
+#define SYNCIO__RESOLUTION 10 /* Resolution in milliseconds  以毫秒为单位的分辨率*/
 
 /* Write the specified payload to 'fd'. If writing the whole payload will be
  * done within 'timeout' milliseconds the operation succeeds and 'size' is
  * returned. Otherwise the operation fails, -1 is returned, and an unspecified
  * partial write could be performed against the file descriptor. */
+/**
+ * 将指定的有效负载写入“fd”。如果写入整个有效负载将在“超时”毫秒内完成，则操作成功并返回“大小”。
+ * 否则操作失败，返回-1，并且可以对文件描述符执行未指定的部分写入。
+ * */
 ssize_t syncWrite(int fd, char *ptr, ssize_t size, long long timeout) {
     ssize_t nwritten, ret = size;
     long long start = mstime();
@@ -58,6 +68,7 @@ ssize_t syncWrite(int fd, char *ptr, ssize_t size, long long timeout) {
 
         /* Optimistically try to write before checking if the file descriptor
          * is actually writable. At worst we get EAGAIN. */
+        //在检查文件描述符是否实际可写之前，乐观地尝试写入。在最坏的情况下，我们得到了 EAGAIN。
         nwritten = write(fd,ptr,size);
         if (nwritten == -1) {
             if (errno != EAGAIN) return -1;
@@ -82,6 +93,10 @@ ssize_t syncWrite(int fd, char *ptr, ssize_t size, long long timeout) {
  * within 'timeout' milliseconds the operation succeed and 'size' is returned.
  * Otherwise the operation fails, -1 is returned, and an unspecified amount of
  * data could be read from the file descriptor. */
+/**
+ * 从“fd”中读取指定数量的字节。如果在“超时”毫秒内读取了所有字节，则操作成功并返回“大小”。
+ * 否则操作失败，返回-1，并且可以从文件描述符中读取未指定数量的数据。
+ * */
 ssize_t syncRead(int fd, char *ptr, ssize_t size, long long timeout) {
     ssize_t nread, totread = 0;
     long long start = mstime();
@@ -95,6 +110,7 @@ ssize_t syncRead(int fd, char *ptr, ssize_t size, long long timeout) {
 
         /* Optimistically try to read before checking if the file descriptor
          * is actually readable. At worst we get EAGAIN. */
+        //在检查文件描述符是否实际可读之前，乐观地尝试读取。在最坏的情况下，我们得到了 EAGAIN。
         nread = read(fd,ptr,size);
         if (nread == 0) return -1; /* short read. */
         if (nread == -1) {
@@ -122,6 +138,10 @@ ssize_t syncRead(int fd, char *ptr, ssize_t size, long long timeout) {
  *
  * On success the number of bytes read is returned, otherwise -1.
  * On success the string is always correctly terminated with a 0 byte. */
+/**
+ * 读取一行，确保每个字符的读取时间不会超过“超时”毫秒。成功时返回读取的字节数，否则返回 -1。
+ * 成功时，字符串始终以 0 字节正确终止。
+ * */
 ssize_t syncReadLine(int fd, char *ptr, ssize_t size, long long timeout) {
     ssize_t nread = 0;
 

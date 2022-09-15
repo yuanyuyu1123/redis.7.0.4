@@ -10,6 +10,10 @@
  * The original code appears to be under the public domain.
  * I modified it removing the non needed functions and all the
  * 1960-style C coding stuff...
+ * 从 pysam 源代码获得的 drand48() 函数派生的伪随机数生成函数。
+ * 使用此函数是为了将默认的 math.random() Lua 实现替换为在不同系统中具有完全相同行为的东西
+ * （默认情况下，Lua 使用 libc 的 rand() 不需要实现特定的 PRNG，生成相同的序列如果使用相同的整数作为种子，则不同的系统）。
+ * 原始代码似乎属于公共领域。我对其进行了修改，删除了不需要的功能和所有 1960 年风格的 C 编码内容......
  *
  * ----------------------------------------------------------------------------
  *

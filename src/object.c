@@ -37,7 +37,7 @@
 #define strtold(a,b) ((long double)strtod((a),(b)))
 #endif
 
-/* ===================== Creation and parsing of objects ==================== */
+/* ===================== Creation and parsing of objects 对象的创建和解析==================== */
 
 robj *createObject(int type, void *ptr) {
     robj *o = zmalloc(sizeof(*o));
@@ -48,6 +48,7 @@ robj *createObject(int type, void *ptr) {
 
     /* Set the LRU to the current lruclock (minutes resolution), or
      * alternatively the LFU counter. */
+    /**将 LRU 设置为当前的 lruclock（分钟分辨率），或者 LFU 计数器。*/
     if (server.maxmemory_policy & MAXMEMORY_FLAG_LFU) {
         o->lru = (LFUGetTimeInMinutes()<<8) | LFU_INIT_VAL;
     } else {
@@ -67,6 +68,11 @@ robj *createObject(int type, void *ptr) {
  * robj *myobject = makeObjectShared(createObject(...));
  *
  */
+/**在对象中设置一个特殊的引用计数以使其“共享”：incrRefCount 和 decrRefCount()
+ * 将测试这个特殊的引用计数并且不会接触对象。
+ * 这样就可以自由地访问来自不同线程的共享对象，例如小整数，而无需任何互斥锁。
+ * 创建共享对象的常用模式：
+ *   robj myobject = makeObjectShared(createObject(...));*/
 robj *makeObjectShared(robj *o) {
     serverAssert(o->refcount == 1);
     o->refcount = OBJ_SHARED_REFCOUNT;
@@ -75,6 +81,7 @@ robj *makeObjectShared(robj *o) {
 
 /* Create a string object with encoding OBJ_ENCODING_RAW, that is a plain
  * string object where o->ptr points to a proper sds string. */
+/**创建一个编码为 OBJ_ENCODING_RAW 的字符串对象，这是一个纯字符串对象，其中 o->ptr 指向正确的 sds 字符串。*/
 robj *createRawStringObject(const char *ptr, size_t len) {
     return createObject(OBJ_STRING, sdsnewlen(ptr,len));
 }
@@ -82,6 +89,8 @@ robj *createRawStringObject(const char *ptr, size_t len) {
 /* Create a string object with encoding OBJ_ENCODING_EMBSTR, that is
  * an object where the sds string is actually an unmodifiable string
  * allocated in the same chunk as the object itself. */
+/**创建一个编码为 OBJ_ENCODING_EMBSTR 的字符串对象，这是一个对象，
+ * 其中 sds 字符串实际上是一个不可修改的字符串，分配在与对象本身相同的块中。*/
 robj *createEmbeddedStringObject(const char *ptr, size_t len) {
     robj *o = zmalloc(sizeof(robj)+sizeof(struct sdshdr8)+len+1);
     struct sdshdr8 *sh = (void*)(o+1);
@@ -116,6 +125,8 @@ robj *createEmbeddedStringObject(const char *ptr, size_t len) {
  *
  * The current limit of 44 is chosen so that the biggest string object
  * we allocate as EMBSTR will still fit into the 64 byte arena of jemalloc. */
+/**如果小于 OBJ_ENCODING_EMBSTR_SIZE_LIMIT，则使用 EMBSTR 编码创建字符串对象，否则使用 RAW 编码。
+ * 选择当前的 44 限制，以便我们分配为 EMBSTR 的最大字符串对象仍然适合 jemalloc 的 64 字节区域。*/
 #define OBJ_ENCODING_EMBSTR_SIZE_LIMIT 44
 robj *createStringObject(const char *ptr, size_t len) {
     if (len <= OBJ_ENCODING_EMBSTR_SIZE_LIMIT)
@@ -125,6 +136,7 @@ robj *createStringObject(const char *ptr, size_t len) {
 }
 
 /* Same as CreateRawStringObject, can return NULL if allocation fails */
+/**与 CreateRawStringObject 相同，如果分配失败可以返回 NULL*/
 robj *tryCreateRawStringObject(const char *ptr, size_t len) {
     sds str = sdstrynewlen(ptr,len);
     if (!str) return NULL;
@@ -132,6 +144,7 @@ robj *tryCreateRawStringObject(const char *ptr, size_t len) {
 }
 
 /* Same as createStringObject, can return NULL if allocation fails */
+/**与 createStringObject 相同，如果分配失败可以返回 NULL*/
 robj *tryCreateStringObject(const char *ptr, size_t len) {
     if (len <= OBJ_ENCODING_EMBSTR_SIZE_LIMIT)
         return createEmbeddedStringObject(ptr,len);
@@ -146,6 +159,9 @@ robj *tryCreateStringObject(const char *ptr, size_t len) {
  * integer, because the object is going to be used as value in the Redis key
  * space (for instance when the INCR command is used), so we want LFU/LRU
  * values specific for each key. */
+/**从 long long 值创建一个字符串对象。如果可能，返回一个共享的整数对象，或者至少是一个整数编码的对象。
+ * 如果 valueobj 不为零，则该函数避免返回共享整数，因为该对象将用作 Redis 键空间中的值（例如使用 INCR 命令时），
+ * 因此我们需要每个键特定的 LFULRU 值。*/
 robj *createStringObjectFromLongLongWithOptions(long long value, int valueobj) {
     robj *o;
 
@@ -154,6 +170,7 @@ robj *createStringObjectFromLongLongWithOptions(long long value, int valueobj) {
     {
         /* If the maxmemory policy permits, we can still return shared integers
          * even if valueobj is true. */
+        /**如果 maxmemory 策略允许，即使 valueobj 为 true，我们仍然可以返回共享整数。*/
         valueobj = 0;
     }
 
@@ -174,6 +191,7 @@ robj *createStringObjectFromLongLongWithOptions(long long value, int valueobj) {
 
 /* Wrapper for createStringObjectFromLongLongWithOptions() always demanding
  * to create a shared object if possible. */
+/**createStringObjectFromLongLongWithOptions() 的包装器总是要求尽可能创建共享对象。*/
 robj *createStringObjectFromLongLong(long long value) {
     return createStringObjectFromLongLongWithOptions(value,0);
 }
@@ -182,6 +200,8 @@ robj *createStringObjectFromLongLong(long long value) {
  * object when LFU/LRU info are needed, that is, when the object is used
  * as a value in the key space, and Redis is configured to evict based on
  * LFU/LRU. */
+/**createStringObjectFromLongLongWithOptions() 的包装器在需要 LFULRU 信息时避免共享对象，
+ * 即当对象用作键空间中的值时，并且 Redis 配置为基于 LFULRU 驱逐。*/
 robj *createStringObjectFromLongLongForValue(long long value) {
     return createStringObjectFromLongLongWithOptions(value,1);
 }
@@ -192,6 +212,9 @@ robj *createStringObjectFromLongLongForValue(long long value) {
  * and the output of snprintf() is not modified.
  *
  * The 'humanfriendly' option is used for INCRBYFLOAT and HINCRBYFLOAT. */
+/**从 long double 创建一个字符串对象。如果人类友好是非零的，它不使用指数格式并在最后修剪尾随零，但这会导致精度损失。
+ * 否则使用 exp 格式并且不修改 snprintf() 的输出。
+ * 'humanfriendly' 选项用于 INCRBYFLOAT 和 HINCRBYFLOAT。*/
 robj *createStringObjectFromLongDouble(long double value, int humanfriendly) {
     char buf[MAX_LONG_DOUBLE_CHARS];
     int len = ld2string(buf,sizeof(buf),value,humanfriendly? LD_STR_HUMAN: LD_STR_AUTO);
@@ -206,6 +229,9 @@ robj *createStringObjectFromLongDouble(long double value, int humanfriendly) {
  * will always result in a fresh object that is unshared (refcount == 1).
  *
  * The resulting object always has refcount set to 1. */
+/**复制一个字符串对象，并保证返回的对象与原始对象具有相同的编码。
+ * 此函数还保证复制小整数对象（或包含小整数表示的字符串对象）将始终导致未共享的新对象（refcount == 1）。
+ * 结果对象始终将 refcount 设置为 1。*/
 robj *dupStringObject(const robj *o) {
     robj *d;
 
@@ -405,6 +431,7 @@ void dismissListObject(robj *o, size_t size_hint) {
         serverAssert(ql->len != 0);
         /* We iterate all nodes only when average node size is bigger than a
          * page size, and there's a high chance we'll actually dismiss something. */
+        /**只有当平均节点大小大于页面大小时，我们才会迭代所有节点，并且很有可能我们实际上会忽略某些内容。*/
         if (size_hint / ql->len >= server.page_size) {
             quicklistNode *node = ql->head;
             while (node) {
@@ -428,6 +455,7 @@ void dismissSetObject(robj *o, size_t size_hint) {
         serverAssert(dictSize(set) != 0);
         /* We iterate all nodes only when average member size is bigger than a
          * page size, and there's a high chance we'll actually dismiss something. */
+        /**只有当平均成员大小大于页面大小时，我们才会迭代所有节点，并且很有可能我们实际上会忽略某些内容。*/
         if (size_hint / dictSize(set) >= server.page_size) {
             dictEntry *de;
             dictIterator *di = dictGetIterator(set);
@@ -455,6 +483,7 @@ void dismissZsetObject(robj *o, size_t size_hint) {
         serverAssert(zsl->length != 0);
         /* We iterate all nodes only when average member size is bigger than a
          * page size, and there's a high chance we'll actually dismiss something. */
+        /**只有当平均成员大小大于页面大小时，我们才会迭代所有节点，并且很有可能我们实际上会忽略某些内容。*/
         if (size_hint / zsl->length >= server.page_size) {
             zskiplistNode *zn = zsl->tail;
             while (zn != NULL) {
@@ -481,18 +510,20 @@ void dismissHashObject(robj *o, size_t size_hint) {
         serverAssert(dictSize(d) != 0);
         /* We iterate all fields only when average field/value size is bigger than
          * a page size, and there's a high chance we'll actually dismiss something. */
+        /**仅当平均字段值大小大于页面大小时，我们才迭代所有字段，并且很有可能我们实际上会忽略某些内容。*/
         if (size_hint / dictSize(d) >= server.page_size) {
             dictEntry *de;
             dictIterator *di = dictGetIterator(d);
             while ((de = dictNext(di)) != NULL) {
                 /* Only dismiss values memory since the field size
                  * usually is small. */
+                /**仅关闭值内存，因为字段大小通常很小。*/
                 dismissSds(dictGetVal(de));
             }
             dictReleaseIterator(di);
         }
 
-        /* Dismiss hash table memory. */
+        /* Dismiss hash table memory. 关闭哈希表内存。*/
         dismissMemory(d->ht_table[0], DICTHT_SIZE(d->ht_size_exp[0])*sizeof(dictEntry*));
         dismissMemory(d->ht_table[1], DICTHT_SIZE(d->ht_size_exp[1])*sizeof(dictEntry*));
     } else if (o->encoding == OBJ_ENCODING_LISTPACK) {
@@ -511,6 +542,7 @@ void dismissStreamObject(robj *o, size_t size_hint) {
     /* Iterate only on stream entries, although size_hint may include serialized
      * consumer groups info, but usually, stream entries take up most of
      * the space. */
+    /**仅对流条目进行迭代，尽管 size_hint 可能包含序列化的消费者组信息，但通常，流条目会占用大部分空间。*/
     if (size_hint / raxSize(rax) >= server.page_size) {
         raxIterator ri;
         raxStart(&ri,rax);
@@ -535,12 +567,21 @@ void dismissStreamObject(robj *o, size_t size_hint) {
  * 'size_hint' is the size of serialized value. This method is not accurate, but
  * it can reduce unnecessary iteration for complex data types that are probably
  * not going to release any memory. */
+/**在 fork 子进程中创建快照时，主进程和子进程共享相同的物理内存页，
+ * 如果父进程由于写入流量修改任何键，就会导致 CoW 消耗物理内存。
+ * 在子进程中，将key和value序列化后，数据肯定不会再被访问，所以为了避免不必要的CoW，我们尝试将它们的内存释放回OS。
+ * 见dismissMemory()。由于迭代复杂数据类型的所有 nodefieldmemberentry 的成本，
+ * 我们仅在估计单个分配的大小大于 OS 的页面大小的近似平均值时才迭代并关闭它们。
+ * 'size_hint' 是序列化值的大小。这种方法并不准确，但它可以减少可能不会释放任何内存的复杂数据类型的不必要迭代。*/
 void dismissObject(robj *o, size_t size_hint) {
     /* madvise(MADV_DONTNEED) may not work if Transparent Huge Pages is enabled. */
+    /**如果启用了透明大页面，madvise(MADV_DONTNEED) 可能不起作用。*/
     if (server.thp_enabled) return;
 
     /* Currently we use zmadvise_dontneed only when we use jemalloc with Linux.
      * so we avoid these pointless loops when they're not going to do anything. */
+    /**目前，我们仅在将 jemalloc 与 Linux 一起使用时才使用 zmadvise_dontneed。
+     * 因此，当它们不打算做任何事情时，我们会避免这些无意义的循环。*/
 #if defined(USE_JEMALLOC) && defined(__linux__)
     if (o->refcount != 1) return;
     switch(o->type) {
@@ -560,12 +601,14 @@ void dismissObject(robj *o, size_t size_hint) {
 /* This variant of decrRefCount() gets its argument as void, and is useful
  * as free method in data structures that expect a 'void free_object(void*)'
  * prototype for the free method. */
+/**decrRefCount() 的这种变体将其参数设为 void，并且可用作数据结构中的 free 方法，
+ * 这些数据结构需要 free 方法的 'void free_object(void)' 原型。*/
 void decrRefCountVoid(void *o) {
     decrRefCount(o);
 }
 
 int checkType(client *c, robj *o, int type) {
-    /* A NULL is considered an empty key */
+    /* A NULL is considered an empty key  NULL 被视为空键*/
     if (o && o->type != type) {
         addReplyErrorObject(c,shared.wrongtypeerr);
         return 1;
@@ -591,6 +634,8 @@ int isObjectRepresentableAsLongLong(robj *o, long long *llval) {
  * in case there is more than 10% of free space at the end of the SDS
  * string. This happens because SDS strings tend to overallocate to avoid
  * wasting too much time in allocations when appending to the string. */
+/**优化字符串对象内部的 SDS 字符串，使其占用更少的空间，以防 SDS 字符串末尾有超过 10% 的可用空间。
+ * 发生这种情况是因为 SDS 字符串倾向于过度分配以避免在附加到字符串时在分配中浪费太多时间。*/
 void trimStringObjectIfNeeded(robj *o) {
     if (o->encoding == OBJ_ENCODING_RAW &&
         sdsavail(o->ptr) > sdslen(o->ptr)/10)
@@ -600,6 +645,7 @@ void trimStringObjectIfNeeded(robj *o) {
 }
 
 /* Try to encode a string object in order to save space */
+//尝试对字符串对象进行编码以节省空间
 robj *tryObjectEncoding(robj *o) {
     long value;
     sds s = o->ptr;
@@ -609,27 +655,36 @@ robj *tryObjectEncoding(robj *o) {
      * in this function. Other types use encoded memory efficient
      * representations but are handled by the commands implementing
      * the type. */
+    /**确保这是一个字符串对象，这是我们在这个函数中编码的唯一类型。
+     * 其他类型使用编码的内存高效表示，但由实现该类型的命令处理。*/
     serverAssertWithInfo(NULL,o,o->type == OBJ_STRING);
 
     /* We try some specialized encoding only for objects that are
      * RAW or EMBSTR encoded, in other words objects that are still
      * in represented by an actually array of chars. */
+    /**我们只对 RAW 或 EMBSTR 编码的对象尝试一些专门的编码，换句话说，仍然由实际的字符数组表示的对象。*/
     if (!sdsEncodedObject(o)) return o;
 
     /* It's not safe to encode shared objects: shared objects can be shared
      * everywhere in the "object space" of Redis and may end in places where
      * they are not handled. We handle them only as values in the keyspace. */
+    /**对共享对象进行编码是不安全的：共享对象可以在 Redis 的“对象空间”中的任何地方共享，并且可能在它们未被处理的地方结束。
+     * 我们仅将它们作为键空间中的值处理。*/
      if (o->refcount > 1) return o;
 
     /* Check if we can represent this string as a long integer.
      * Note that we are sure that a string larger than 20 chars is not
      * representable as a 32 nor 64 bit integer. */
+    /**检查我们是否可以将此字符串表示为长整数。请注意，我们确信大于 20 个字符的字符串不能表示为 32 位或 64 位整数。*/
     len = sdslen(s);
     if (len <= 20 && string2l(s,len,&value)) {
         /* This object is encodable as a long. Try to use a shared object.
          * Note that we avoid using shared integers when maxmemory is used
          * because every object needs to have a private LRU field for the LRU
          * algorithm to work well. */
+        /**该对象可编码为 long。尝试使用共享对象。
+         * 请注意，当使用 maxmemory 时，我们避免使用共享整数，因为每个对象都需要
+         * 有一个私有 LRU 字段才能使 LRU 算法正常工作。*/
         if ((server.maxmemory == 0 ||
             !(server.maxmemory_policy & MAXMEMORY_FLAG_NO_SHARED_INTEGERS)) &&
             value >= 0 &&
@@ -655,6 +710,8 @@ robj *tryObjectEncoding(robj *o) {
      * try the EMBSTR encoding which is more efficient.
      * In this representation the object and the SDS string are allocated
      * in the same chunk of memory to save space and cache misses. */
+    /**如果字符串很小并且仍然是 RAW 编码，请尝试更有效的 EMBSTR 编码。
+     * 在这种表示中，对象和 SDS 字符串被分配在同一块内存中，以节省空间和缓存未命中。*/
     if (len <= OBJ_ENCODING_EMBSTR_SIZE_LIMIT) {
         robj *emb;
 
@@ -673,14 +730,18 @@ robj *tryObjectEncoding(robj *o) {
      * We do that only for relatively large strings as this branch
      * is only entered if the length of the string is greater than
      * OBJ_ENCODING_EMBSTR_SIZE_LIMIT. */
+    /**我们无法对对象进行编码...
+     * 做最后一次尝试，至少优化字符串对象内部的 SDS 字符串以减少空间，以防 SDS 字符串末尾有超过 10% 的可用空间。
+     * 我们只对相对较大的字符串这样做，因为只有当字符串的长度大于 OBJ_ENCODING_EMBSTR_SIZE_LIMIT 时才会输入此分支。*/
     trimStringObjectIfNeeded(o);
 
-    /* Return the original object. */
+    /* Return the original object. 返回原始对象。*/
     return o;
 }
 
 /* Get a decoded version of an encoded object (returned as a new object).
  * If the object is already raw-encoded just increment the ref count. */
+/**获取编码对象的解码版本（作为新对象返回）。如果对象已经被原始编码，只需增加引用计数。*/
 robj *getDecodedObject(robj *o) {
     robj *dec;
 
@@ -706,6 +767,10 @@ robj *getDecodedObject(robj *o) {
  *
  * Important note: when REDIS_COMPARE_BINARY is used a binary-safe comparison
  * is used. */
+/**根据标志通过 strcmp() 或 strcoll() 比较两个字符串对象。
+ * 请注意，对象可能是整数编码的。在这种情况下，我们使用 ll2string() 来获取堆栈上数字的字符串表示形式并比较字符串，
+ * 这比调用 getDecodedObject() 快得多。
+ * 重要提示：当使用 REDIS_COMPARE_BINARY 时，使用二进制安全比较。*/
 
 #define REDIS_COMPARE_BINARY (1<<0)
 #define REDIS_COMPARE_COLL (1<<1)
@@ -743,11 +808,13 @@ int compareStringObjectsWithFlags(robj *a, robj *b, int flags) {
 }
 
 /* Wrapper for compareStringObjectsWithFlags() using binary comparison. */
+//使用二进制比较的 compareStringObjectsWithFlags() 包装器。
 int compareStringObjects(robj *a, robj *b) {
     return compareStringObjectsWithFlags(a,b,REDIS_COMPARE_BINARY);
 }
 
 /* Wrapper for compareStringObjectsWithFlags() using collation. */
+//使用排序规则的 compareStringObjectsWithFlags() 包装器。
 int collateStringObjects(robj *a, robj *b) {
     return compareStringObjectsWithFlags(a,b,REDIS_COMPARE_COLL);
 }
@@ -756,11 +823,14 @@ int collateStringObjects(robj *a, robj *b) {
  * point of view of a string comparison, otherwise 0 is returned. Note that
  * this function is faster then checking for (compareStringObject(a,b) == 0)
  * because it can perform some more optimization. */
+/**如果从字符串比较的角度来看，两个对象相同，则相等的字符串对象返回 1，否则返回 0。
+ * 请注意，此函数比检查 (compareStringObject(a,b) == 0) 更快，因为它可以执行更多优化。*/
 int equalStringObjects(robj *a, robj *b) {
     if (a->encoding == OBJ_ENCODING_INT &&
         b->encoding == OBJ_ENCODING_INT){
         /* If both strings are integer encoded just check if the stored
          * long is the same. */
+        /**如果两个字符串都是整数编码的，只需检查存储的 long 是否相同。*/
         return a->ptr == b->ptr;
     } else {
         return compareStringObjects(a,b) == 0;
@@ -956,11 +1026,17 @@ char *strEncoding(int encoding) {
  * Actually the number of nodes and keys may be different depending
  * on the insertion speed and thus the ability of the radix tree
  * to compress prefixes. */
+/**这是一个辅助函数，目的是估计用于存储流 ID 的基数树的内存大小。
+ * 注意：猜测基数树的大小并非易事，所以我们考虑每个键（ID）的 16 字节数据开销，然后加上裸节点的数量，
+ * 加上数据和子节点的一些开销指针。这个秘方是通过检查由实际工作负载创建的平均基数树获得的，
+ * 然后调整常量以获得或多或少与实际内存使用情况相匹配的数字。
+ * 实际上，节点和键的数量可能会有所不同，具体取决于插入速度以及基数树压缩前缀的能力。*/
 size_t streamRadixTreeMemoryUsage(rax *rax) {
     size_t size = sizeof(*rax);
     size = rax->numele * sizeof(streamID);
     size += rax->numnodes * sizeof(raxNode);
     /* Add a fixed overhead due to the aux data pointer, children, ... */
+    /**由于辅助数据指针、子项、...而增加了固定开销*/
     size += rax->numnodes * sizeof(long)*30;
     return size;
 }
@@ -969,7 +1045,9 @@ size_t streamRadixTreeMemoryUsage(rax *rax) {
  * Note that the returned value is just an approximation, especially in the
  * case of aggregated data types where only "sample_size" elements
  * are checked and averaged to estimate the total size. */
-#define OBJ_COMPUTE_SIZE_DEF_SAMPLES 5 /* Default sample size. */
+/**返回键值在 RAM 中消耗的字节大小。请注意，返回值只是一个近似值，特别是在聚合数据类型的情况下，
+ * 其中仅检查“sample_size”元素并对其进行平均以估计总大小。*/
+#define OBJ_COMPUTE_SIZE_DEF_SAMPLES 5 /* Default sample size. 默认sample大小。*/
 size_t objectComputeSize(robj *key, robj *o, size_t sample_size, int dbid) {
     sds ele, ele2;
     dict *d;
@@ -1065,6 +1143,8 @@ size_t objectComputeSize(robj *key, robj *o, size_t sample_size, int dbid) {
          * complete, so we estimate the size of the first N listpacks, and
          * use the average to compute the size of the first N-1 listpacks, and
          * finally add the real size of the last node. */
+        /**现在我们必须添加列表包。最后一个listpack往往是不完整的，所以我们估计前N个listpack的大小，
+         * 用平均值计算前N-1个listpack的大小，最后加上最后一个节点的真实大小。*/
         raxIterator ri;
         raxStart(&ri,s->rax);
         raxSeek(&ri,"^",NULL,0);
@@ -1077,10 +1157,11 @@ size_t objectComputeSize(robj *key, robj *o, size_t sample_size, int dbid) {
         if (s->rax->numele <= samples) {
             asize += lpsize;
         } else {
-            if (samples) lpsize /= samples; /* Compute the average. */
+            if (samples) lpsize /= samples; /* Compute the average. 计算平均值。*/
             asize += lpsize * (s->rax->numele-1);
             /* No need to check if seek succeeded, we enter this branch only
              * if there are a few elements in the radix tree. */
+            /**不需要检查seek是否成功，只有在基数树中有几个元素时才进入这个分支。*/
             raxSeek(&ri,"$",NULL,0);
             raxNext(&ri);
             asize += lpBytes(ri.data);
@@ -1091,6 +1172,7 @@ size_t objectComputeSize(robj *key, robj *o, size_t sample_size, int dbid) {
          * are many consumers and many groups, let's count at least the
          * overhead of the pending entries in the groups and consumers
          * PELs. */
+        /**如果有很多消费者和许多组，消费者组也有不小的内存开销，让我们至少计算组和消费者 PEL 中的未决条目的开销。*/
         if (s->cgroups) {
             raxStart(&ri,s->cgroups);
             raxSeek(&ri,"^",NULL,0);
@@ -1102,6 +1184,7 @@ size_t objectComputeSize(robj *key, robj *o, size_t sample_size, int dbid) {
 
                 /* For each consumer we also need to add the basic data
                  * structures and the PEL memory usage. */
+                /**对于每个消费者，我们还需要添加基本数据结构和 PEL 内存使用情况。*/
                 raxIterator cri;
                 raxStart(&cri,cg->consumers);
                 raxSeek(&cri,"^",NULL,0);
@@ -1112,6 +1195,7 @@ size_t objectComputeSize(robj *key, robj *o, size_t sample_size, int dbid) {
                     asize += streamRadixTreeMemoryUsage(consumer->pel);
                     /* Don't count NACKs again, they are shared with the
                      * consumer group PEL. */
+                    /**不要再计算 NACK，它们与消费者组 PEL 共享。*/
                 }
                 raxStop(&cri);
             }
@@ -1126,6 +1210,7 @@ size_t objectComputeSize(robj *key, robj *o, size_t sample_size, int dbid) {
 }
 
 /* Release data obtained with getMemoryOverheadData(). */
+//释放使用 getMemoryOverheadData() 获得的数据。
 void freeMemoryOverheadData(struct redisMemOverhead *mh) {
     zfree(mh->db);
     zfree(mh);
@@ -1134,6 +1219,9 @@ void freeMemoryOverheadData(struct redisMemOverhead *mh) {
 /* Return a struct redisMemOverhead filled with memory overhead
  * information used for the MEMORY OVERHEAD and INFO command. The returned
  * structure pointer should be freed calling freeMemoryOverheadData(). */
+/**返回一个结构 redisMemOverhead，其中填充了用于 MEMORY OVERHEAD 和 INFO 命令的内存开销信息。
+ *
+ * @return 应该调用 freeMemoryOverheadData() 释放返回的结构指针。*/
 struct redisMemOverhead *getMemoryOverheadData(void) {
     int j;
     size_t mem_total = 0;
@@ -1167,6 +1255,8 @@ struct redisMemOverhead *getMemoryOverheadData(void) {
      * only if replication buffer memory is more than the repl backlog setting,
      * we consider the excess as replicas' memory. Otherwise, replication buffer
      * memory is the consumption of repl backlog. */
+    /**复制积压和副本共享一个全局复制缓冲区，只有当复制缓冲区内存大于 repl backlog 设置时，
+     * 我们才会将超出部分视为副本的内存。否则，复制缓冲内存就是repl backlog的消耗。*/
     if (listLength(server.slaves) &&
         (long long)server.repl_buffer_mem > server.repl_backlog_size)
     {
@@ -1178,6 +1268,7 @@ struct redisMemOverhead *getMemoryOverheadData(void) {
     }
     if (server.repl_backlog) {
         /* The approximate memory of rax tree for indexed blocks. */
+        /**用于索引块的 rax 树的近似内存。*/
         mh->repl_backlog +=
             server.repl_backlog->blocks_index->numnodes * sizeof(raxNode) +
             raxSize(server.repl_backlog->blocks_index) * sizeof(void*);
@@ -1188,6 +1279,7 @@ struct redisMemOverhead *getMemoryOverheadData(void) {
     /* Computing the memory used by the clients would be O(N) if done
      * here online. We use our values computed incrementally by
      * updateClientMemUsage(). */
+    /**如果在此处在线完成，计算客户端使用的内存将是 O(N)。我们使用由 updateClientMemUsage() 增量计算的值。*/
     mh->clients_normal = server.stat_clients_type_memory[CLIENT_TYPE_MASTER]+
                          server.stat_clients_type_memory[CLIENT_TYPE_PUBSUB]+
                          server.stat_clients_type_memory[CLIENT_TYPE_NORMAL];
@@ -1230,6 +1322,7 @@ struct redisMemOverhead *getMemoryOverheadData(void) {
         mem_total+=mem;
 
         /* Account for the slot to keys map in cluster mode */
+        //在集群模式下考虑到键映射的插槽
         mem = dictSize(db->dict) * dictMetadataSize(db->dict);
         mh->db[mh->num_dbs].overhead_ht_slot_to_keys = mem;
         mem_total+=mem;
@@ -1243,6 +1336,7 @@ struct redisMemOverhead *getMemoryOverheadData(void) {
 
     /* Metrics computed after subtracting the startup memory from
      * the total memory. */
+    /**从总内存中减去启动内存后计算的指标。*/
     size_t net_usage = 1;
     if (zmalloc_used > mh->startup_allocated)
         net_usage = zmalloc_used - mh->startup_allocated;
@@ -1254,24 +1348,27 @@ struct redisMemOverhead *getMemoryOverheadData(void) {
 
 /* Helper for "MEMORY allocator-stats", used as a callback for the jemalloc
  * stats output. */
+/**“MEMORY allocator-stats”的助手，用作 jemalloc 统计输出的回调。*/
 void inputCatSds(void *result, const char *str) {
     /* result is actually a (sds *), so re-cast it here */
+    //结果实际上是一个 (sds )，所以在这里重新投射
     sds *info = (sds *)result;
     *info = sdscat(*info, str);
 }
 
 /* This implements MEMORY DOCTOR. An human readable analysis of the Redis
  * memory condition. */
+/**这实现了 MEMORY DOCTOR。对 Redis 内存状况的人类可读分析。*/
 sds getMemoryDoctorReport(void) {
-    int empty = 0;          /* Instance is empty or almost empty. */
-    int big_peak = 0;       /* Memory peak is much larger than used mem. */
-    int high_frag = 0;      /* High fragmentation. */
-    int high_alloc_frag = 0;/* High allocator fragmentation. */
-    int high_proc_rss = 0;  /* High process rss overhead. */
-    int high_alloc_rss = 0; /* High rss overhead. */
+    int empty = 0;          /* Instance is empty or almost empty. 实例为空或几乎为空。*/
+    int big_peak = 0;       /* Memory peak is much larger than used mem. 内存峰值比使用的内存大得多。*/
+    int high_frag = 0;      /* High fragmentation. 高度碎片化。 */
+    int high_alloc_frag = 0;/* High allocator fragmentation. 高分配器碎片。*/
+    int high_proc_rss = 0;  /* High process rss overhead.高进程 rss 开销。 */
+    int high_alloc_rss = 0; /* High rss overhead. 高 RSS 开销。*/
     int big_slave_buf = 0;  /* Slave buffers are too big. */
-    int big_client_buf = 0; /* Client buffers are too big. */
-    int many_scripts = 0;   /* Script cache has too many scripts. */
+    int big_client_buf = 0; /* Client buffers are too big. 客户端缓冲区太大。*/
+    int many_scripts = 0;   /* Script cache has too many scripts. 脚本缓存有太多脚本。*/
     int num_reports = 0;
     struct redisMemOverhead *mh = getMemoryOverheadData();
 
@@ -1279,37 +1376,37 @@ sds getMemoryDoctorReport(void) {
         empty = 1;
         num_reports++;
     } else {
-        /* Peak is > 150% of current used memory? */
+        /* Peak is > 150% of current used memory? 峰值是否大于当前使用内存的 150%？*/
         if (((float)mh->peak_allocated / mh->total_allocated) > 1.5) {
             big_peak = 1;
             num_reports++;
         }
 
-        /* Fragmentation is higher than 1.4 and 10MB ?*/
+        /* Fragmentation is higher than 1.4 and 10MB ? 碎片高于 1.4 和 10MB ？*/
         if (mh->total_frag > 1.4 && mh->total_frag_bytes > 10<<20) {
             high_frag = 1;
             num_reports++;
         }
 
-        /* External fragmentation is higher than 1.1 and 10MB? */
+        /* External fragmentation is higher than 1.1 and 10MB? 外部碎片高于1.1和10MB？*/
         if (mh->allocator_frag > 1.1 && mh->allocator_frag_bytes > 10<<20) {
             high_alloc_frag = 1;
             num_reports++;
         }
 
-        /* Allocator rss is higher than 1.1 and 10MB ? */
+        /* Allocator rss is higher than 1.1 and 10MB ? 分配器 rss 高于 1.1 和 10MB 吗？*/
         if (mh->allocator_rss > 1.1 && mh->allocator_rss_bytes > 10<<20) {
             high_alloc_rss = 1;
             num_reports++;
         }
 
-        /* Non-Allocator rss is higher than 1.1 and 10MB ? */
+        /* Non-Allocator rss is higher than 1.1 and 10MB ? 非分配器 rss 高于 1.1 和 10MB 吗？ */
         if (mh->rss_extra > 1.1 && mh->rss_extra_bytes > 10<<20) {
             high_proc_rss = 1;
             num_reports++;
         }
 
-        /* Clients using more than 200k each average? */
+        /* Clients using more than 200k each average? 每个平均使用超过 200k 的客户？*/
         long numslaves = listLength(server.slaves);
         long numclients = listLength(server.clients)-numslaves;
         if (mh->clients_normal / numclients > (1024*200)) {
@@ -1317,13 +1414,13 @@ sds getMemoryDoctorReport(void) {
             num_reports++;
         }
 
-        /* Slaves using more than 10 MB each? */
+        /* Slaves using more than 10 MB each? 每个slave使用超过 10 MB 的空间？*/
         if (numslaves > 0 && mh->clients_slaves > (1024*1024*10)) {
             big_slave_buf = 1;
             num_reports++;
         }
 
-        /* Too many scripts are cached? */
+        /* Too many scripts are cached? 缓存了太多脚本？*/
         if (dictSize(evalScriptsDict()) > 1000) {
             many_scripts = 1;
             num_reports++;
@@ -1379,6 +1476,9 @@ sds getMemoryDoctorReport(void) {
  * The lru_idle and lru_clock args are only relevant if policy
  * is MAXMEMORY_FLAG_LRU.
  * Either or both of them may be <0, in that case, nothing is set. */
+/**根据 server.maxmemory_policy 设置对象 LRULFU。 lfu_freq 参数仅在策略为 MAXMEMORY_FLAG_LFU 时才相关。
+ * 仅当策略为 MAXMEMORY_FLAG_LRU 时，lru_idle 和 lru_clock 参数才相关。
+ * 它们中的一个或两个可能<0，在这种情况下，什么都没有设置。*/
 int objectSetLRUOrLFU(robj *val, long long lfu_freq, long long lru_idle,
                        long long lru_clock, int lru_multiplier) {
     if (server.maxmemory_policy & MAXMEMORY_FLAG_LFU) {
@@ -1392,6 +1492,8 @@ int objectSetLRUOrLFU(robj *val, long long lfu_freq, long long lru_idle,
          * according to the LRU clock resolution this Redis
          * instance was compiled with (normally 1000 ms, so the
          * below statement will expand to lru_idle*1000/1000. */
+        /**假设 LRU 空闲时间以秒为单位。根据此 Redis 实例编译时使用的 LRU 时钟分辨率进行缩放
+         * （通常为 1000 毫秒，因此以下语句将扩展为 lru_idle10001000。*/
         lru_idle = lru_idle*lru_multiplier/LRU_CLOCK_RESOLUTION;
         long lru_abs = lru_clock - lru_idle; /* Absolute access time. */
         /* If the LRU field underflows (since lru_clock is a wrapping clock),
@@ -1399,6 +1501,10 @@ int objectSetLRUOrLFU(robj *val, long long lfu_freq, long long lru_idle,
          * code in estimateObjectIdleTime. I.e. imagine a day when lru_clock
          * wrap arounds (happens once in some 6 months), and becomes a low
          * value, like 10, an lru_idle of 1000 should be near LRU_CLOCK_MAX. */
+        /**如果 LRU 字段下溢（因为 lru_clock 是一个包装时钟），我们需要再次使其为正。
+         * 这由estimateObjectIdleTime 中的展开代码处理。 I.E。
+         * 想象有一天 lru_clock 回绕（大约 6 个月发生一次），变成一个低值，
+         * 比如 10，1000 的 lru_idle 应该接近 LRU_CLOCK_MAX。*/
         if (lru_abs < 0)
             lru_abs += LRU_CLOCK_MAX;
         val->lru = lru_abs;
@@ -1411,6 +1517,7 @@ int objectSetLRUOrLFU(robj *val, long long lfu_freq, long long lru_idle,
 
 /* This is a helper function for the OBJECT command. We need to lookup keys
  * without any modification of LRU or other parameters. */
+/**这是 OBJECT 命令的辅助函数。我们需要在不修改 LRU 或其他参数的情况下查找键。*/
 robj *objectCommandLookup(client *c, robj *key) {
     return lookupKeyReadWithFlags(c->db,key,LOOKUP_NOTOUCH|LOOKUP_NONOTIFY);
 }
@@ -1422,6 +1529,7 @@ robj *objectCommandLookupOrReply(client *c, robj *key, robj *reply) {
 }
 
 /* Object command allows to inspect the internals of a Redis Object.
+ * Object 命令允许检查 Redis 对象的内部。
  * Usage: OBJECT <refcount|encoding|idletime|freq> <key> */
 void objectCommand(client *c) {
     robj *o;
@@ -1470,6 +1578,7 @@ NULL
          * in case of the key has not been accessed for a long time,
          * because we update the access time only
          * when the key is read or overwritten. */
+        /**LFUDecrAndReturn 应该在 key 很长时间没有被访问的情况下调用，因为我们只有在 key 被读取或覆盖时才更新访问时间。*/
         addReplyLongLong(c,LFUDecrAndReturn(o));
     } else {
         addReplySubcommandSyntaxError(c);
@@ -1478,6 +1587,7 @@ NULL
 
 /* The memory command will eventually be a complete interface for the
  * memory introspection capabilities of Redis.
+ * memory 命令最终将成为 Redis 的内存自省能力的完整接口。
  *
  * Usage: MEMORY usage <key> */
 void memoryCommand(client *c) {
@@ -1623,8 +1733,8 @@ NULL
         addReplyBulkCString(c,"rss-overhead.bytes");
         addReplyLongLong(c,mh->rss_extra_bytes);
 
-        addReplyBulkCString(c,"fragmentation"); /* this is the total RSS overhead, including fragmentation */
-        addReplyDouble(c,mh->total_frag); /* it is kept here for backwards compatibility */
+        addReplyBulkCString(c,"fragmentation"); /* this is the total RSS overhead, including fragmentation 这是总的 RSS 开销，包括碎片*/
+        addReplyDouble(c,mh->total_frag); /* it is kept here for backwards compatibility 它保留在这里是为了向后兼容*/
 
         addReplyBulkCString(c,"fragmentation.bytes");
         addReplyLongLong(c,mh->total_frag_bytes);

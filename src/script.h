@@ -54,17 +54,37 @@
  * - SCRIPT_KILL - kill the current running script.
  * - SCRIPT_CONTINUE - keep running the current script.
  */
+/**
+ * Script.c 单元为函数和 eval 提供了与 Redis 交互的 API。
+ * 交互主要包括执行命令，但也包括在长脚本上调用 Redis 或检查脚本是否被终止等功能。
+ * 交互是使用需要由用户创建并使用 scriptPrepareForRun 初始化的 scriptRunCtx 对象完成的。
+ * 单元公开功能的详细列表：
+ *   1. 调用命令（包括所有验证检查，如 acl、集群、只读运行，...）
+ *   2. 设置 Resp
+ *   3. 设置复制方法（AOFREPLICATIONNONE）
+ *   4. 回调 Redis在长时间运行的脚本上允许 Redis 回复客户端并执行脚本 kill scriptInterrupt
+ * 函数将返回其中一个值，
+ *   - SCRIPT_KILL - 杀死当前正在运行的脚本。
+ *   - SCRIPT_CONTINUE - 继续运行当前脚本。
+ * */
 #define SCRIPT_KILL 1
 #define SCRIPT_CONTINUE 2
 
 /* runCtx flags */
-#define SCRIPT_WRITE_DIRTY            (1ULL<<0) /* indicate that the current script already performed a write command */
-#define SCRIPT_TIMEDOUT               (1ULL<<3) /* indicate that the current script timedout */
-#define SCRIPT_KILLED                 (1ULL<<4) /* indicate that the current script was marked to be killed */
-#define SCRIPT_READ_ONLY              (1ULL<<5) /* indicate that the current script should only perform read commands */
-#define SCRIPT_ALLOW_OOM              (1ULL<<6) /* indicate to allow any command even if OOM reached */
-#define SCRIPT_EVAL_MODE              (1ULL<<7) /* Indicate that the current script called from legacy Lua */
-#define SCRIPT_ALLOW_CROSS_SLOT       (1ULL<<8) /* Indicate that the current script may access keys from multiple slots */
+#define SCRIPT_WRITE_DIRTY            (1ULL<<0) /* indicate that the current script already performed a write command
+ *                                                  表示当前脚本已经执行了写命令*/
+#define SCRIPT_TIMEDOUT               (1ULL<<3) /* indicate that the current script timedout
+ *                                                  表示当前脚本超时*/
+#define SCRIPT_KILLED                 (1ULL<<4) /* indicate that the current script was marked to be killed
+ *                                                  表示当前脚本被标记为被杀死*/
+#define SCRIPT_READ_ONLY              (1ULL<<5) /* indicate that the current script should only perform read commands
+ *                                                  表示当前脚本应该只执行读取命令*/
+#define SCRIPT_ALLOW_OOM              (1ULL<<6) /* indicate to allow any command even if OOM reached
+ *                                                 指示即使达到 OOM 也允许任何命令*/
+#define SCRIPT_EVAL_MODE              (1ULL<<7) /* Indicate that the current script called from legacy Lua
+ *                                                 指示从旧版 Lua 调用的当前脚本*/
+#define SCRIPT_ALLOW_CROSS_SLOT       (1ULL<<8) /* Indicate that the current script may access keys from multiple slots
+ *                                                  表示当前脚本可以访问多个槽的键*/
 typedef struct scriptRunCtx scriptRunCtx;
 
 struct scriptRunCtx {
@@ -82,7 +102,8 @@ struct scriptRunCtx {
 #define SCRIPT_FLAG_ALLOW_OOM        (1ULL<<1)
 #define SCRIPT_FLAG_ALLOW_STALE      (1ULL<<2)
 #define SCRIPT_FLAG_NO_CLUSTER       (1ULL<<3)
-#define SCRIPT_FLAG_EVAL_COMPAT_MODE (1ULL<<4) /* EVAL Script backwards compatible behavior, no shebang provided */
+#define SCRIPT_FLAG_EVAL_COMPAT_MODE (1ULL<<4) /* EVAL Script backwards compatible behavior, no shebang provided
+ *                                                EVAL 脚本向后兼容的行为，不提供 shebang*/
 #define SCRIPT_FLAG_ALLOW_CROSS_SLOT (1ULL<<5)
 
 /* Defines a script flags */

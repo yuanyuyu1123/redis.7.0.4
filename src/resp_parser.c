@@ -54,6 +54,18 @@
  * PARSING USER INPUT.
  * ----------------------------------------------------------------------------------------
  */
+/**
+ * 一个 RESP 解析器，用于解析 RM_Call 或 Lua 的“redis.call()”返回的回复。解析器引入了需要用户设置的回调。
+ * 每个回调代表不同的回复类型。每个回调都会获得一个 p_ctx，该 p_ctx 已被赋予 parseReply 函数。
+ * 回调还给出了当前回复的协议（底层 blob）和大小。一些回调还获取解析器对象本身：
+ *  - array_callback
+ *  - set_callback
+ *  - map_callback
+ *这些回调需要根据提供的长度多次调用 parseReply 来继续解析。随后的 parseReply 调用可能使用不同的 p_ctx，
+ * 它将用于嵌套的 CallReply 对象。这些回调也没有收到 proto_len，在解析时是未知的。调用者可以在解析整个集合后自己计算。
+ * 注意：此解析器旨在仅处理 Redis 自身生成的回复。它不执行许多必需的验证，因此对于解析用户输入是不安全的。
+ * -------------------------------------------------- --------------------------------------
+ * */
 
 #include "resp_parser.h"
 #include "server.h"
@@ -207,6 +219,7 @@ static int parseMap(ReplyParser *parser, void *p_ctx) {
 }
 
 /* Parse a reply pointed to by parser->curr_location. */
+//解析 parser->curr_location 指向的回复。
 int parseReply(ReplyParser *parser, void *p_ctx) {
     switch (parser->curr_location[0]) {
         case '$': return parseBulk(parser, p_ctx);

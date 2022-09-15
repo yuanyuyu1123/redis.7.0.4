@@ -42,6 +42,7 @@
 #include <math.h>
 
 /* Globals that are added by the Lua libraries */
+//Lua 库添加的全局变量
 static char *libraries_allow_list[] = {
     "string",
     "cjson",
@@ -93,12 +94,14 @@ static char *lua_builtins_allow_list[] = {
 };
 
 /* Lua builtins which are not documented on the Lua documentation */
+//Lua 文档中未记录的 Lua 内置函数
 static char *lua_builtins_not_documented_allow_list[] = {
     "newproxy",
     NULL,
 };
 
 /* Lua builtins which are allowed on initialization but will be removed right after */
+//Lua 内置函数，在初始化时允许，但会在初始化后立即删除
 static char *lua_builtins_removed_after_initialization_allow_list[] = {
     "debug", /* debug will be set to nil after the error handler will be created */
     NULL,
@@ -112,6 +115,11 @@ static char *lua_builtins_removed_after_initialization_allow_list[] = {
  *
  * Also notice that the allow list is only checked on start time,
  * after that the global table is locked so not need to check anything.*/
+/**
+ * 这些允许列表是从首次引入允许列表时用户可用的全局变量创建的。因为我们不想破坏向后兼容性，所以我们保留所有全局变量。
+ * 允许列表将防止我们将来意外创建不需要的全局变量。
+ * 另请注意，仅在开始时间检查允许列表，之后全局表被锁定，因此无需检查任何内容。
+ * */
 static char **allow_lists[] = {
     libraries_allow_list,
     redis_api_allow_list,
@@ -125,6 +133,10 @@ static char **allow_lists[] = {
  * and there is no need to print a warning message form them. We will print a
  * log message only if an element was added to the globals and the element is
  * not on the allow list nor on the back list. */
+/**
+ * 拒绝列表包含我们知道我们不想添加到全局变量的元素，并且不需要从它们中打印警告消息。
+ * 仅当将元素添加到全局变量中并且该元素既不在允许列表中也不在后备列表中时，我们才会打印日志消息。
+ * */
 static char *deny_list[] = {
     "dofile",
     "loadfile",
@@ -155,6 +167,7 @@ static void luaReplyToRedisReply(client *c, client* script_client, lua_State *lu
  * Save the give pointer on Lua registry, used to save the Lua context and
  * function context so we can retrieve them from lua_State.
  */
+//将给定指针保存在 Lua 注册表中，用于保存 Lua 上下文和函数上下文，以便我们可以从 lua_State 中检索它们。
 void luaSaveOnRegistry(lua_State* lua, const char* name, void* ptr) {
     lua_pushstring(lua, name);
     if (ptr) {
@@ -168,6 +181,7 @@ void luaSaveOnRegistry(lua_State* lua, const char* name, void* ptr) {
 /*
  * Get a saved pointer from registry
  */
+//从注册表中获取保存的指针
 void* luaGetFromRegistry(lua_State* lua, const char* name) {
     lua_pushstring(lua, name);
     lua_gettable(lua, LUA_REGISTRYINDEX);
@@ -207,6 +221,14 @@ void* luaGetFromRegistry(lua_State* lua, const char* name) {
  * Errors are returned as a table with a single 'err' field set to the
  * error string.
  */
+/**
+ * 以 Redis 协议格式获取 Redis 回复，并将其转换为 Lua 类型。
+ * 由于这个功能，以及未连接客户端的引入，实现 redis() lua 功能是微不足道的。
+ * 基本上我们获取参数，在非连接客户端的上下文中执行 Redis 命令，然后获取生成的回复并将其转换为合适的 Lua 类型。
+ * 有了这个技巧，脚本功能不需要引入完整的 Redis 内部 API。该脚本就像一个绕过所有慢速 IO 路径的普通客户端。
+ * 注意：在这个函数中，我们不做任何完整性检查，因为回复是由 Redis 直接生成的。这让我们走得更快。
+ * 错误以表的形式返回，其中一个“err”字段设置为错误字符串。
+ * */
 
 static const ReplyParserCallbacks DefaultLuaTypeParserCallbacks = {
     .null_array_callback = redisProtocolToLuaType_NullArray,
@@ -527,6 +549,11 @@ static void redisProtocolToLuaType_Double(void *ctx, double d, const char *proto
  * since the returned tables are otherwise always indexed by integers, never by strings.
  *
  * The function takes ownership on the given err_buffer. */
+/**
+ * 此函数用于以 redis.pcall 使用的格式将错误推送到 Lua 堆栈以返回错误，这是一个 lua 表，
+ * 其中“err”字段设置为包含错误代码的错误字符串。
+ * 请注意，此表永远不是正确命令的有效回复，因为返回的表总是由整数索引，而不是字符串。该函数对给定的 err_buffer 拥有所有权。
+ * */
 void luaPushErrorBuff(lua_State *lua, sds err_buffer) {
     sds msg;
     sds error_code;
@@ -581,6 +608,10 @@ void luaPushError(lua_State *lua, const char *error) {
  * by the non-error-trapping version of redis.pcall(), which is redis.call(),
  * this function will raise the Lua error so that the execution of the
  * script will be halted. */
+/**
+ * 如果 luaPushError() 设置到 Lua 堆栈中的错误是由 redis.pcall() 的非错误捕获版本，即 redis.call() 产生的，
+ * 该函数将引发 Lua 错误，以便执行脚本将停止。
+ * */
 int luaError(lua_State *lua) {
     return lua_error(lua);
 }
@@ -592,6 +623,7 @@ int luaError(lua_State *lua) {
 
 /* Reply to client 'c' converting the top element in the Lua stack to a
  * Redis reply. As a side effect the element is consumed from the stack.  */
+//回复客户端“c”，将 Lua 堆栈中的顶部元素转换为 Redis 回复。作为副作用，元素从堆栈中消耗。
 static void luaReplyToRedisReply(client *c, client* script_client, lua_State *lua) {
     int t = lua_type(lua,-1);
 
@@ -600,6 +632,10 @@ static void luaReplyToRedisReply(client *c, client* script_client, lua_State *lu
          * to push 4 elements to the stack. On failure, return error.
          * Notice that we need, in the worst case, 4 elements because returning a map might
          * require push 4 elements to the Lua stack.*/
+        /**
+         * 如果需要，增加 Lua 堆栈以确保有足够的空间将 4 个元素推入堆栈。失败时，返回错误。
+         * 请注意，在最坏的情况下，我们需要 4 个元素，因为返回地图可能需要将 4 个元素推送到 Lua 堆栈。
+         * */
         addReplyErrorFormat(c, "reached lua stack limit");
         lua_pop(lua,1); /* pop the element from the stack */
         return;
@@ -951,6 +987,11 @@ cleanup:
  * object is a string. To keep backward
  * comparability we catch the table object
  * and just return the error message. */
+/**
+ * 我们对 lua pcall 的实现。我们需要这个实现来与旧的 Redis 版本进行向后比较。
+ * 在 Redis 7 上，错误对象是一个表，而旧版本的错误对象是一个字符串。
+ * 为了保持向后可比性，我们捕获表对象并仅返回错误消息。
+ * */
 static int luaRedisPcall(lua_State *lua) {
     int argc = lua_gettop(lua);
     lua_pushboolean(lua, 1); /* result place holder */
@@ -983,6 +1024,7 @@ static int luaRedisPCallCommand(lua_State *lua) {
 
 /* This adds redis.sha1hex(string) to Lua scripts using the same hashing
  * function used for sha1ing lua scripts. */
+//这会将 redis.sha1hex(string) 添加到 Lua 脚本中，使用与 sha1ing lua 脚本相同的哈希函数。
 static int luaRedisSha1hexCommand(lua_State *lua) {
     int argc = lua_gettop(lua);
     char digest[41];
@@ -1003,6 +1045,8 @@ static int luaRedisSha1hexCommand(lua_State *lua) {
 /* Returns a table with a single field 'field' set to the string value
  * passed as argument. This helper function is handy when returning
  * a Redis Protocol error or status reply from Lua:
+ * 返回一个表，其中单个字段“字段”设置为作为参数传递的字符串值。
+ * 当从 Lua 返回 Redis 协议错误或状态回复时，此辅助函数很方便：
  *
  * return redis.error_reply("ERR Some Error")
  * return redis.status_reply("ERR Some Error")
@@ -1048,6 +1092,7 @@ static int luaRedisStatusReplyCommand(lua_State *lua) {
  *
  * Set the propagation of write commands executed in the context of the
  * script to on/off for AOF and slaves. */
+//将在脚本上下文中执行的写入命令的传播设置为 AOF 和从属的 onoff。
 static int luaRedisSetReplCommand(lua_State *lua) {
     int flags, argc = lua_gettop(lua);
 
@@ -1075,6 +1120,7 @@ static int luaRedisSetReplCommand(lua_State *lua) {
 /* redis.acl_check_cmd()
  *
  * Checks ACL permissions for given command for the current user. */
+//检查当前用户给定命令的 ACL 权限。
 static int luaRedisAclCheckCmdPermissionsCommand(lua_State *lua) {
     scriptRunCtx* rctx = luaGetFromRegistry(lua, REGISTRY_RUN_CTX_NAME);
     if (!rctx) {
@@ -1198,7 +1244,8 @@ static void luaLoadLibraries(lua_State *lua) {
     luaLoadLib(lua, "cmsgpack", luaopen_cmsgpack);
     luaLoadLib(lua, "bit", luaopen_bit);
 
-#if 0 /* Stuff that we don't load currently, for sandboxing concerns. */
+#if 0 /* Stuff that we don't load currently, for sandboxing concerns.
+ *        我们目前不加载的东西，用于沙盒问题。*/
     luaLoadLib(lua, LUA_LOADLIBNAME, luaopen_package);
     luaLoadLib(lua, LUA_OSLIBNAME, luaopen_os);
 #endif
@@ -1206,6 +1253,7 @@ static void luaLoadLibraries(lua_State *lua) {
 
 /* Return sds of the string value located on stack at the given index.
  * Return NULL if the value is not a string. */
+//返回位于给定索引处堆栈上的字符串值的 sds。如果值不是字符串，则返回 NULL。
 sds luaGetStringSds(lua_State *lua, int index) {
     if (!lua_isstring(lua, index)) {
         return NULL;
@@ -1238,6 +1286,10 @@ static int luaProtectedTableError(lua_State *lua) {
  * The function assumes the Lua stack have a least enough
  * space to push 2 element, its up to the caller to verify
  * this before calling this function. */
+/**
+ * 在堆栈顶部的表上设置一个特殊的元表。如果用户尝试获取不存在的值，元表将引发错误。
+ * 该函数假定 Lua 堆栈有至少足够的空间来推送 2 个元素，它由调用者在调用此函数之前验证这一点。
+ * */
 void luaSetErrorMetatable(lua_State *lua) {
     lua_newtable(lua); /* push metatable */
     lua_pushcfunction(lua, luaProtectedTableError); /* push get error handler */
@@ -1296,6 +1348,7 @@ static int luaNewIndexAllowList(lua_State *lua) {
  * The metatable is set on the table which located on the top
  * of the stack.
  */
+//使用 '__newindex' 函数设置一个元表，以验证新索引是否出现在我们的全局变量 while 列表中。元表设置在位于堆栈顶部的表上。
 void luaSetAllowListProtection(lua_State *lua) {
     lua_newtable(lua); /* push metatable */
     lua_pushcfunction(lua, luaNewIndexAllowList); /* push get error handler */
@@ -1306,6 +1359,7 @@ void luaSetAllowListProtection(lua_State *lua) {
 /* Set the readonly flag on the table located on the top of the stack
  * and recursively call this function on each table located on the original
  * table.  Also, recursively call this function on the metatables.*/
+//在位于堆栈顶部的表上设置只读标志，并在位于原始表上的每个表上递归调用此函数。此外，在元表上递归调用此函数。
 void luaSetTableProtectionRecursively(lua_State *lua) {
     /* This protect us from a loop in case we already visited the table
      * For example, globals has '_G' key which is pointing back to globals. */
@@ -1460,6 +1514,7 @@ void luaRegisterRedisAPI(lua_State* lua) {
 
 /* Set an array of Redis String Objects as a Lua array (table) stored into a
  * global variable. */
+//将 Redis 字符串对象数组设置为存储到全局变量中的 Lua 数组（表）。
 static void luaCreateArray(lua_State *lua, robj **elev, int elec) {
     int j;
 
@@ -1480,6 +1535,10 @@ static void luaCreateArray(lua_State *lua, robj **elev, int elec) {
 
 /* The following implementation is the one shipped with Lua itself but with
  * rand() replaced by redisLrand48(). */
+/**
+ * 我们将 math.random() 替换为不受特定 libc random() 实现影响的实现，并将在每个拱门中输出相同的序列（对于相同的种子）。
+ * 以下实现是 Lua 本身附带的，但 rand() 被 redisLrand48() 替换。
+ * */
 static int redis_math_random (lua_State *L) {
   scriptRunCtx* rctx = luaGetFromRegistry(L, REGISTRY_RUN_CTX_NAME);
   if (!rctx) {
@@ -1523,6 +1582,7 @@ static int redis_math_randomseed (lua_State *L) {
 }
 
 /* This is the Lua script "count" hook that we use to detect scripts timeout. */
+//这是我们用来检测脚本超时的 Lua 脚本“计数”钩子。
 static void luaMaskCountHook(lua_State *lua, lua_Debug *ar) {
     UNUSED(ar);
     scriptRunCtx* rctx = luaGetFromRegistry(lua, REGISTRY_RUN_CTX_NAME);

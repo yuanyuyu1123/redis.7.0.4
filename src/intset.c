@@ -77,11 +77,13 @@ static int64_t _intsetGetEncoded(intset *is, int pos, uint8_t enc) {
 }
 
 /* Return the value at pos, using the configured encoding. */
+//使用配置的编码返回 pos 处的值。
 static int64_t _intsetGet(intset *is, int pos) {
     return _intsetGetEncoded(is,pos,intrev32ifbe(is->encoding));
 }
 
 /* Set the value at pos, using the configured encoding. */
+//使用配置的编码设置 pos 的值。
 static void _intsetSet(intset *is, int pos, int64_t value) {
     uint32_t encoding = intrev32ifbe(is->encoding);
 
@@ -117,6 +119,10 @@ static intset *intsetResize(intset *is, uint32_t len) {
  * sets "pos" to the position of the value within the intset. Return 0 when
  * the value is not present in the intset and sets "pos" to the position
  * where "value" can be inserted. */
+/**
+ * 搜索“价值”的位置。找到值时返回 1，并将“pos”设置为值在 intset 中的位置。
+ * 当 intset 中不存在该值时返回 0，并将“pos”设置为可以插入“value”的位置。
+ * */
 static uint8_t intsetSearch(intset *is, int64_t value, uint32_t *pos) {
     int min = 0, max = intrev32ifbe(is->length)-1, mid = -1;
     int64_t cur = -1;
@@ -159,6 +165,7 @@ static uint8_t intsetSearch(intset *is, int64_t value, uint32_t *pos) {
 }
 
 /* Upgrades the intset to a larger encoding and inserts the given integer. */
+//将 intset 升级为更大的编码并插入给定的整数。
 static intset *intsetUpgradeAndAdd(intset *is, int64_t value) {
     uint8_t curenc = intrev32ifbe(is->encoding);
     uint8_t newenc = _intsetValueEncoding(value);
@@ -256,6 +263,7 @@ intset *intsetRemove(intset *is, int64_t value, int *success) {
 }
 
 /* Determine whether a value belongs to this set */
+//判断一个值是否属于这个集合
 uint8_t intsetFind(intset *is, int64_t value) {
     uint8_t valenc = _intsetValueEncoding(value);
     return valenc <= intrev32ifbe(is->encoding) && intsetSearch(is,value,NULL);
@@ -270,6 +278,7 @@ int64_t intsetRandom(intset *is) {
 
 /* Get the value at the given position. When this position is
  * out of range the function returns 0, when in range it returns 1. */
+//获取给定位置的值。当该位置超出范围时，函数返回 0，在范围内时返回 1。
 uint8_t intsetGet(intset *is, uint32_t pos, int64_t *value) {
     if (pos < intrev32ifbe(is->length)) {
         *value = _intsetGet(is,pos);
@@ -283,7 +292,7 @@ uint32_t intsetLen(const intset *is) {
     return intrev32ifbe(is->length);
 }
 
-/* Return intset blob size in bytes. */
+/* Return intset blob size in bytes. 返回 intset blob 大小（以字节为单位）。*/
 size_t intsetBlobLen(intset *is) {
     return sizeof(intset)+(size_t)intrev32ifbe(is->length)*intrev32ifbe(is->encoding);
 }
@@ -291,6 +300,7 @@ size_t intsetBlobLen(intset *is) {
 /* Validate the integrity of the data structure.
  * when `deep` is 0, only the integrity of the header is validated.
  * when `deep` is 1, we make sure there are no duplicate or out of order records. */
+//验证数据结构的完整性。当 `deep` 为 0 时，仅验证标头的完整性。当 `deep` 为 1 时，我们确保没有重复或乱序记录。
 int intsetValidateIntegrity(const unsigned char *p, size_t size, int deep) {
     intset *is = (intset *)p;
     /* check that we can actually read the header. */

@@ -37,6 +37,8 @@
 /* Check the length of a number of objects to see if we need to convert a
  * listpack to a real hash. Note that we only check string encoded objects
  * as their string length can be queried in constant time. */
+//检查多个对象的长度，看看我们是否需要将列表包转换为真正的哈希。
+// 请注意，我们只检查字符串编码的对象，因为它们的字符串长度可以在恒定时间内查询。
 void hashTypeTryConversion(robj *o, robj **argv, int start, int end) {
     int i;
     size_t sum = 0;
@@ -59,6 +61,7 @@ void hashTypeTryConversion(robj *o, robj **argv, int start, int end) {
 
 /* Get the value from a listpack encoded hash, identified by field.
  * Returns -1 when the field cannot be found. */
+//从列表包编码的哈希中获取值，由字段标识。找不到字段时返回 -1。
 int hashTypeGetFromListpack(robj *o, sds field,
                             unsigned char **vstr,
                             unsigned int *vlen,
@@ -74,6 +77,7 @@ int hashTypeGetFromListpack(robj *o, sds field,
         fptr = lpFind(zl, fptr, (unsigned char*)field, sdslen(field), 1);
         if (fptr != NULL) {
             /* Grab pointer to the value (fptr points to the field) */
+            //抓取指向值的指针（fptr 指向字段）
             vptr = lpNext(zl, fptr);
             serverAssert(vptr != NULL);
         }
@@ -90,6 +94,7 @@ int hashTypeGetFromListpack(robj *o, sds field,
 /* Get the value from a hash table encoded hash, identified by field.
  * Returns NULL when the field cannot be found, otherwise the SDS value
  * is returned. */
+//从哈希表编码的哈希中获取值，由字段标识。找不到字段时返回 NULL，否则返回 SDS 值。
 sds hashTypeGetFromHashTable(robj *o, sds field) {
     dictEntry *de;
 
@@ -109,6 +114,12 @@ sds hashTypeGetFromHashTable(robj *o, sds field) {
  * If *vll is populated *vstr is set to NULL, so the caller
  * can always check the function return by checking the return value
  * for C_OK and checking if vll (or vstr) is NULL. */
+/**
+ * hashTypeGet() 的更高级别函数，它返回与指定字段关联的哈希值。如果找到该字段，则返回 C_OK，否则返回 C_ERR。
+ * 返回的对象如果以字符串形式返回，则在 vstr 和 vlen 中通过引用返回，如果以数字形式返回，则存储在 vll 中。
+ * 如果填充了 vll，则 vstr 设置为 NULL，因此调用者始终可以通过检查 C_OK 的返回值
+ * 并检查 vll（或 vstr）是否为 NULL 来检查函数返回。
+ * */
 int hashTypeGetValue(robj *o, sds field, unsigned char **vstr, unsigned int *vlen, long long *vll) {
     if (o->encoding == OBJ_ENCODING_LISTPACK) {
         *vstr = NULL;
@@ -131,6 +142,10 @@ int hashTypeGetValue(robj *o, sds field, unsigned char **vstr, unsigned int *vle
  * interaction with the hash type outside t_hash.c.
  * The function returns NULL if the field is not found in the hash. Otherwise
  * a newly allocated string object with the value is returned. */
+/**
+ * 与 hashTypeGetValue() 类似，但返回一个 Redis 对象，这对于与 t_hash.c 之外的哈希类型进行交互很有用。
+ * 如果在散列中找不到该字段，则该函数返回 NULL。否则返回一个新分配的带有该值的字符串对象。
+ * */
 robj *hashTypeGetValueObject(robj *o, sds field) {
     unsigned char *vstr;
     unsigned int vlen;
@@ -144,6 +159,7 @@ robj *hashTypeGetValueObject(robj *o, sds field) {
 /* Higher level function using hashTypeGet*() to return the length of the
  * object associated with the requested field, or 0 if the field does not
  * exist. */
+//更高级别的函数使用 hashTypeGet() 返回与请求字段关联的对象的长度，如果该字段不存在，则返回 0。
 size_t hashTypeGetValueLength(robj *o, sds field) {
     size_t len = 0;
     unsigned char *vstr = NULL;
@@ -158,6 +174,7 @@ size_t hashTypeGetValueLength(robj *o, sds field) {
 
 /* Test if the specified field exists in the given hash. Returns 1 if the field
  * exists, and 0 when it doesn't. */
+//测试指定的字段是否存在于给定的哈希中。如果字段存在则返回 1，如果不存在则返回 0。
 int hashTypeExists(robj *o, sds field) {
     unsigned char *vstr = NULL;
     unsigned int vlen = UINT_MAX;
@@ -184,6 +201,15 @@ int hashTypeExists(robj *o, sds field) {
  * semantics of copying the values if needed.
  *
  */
+/**
+ * 添加一个新字段，如果它已经存在，则用新值覆盖旧字段。
+ * 插入时返回 0，更新时返回 1。默认情况下，如果需要，会复制键和值 SDS 字符串，因此调用者保留传递的字符串的所有权。
+ * 然而，这种行为可以通过传递适当的标志（可能是按位 OR-ed）来实现：
+ *   HASH_SET_TAKE_FIELD -- SDS 字段所有权传递给函数。
+ *   HASH_SET_TAKE_VALUE -- SDS 值所有权传递给函数。
+ * 当使用标志时，调用者不需要释放传递的 SDS 字符串。在返回给调用者之前，由函数使用字符串来创建新条目或释放 SDS 字符串。
+ * HASH_SET_COPY 对应于没有传递标志，并且意味着如果需要复制值的默认语义。
+ * */
 #define HASH_SET_TAKE_FIELD (1<<0)
 #define HASH_SET_TAKE_VALUE (1<<1)
 #define HASH_SET_COPY 0
@@ -193,6 +219,8 @@ int hashTypeSet(robj *o, sds field, sds value, int flags) {
     /* Check if the field is too long for listpack, and convert before adding the item.
      * This is needed for HINCRBY* case since in other commands this is handled early by
      * hashTypeTryConversion, so this check will be a NOP. */
+    //检查该字段是否对于列表包来说太长，并在添加项目之前进行转换。
+    // 这对于 HINCRBY 情况是必需的，因为在其他命令中这是由 hashTypeTryConversion 早期处理的，因此此检查将是 NOP。
     if (o->encoding == OBJ_ENCODING_LISTPACK) {
         if (sdslen(field) > server.hash_max_listpack_value || sdslen(value) > server.hash_max_listpack_value)
             hashTypeConvert(o, OBJ_ENCODING_HT);
@@ -207,6 +235,7 @@ int hashTypeSet(robj *o, sds field, sds value, int flags) {
             fptr = lpFind(zl, fptr, (unsigned char*)field, sdslen(field), 1);
             if (fptr != NULL) {
                 /* Grab pointer to the value (fptr points to the field) */
+                //抓取指向值的指针（fptr 指向字段）
                 vptr = lpNext(zl, fptr);
                 serverAssert(vptr != NULL);
                 update = 1;
@@ -218,12 +247,14 @@ int hashTypeSet(robj *o, sds field, sds value, int flags) {
 
         if (!update) {
             /* Push new field/value pair onto the tail of the listpack */
+            //将新的字段值对推送到列表包的尾部
             zl = lpAppend(zl, (unsigned char*)field, sdslen(field));
             zl = lpAppend(zl, (unsigned char*)value, sdslen(value));
         }
         o->ptr = zl;
 
         /* Check if the listpack needs to be converted to a hash table */
+        //检查listpack是否需要转换为哈希表
         if (hashTypeLength(o) > server.hash_max_listpack_entries)
             hashTypeConvert(o, OBJ_ENCODING_HT);
     } else if (o->encoding == OBJ_ENCODING_HT) {
@@ -259,6 +290,7 @@ int hashTypeSet(robj *o, sds field, sds value, int flags) {
 
     /* Free SDS strings we did not referenced elsewhere if the flags
      * want this function to be responsible. */
+    //如果标志希望这个函数负责，我们没有在其他地方引用的免费 SDS 字符串。
     if (flags & HASH_SET_TAKE_FIELD && field) sdsfree(field);
     if (flags & HASH_SET_TAKE_VALUE && value) sdsfree(value);
     return update;
@@ -266,6 +298,7 @@ int hashTypeSet(robj *o, sds field, sds value, int flags) {
 
 /* Delete an element from a hash.
  * Return 1 on deleted and 0 on not found. */
+//从哈希中删除一个元素。删除返回 1，未找到返回 0。
 int hashTypeDelete(robj *o, sds field) {
     int deleted = 0;
 
@@ -277,7 +310,7 @@ int hashTypeDelete(robj *o, sds field) {
         if (fptr != NULL) {
             fptr = lpFind(zl, fptr, (unsigned char*)field, sdslen(field), 1);
             if (fptr != NULL) {
-                /* Delete both of the key and the value. */
+                /* Delete both of the key and the value. 删除键和值。*/
                 zl = lpDeleteRangeWithEntry(zl,&fptr,2);
                 o->ptr = zl;
                 deleted = 1;
@@ -288,6 +321,7 @@ int hashTypeDelete(robj *o, sds field) {
             deleted = 1;
 
             /* Always check if the dictionary needs a resize after a delete. */
+            //始终检查字典是否需要在删除后调整大小。
             if (htNeedsResize(o->ptr)) dictResize(o->ptr);
         }
 
@@ -298,6 +332,7 @@ int hashTypeDelete(robj *o, sds field) {
 }
 
 /* Return the number of elements in a hash. */
+//返回哈希中的元素数。
 unsigned long hashTypeLength(const robj *o) {
     unsigned long length = ULONG_MAX;
 
@@ -335,6 +370,7 @@ void hashTypeReleaseIterator(hashTypeIterator *hi) {
 
 /* Move to the next entry in the hash. Return C_OK when the next entry
  * could be found and C_ERR when the iterator reaches the end. */
+//移动到哈希中的下一个条目。当可以找到下一个条目时返回 C_OK，当迭代器到达末尾时返回 C_ERR。
 int hashTypeNext(hashTypeIterator *hi) {
     if (hi->encoding == OBJ_ENCODING_LISTPACK) {
         unsigned char *zl;
@@ -356,10 +392,12 @@ int hashTypeNext(hashTypeIterator *hi) {
         if (fptr == NULL) return C_ERR;
 
         /* Grab pointer to the value (fptr points to the field) */
+        //抓取指向值的指针（fptr 指向字段）
         vptr = lpNext(zl, fptr);
         serverAssert(vptr != NULL);
 
         /* fptr, vptr now point to the first or next pair */
+        //fptr, vptr 现在指向第一对或下一对
         hi->fptr = fptr;
         hi->vptr = vptr;
     } else if (hi->encoding == OBJ_ENCODING_HT) {
@@ -372,6 +410,7 @@ int hashTypeNext(hashTypeIterator *hi) {
 
 /* Get the field or value at iterator cursor, for an iterator on a hash value
  * encoded as a listpack. Prototype is similar to `hashTypeGetFromListpack`. */
+//获取迭代器光标处的字段或值，用于编码为列表包的哈希值上的迭代器。原型类似于 `hashTypeGetFromListpack`。
 void hashTypeCurrentFromListpack(hashTypeIterator *hi, int what,
                                  unsigned char **vstr,
                                  unsigned int *vlen,
@@ -389,6 +428,7 @@ void hashTypeCurrentFromListpack(hashTypeIterator *hi, int what,
 /* Get the field or value at iterator cursor, for an iterator on a hash value
  * encoded as a hash table. Prototype is similar to
  * `hashTypeGetFromHashTable`. */
+//获取迭代器光标处的字段或值，用于编码为哈希表的哈希值的迭代器。原型类似于 `hashTypeGetFromHashTable`。
 sds hashTypeCurrentFromHashTable(hashTypeIterator *hi, int what) {
     serverAssert(hi->encoding == OBJ_ENCODING_HT);
 
@@ -409,6 +449,11 @@ sds hashTypeCurrentFromHashTable(hashTypeIterator *hi, int what) {
  * If *vll is populated *vstr is set to NULL, so the caller
  * can always check the function return by checking the return value
  * type checking if vstr == NULL. */
+/**
+ * hashTypeCurrent() 的更高级别函数，它返回当前迭代器位置的哈希值。
+ * 如果以字符串形式返回，则返回的元素在 vstr 和 vlen 中通过引用返回，如果以数字形式返回，则存储在 vll 中。
+ * 如果填充了 vll，则将 vstr 设置为 NULL，因此调用者始终可以通过检查返回值类型来检查函数返回，如果 vstr == NULL。
+ * */
 void hashTypeCurrentObject(hashTypeIterator *hi, int what, unsigned char **vstr, unsigned int *vlen, long long *vll) {
     if (hi->encoding == OBJ_ENCODING_LISTPACK) {
         *vstr = NULL;
@@ -424,6 +469,7 @@ void hashTypeCurrentObject(hashTypeIterator *hi, int what, unsigned char **vstr,
 
 /* Return the key or value at the current iterator position as a new
  * SDS string. */
+//将当前迭代器位置的键或值作为新的 SDS 字符串返回。
 sds hashTypeCurrentObjectNewSds(hashTypeIterator *hi, int what) {
     unsigned char *vstr;
     unsigned int vlen;
@@ -461,6 +507,7 @@ void hashTypeConvertListpack(robj *o, int enc) {
         dict = dictCreate(&hashDictType);
 
         /* Presize the dict to avoid rehashing */
+        //预先调整字典的大小以避免重新散列
         dictExpand(dict,hashTypeLength(o));
 
         while (hashTypeNext(hi) != C_ERR) {
@@ -501,6 +548,7 @@ void hashTypeConvert(robj *o, int enc) {
  * has the same encoding as the original one.
  *
  * The resulting object always has refcount set to 1 */
+//这是 COPY 命令的辅助函数。复制一个哈希对象，并保证返回的对象与原始对象具有相同的编码。结果对象始终将 refcount 设置为 1
 robj *hashTypeDup(robj *o) {
     robj *hobj;
     hashTypeIterator *hi;
@@ -542,11 +590,13 @@ robj *hashTypeDup(robj *o) {
 }
 
 /* Create a new sds string from the listpack entry. */
+//从 listpack 条目创建一个新的 sds 字符串。
 sds hashSdsFromListpackEntry(listpackEntry *e) {
     return e->sval ? sdsnewlen(e->sval, e->slen) : sdsfromlonglong(e->lval);
 }
 
 /* Reply with bulk string from the listpack entry. */
+//使用 listpack 条目中的批量字符串回复。
 void hashReplyFromListpackEntry(client *c, listpackEntry *e) {
     if (e->sval)
         addReplyBulkCBuffer(c, e->sval, e->slen);
@@ -558,6 +608,8 @@ void hashReplyFromListpackEntry(client *c, listpackEntry *e) {
  * 'key' and 'val' will be set to hold the element.
  * The memory in them is not to be freed or modified by the caller.
  * 'val' can be NULL in which case it's not extracted. */
+//从非空哈希返回随机元素。 'key' 和 'val' 将被设置为保存元素。它们中的内存不会被调用者释放或修改。
+// 'val' 可以为 NULL，在这种情况下它不会被提取。
 void hashTypeRandomElement(robj *hashobj, unsigned long hashsize, listpackEntry *key, listpackEntry *val) {
     if (hashobj->encoding == OBJ_ENCODING_HT) {
         dictEntry *de = dictGetFairRandomKey(hashobj->ptr);
@@ -906,11 +958,13 @@ static void hrandfieldReplyWithListpack(client *c, unsigned int count, listpackE
 /* How many times bigger should be the hash compared to the requested size
  * for us to not use the "remove elements" strategy? Read later in the
  * implementation for more info. */
+//与我们不使用“删除元素”策略的请求大小相比，散列应该大多少倍？稍后阅读实现中的更多信息。
 #define HRANDFIELD_SUB_STRATEGY_MUL 3
 
 /* If client is trying to ask for a very large number of random elements,
  * queuing may consume an unlimited amount of memory, so we want to limit
  * the number of randoms per time. */
+//如果客户端试图请求非常大量的随机元素，排队可能会消耗无限量的内存，因此我们希望限制每次随机的数量。
 #define HRANDFIELD_RANDOM_SAMPLE_LIMIT 1000
 
 void hrandfieldWithCountCommand(client *c, long l, int withvalues) {

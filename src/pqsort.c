@@ -50,6 +50,7 @@ static inline void	 swapfunc (char *, char *, size_t, int);
 
 /*
  * Qsort routine from Bentley & McIlroy's "Engineering a Sort Function".
+ * Bentley & McIlroy 的“Engineering a Sort Function”中的 Qsort 例程。
  */
 #define swapcode(TYPE, parmi, parmj, n) { 		\
 	size_t i = (n) / sizeof (TYPE); 		\
@@ -164,6 +165,7 @@ loop:	SWAPINIT(a, es);
                 void *_l, *_r;
 
 		/* Iterate rather than recurse to save stack space */
+        //迭代而不是递归以节省堆栈空间
 		a = pn - r;
 		n = r / es;
 

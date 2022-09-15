@@ -64,6 +64,7 @@ static sds read_sysfs_line(char *path) {
 
 /* Verify our clokcsource implementation doesn't go through a system call (uses vdso).
  * Going through a system call to check the time degrades Redis performance. */
+//验证我们的 clockcsource 实现没有通过系统调用（使用 vdso）。通过系统调用检查时间会降低 Redis 的性能。
 static int checkClocksource(sds *error_msg) {
     unsigned long test_time_us, system_hz;
     struct timespec ts;
@@ -83,6 +84,11 @@ static int checkClocksource(sds *error_msg) {
      * Using system_hz is required to ensure accurate measurements from getrusage().
      * If our clocksource is configured correctly (vdso) this will result in no system calls.
      * If our clocksource is inefficient it'll waste most of the busy loop in the kernel. */
+    /**
+     * clock_gettime() 5 次系统滴答的繁忙循环（对于 100 的 system_hz，这是 50 毫秒）
+     * 需要使用 system_hz 来确保 getrusage() 的准确测量。如果我们的时钟源配置正确（vdso），这将导致没有系统调用。
+     * 如果我们的时钟源效率低下，它将浪费内核中大部分繁忙的循环。
+     * */
     test_time_us = 5 * 1000000 / system_hz;
     while (1) {
         unsigned long long d;
@@ -97,7 +103,9 @@ static int checkClocksource(sds *error_msg) {
     long long stime_us = (ru_end.ru_stime.tv_sec * 1000000 + ru_end.ru_stime.tv_usec) - (ru_start.ru_stime.tv_sec * 1000000 + ru_start.ru_stime.tv_usec);
     long long utime_us = (ru_end.ru_utime.tv_sec * 1000000 + ru_end.ru_utime.tv_usec) - (ru_start.ru_utime.tv_sec * 1000000 + ru_start.ru_utime.tv_usec);
 
-    /* If more than 10% of the process time was in system calls we probably have an inefficient clocksource, print a warning */
+    /* If more than 10% of the process time was in system calls
+     * we probably have an inefficient clocksource, print a warning */
+    //如果超过 10% 的进程时间在系统调用中，我们可能有一个低效的时钟源，打印一个警告
     if (stime_us * 10 > stime_us + utime_us) {
         sds avail = read_sysfs_line("/sys/devices/system/clocksource/clocksource0/available_clocksource");
         sds curr = read_sysfs_line("/sys/devices/system/clocksource/clocksource0/current_clocksource");
@@ -119,6 +127,10 @@ static int checkClocksource(sds *error_msg) {
 /* Verify we're not using the `xen` clocksource. The xen hypervisor's default clocksource is slow and affects
  * Redis's performance. This has been measured on ec2 xen based instances. ec2 recommends using the non-default
  * tsc clock source for these instances. */
+/**
+ * 验证我们没有使用 `xen` 时钟源。 xen 管理程序的默认时钟源很慢，会影响 Redis 的性能。
+ * 这是在基于 ec2 xen 的实例上测量的。 ec2 建议对这些实例使用非默认 tsc 时钟源。
+ * */
 int checkXenClocksource(sds *error_msg) {
     sds curr = read_sysfs_line("/sys/devices/system/clocksource/clocksource0/current_clocksource");
     int res = 1;
@@ -139,6 +151,10 @@ int checkXenClocksource(sds *error_msg) {
  * When overcommit memory is disabled Linux will kill the forked child of a background save
  * if we don't have enough free memory to satisfy double the current memory usage even though
  * the forked child uses copy-on-write to reduce its actual memory usage. */
+/**
+ * 验证是否启用了过量使用。当禁用过度使用内存时，如果我们没有足够的空闲内存来满足当前内存使用量的两倍，
+ * Linux 将杀死后台保存的分叉子节点，即使分叉子节点使用写时复制来减少其实际内存使用量。
+ * */
 int checkOvercommit(sds *error_msg) {
     FILE *fp = fopen("/proc/sys/vm/overcommit_memory","r");
     char buf[64];
@@ -163,6 +179,7 @@ int checkOvercommit(sds *error_msg) {
 
 /* Make sure transparent huge pages aren't always enabled. When they are this can cause copy-on-write logic
  * to consume much more memory and reduce performance during forks. */
+//确保不总是启用透明大页面。当它们出现时，这可能会导致写时复制逻辑消耗更多内存并降低分叉期间的性能。
 int checkTHPEnabled(sds *error_msg) {
     char buf[1024];
 
@@ -329,6 +346,15 @@ exit:
  *   When (and only when) the check fails and -1 is returned and error description is places in a new sds pointer to by
  *   the single `sds*` argument to `check_fn`. This message should be freed by the caller via `sdsfree()`.
  */
+/**
+ * 标准系统检查接口：每个检查都有一个名称`name`和一个函数指针`check_fn`。 `check_fn`
+ * 应该返回：
+ *   -1 以防检查失败。
+ *   1 如果检查通过。
+ *   0 以防检查无法完成（通常是由于某些意外的失败系统调用）。
+ * 当（且仅当）检查失败并返回 -1 并且错误描述被放置在新的 sds 指针中，该指针由 `check_fn` 的单个 `sds` 参数指向。
+ * 调用者应通过 `sdsfree()` 释放此消息。
+ * */
 typedef struct {
     const char *name;
     int (*check_fn)(sds*);
@@ -348,6 +374,7 @@ check checks[] = {
 };
 
 /* Performs various system checks, returns 0 if any check fails, 1 otherwise. */
+//执行各种系统检查，如果任何检查失败则返回 0，否则返回 1。
 int syscheck(void) {
     check *cur_check = checks;
     int ret = 1;

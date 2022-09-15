@@ -12,7 +12,12 @@
  * It is also possible to set a 'checksum' method that is used by rio.c in order
  * to compute a checksum of the data written or read, or to query the rio object
  * for the current checksum.
- *
+ * rio.c 是一个简单的面向流的 IO 抽象，它提供了一个接口来编写代码，这些代码可以使用不同的具体输入和输出设备来消费产生数据。
+ * 例如，使用 rio 抽象的相同 rdb.c 代码可用于使用内存缓冲区或文件读取和写入 RDB 格式。
+ * rio 对象提供以下方法：
+ *   read：从流中读取。
+ *   write：写入流。
+ *   tell：获取当前偏移量。也可以设置 rio.c 使用的“校验和”方法，以计算写入或读取数据的校验和，或查询 rio 对象以获取当前校验和。
  * ----------------------------------------------------------------------------
  *
  * Copyright (c) 2009-2012, Pieter Noordhuis <pcnoordhuis at gmail dot com>
@@ -80,9 +85,11 @@ static off_t rioBufferTell(rio *r) {
 
 /* Flushes any buffer to target device if applicable. Returns 1 on success
  * and 0 on failures. */
+//如果适用，将任何缓冲区刷新到目标设备。成功返回 1，失败返回 0。
 static int rioBufferFlush(rio *r) {
     UNUSED(r);
-    return 1; /* Nothing to do, our write just appends to the buffer. */
+    return 1; /* Nothing to do, our write just appends to the buffer.
+ *               无事可做，我们的写入只是附加到缓冲区。*/
 }
 
 static const rio rioBufferIO = {
@@ -197,6 +204,7 @@ void rioInitWithFile(rio *r, FILE *fp) {
  * the connection to the memory via rdbLoadRio(), thus this implementation
  * only implements reading from a connection that is, normally,
  * just a socket. */
+//我们在通过 rdbLoadRio() 直接从内存连接读取 RDB 文件时使用此 RIO 实现，因此此实现仅实现从连接读取，通常只是一个套接字。
 
 static size_t rioConnWrite(rio *r, const void *buf, size_t len) {
     UNUSED(r);
@@ -288,6 +296,7 @@ static const rio rioConnIO = {
 
 /* Create an RIO that implements a buffered read from an fd
  * read_limit argument stops buffering when the reaching the limit. */
+//创建一个从 fd read_limit 参数实现缓冲读取的 RIO，当达到限制时停止缓冲。
 void rioInitWithConn(rio *r, connection *conn, size_t read_limit) {
     *r = rioConnIO;
     r->io.conn.conn = conn;
@@ -300,6 +309,7 @@ void rioInitWithConn(rio *r, connection *conn, size_t read_limit) {
 
 /* Release the RIO stream. Optionally returns the unread buffered data
  * when the SDS pointer 'remaining' is passed. */
+//释放 RIO 流。当传递 SDS 指针“剩余”时，可选择返回未读缓冲数据。
 void rioFreeConn(rio *r, sds *remaining) {
     if (remaining && (size_t)r->io.conn.pos < sdslen(r->io.conn.buf)) {
         if (r->io.conn.pos > 0) sdsrange(r->io.conn.buf, r->io.conn.pos, -1);
@@ -316,12 +326,14 @@ void rioFreeConn(rio *r, sds *remaining) {
  * streams the data to the replicas without creating an RDB on-disk image
  * (diskless replication option).
  * It only implements writes. */
+//此目标用于将 RDB 文件写入管道，当主服务器只是将数据流式传输到副本而不创建 RDB 磁盘映像（无盘复制选项）。它只实现写入。
 
 /* Returns 1 or 0 for success/failure.
  *
  * When buf is NULL and len is 0, the function performs a flush operation
  * if there is some pending buffer, so this function is also used in order
  * to implement rioFdFlush(). */
+//当 buf 为 NULL 且 len 为 0 时，如果有一些挂起的缓冲区，该函数将执行刷新操作，因此该函数也用于实现 rioFdFlush()。
 static size_t rioFdWrite(rio *r, const void *buf, size_t len) {
     ssize_t retval;
     unsigned char *p = (unsigned char*) buf;
@@ -421,6 +433,7 @@ void rioFreeFd(rio *r) {
 
 /* This function can be installed both in memory and file streams when checksum
  * computation is needed. */
+//当需要校验和计算时，此功能可以安装在内存和文件流中。
 void rioGenericUpdateChecksum(rio *r, const void *buf, size_t len) {
     r->cksum = crc64(r->cksum,buf,len);
 }
@@ -433,6 +446,11 @@ void rioGenericUpdateChecksum(rio *r, const void *buf, size_t len) {
  * buffers sometimes the OS buffers way too much, resulting in too many
  * disk I/O concentrated in very little time. When we fsync in an explicit
  * way instead the I/O pressure is more distributed across time. */
+/**
+ * 将基于文件的 rio 对象设置为自动同步每个写入的“字节”文件。默认情况下，这设置为零，这意味着不执行自动文件同步。
+ * 此功能在某些情况下很有用，因为当我们依赖操作系统写入缓冲区时，有时操作系统会缓冲太多，
+ * 从而导致过多的磁盘 IO 集中在很短的时间内。当我们以显式方式进行 fsync 时，IO 压力会更分散地分布在时间上。
+ * */
 void rioSetAutoSync(rio *r, off_t bytes) {
     if(r->write != rioFileIO.write) return;
     r->io.file.autosync = bytes;
@@ -458,6 +476,8 @@ uint8_t rioCheckType(rio *r) {
  * generating the Redis protocol for the Append Only File. */
 
 /* Write multi bulk count in the format: "*<count>\r\n". */
+//以下较高级别的函数使用较低级别的 rio.c 函数来帮助为 Append Only File 生成 Redis 协议。
+// 以以下格式写入多批量计数：“<count>\r\n”。
 size_t rioWriteBulkCount(rio *r, char prefix, long count) {
     char cbuf[128];
     int clen;

@@ -47,6 +47,7 @@
 /* This is a special pointer that is guaranteed to never have the same value
  * of a radix tree node. It's used in order to report "not found" error without
  * requiring the function to have multiple return values. */
+//这是一个特殊的指针，保证永远不会具有与基数树节点相同的值。它用于报告“未找到”错误，而不要求函数具有多个返回值。
 void *raxNotFound = (void*)"rax-not-found-pointer";
 
 /* -------------------------------- Debugging ------------------------------ */
@@ -58,6 +59,11 @@ void raxDebugShowNode(const char *msg, raxNode *n);
  * of debugging info to the standard output, however you can still turn
  * debugging on/off in order to enable it only when you suspect there is an
  * operation causing a bug using the function raxSetDebugMsg(). */
+/**
+ * 通过打开 RAX_DEBUG_MSG 宏进行编译来关闭调试消息。
+ * 当默认定义 RAX_DEBUG_MSG 时，Rax 操作将向标准输出发送大量调试信息，
+ * 但是您仍然可以关闭调试以便仅在您怀疑使用函数 raxSetDebugMsg() 的操作导致错误时启用它。
+ * */
 #ifdef RAX_DEBUG_MSG
 #define debugf(...)                                                            \
     if (raxDebugMsg) {                                                         \
@@ -73,6 +79,7 @@ void raxDebugShowNode(const char *msg, raxNode *n);
 #endif
 
 /* By default log debug info if RAX_DEBUG_MSG is defined. */
+//如果定义了 RAX_DEBUG_MSG，默认情况下会记录调试信息。
 static int raxDebugMsg = 1;
 
 /* When debug messages are enabled, turn them on/off dynamically. By
@@ -88,6 +95,8 @@ void raxSetDebugMsg(int onoff) {
  * items are reached. It is used in order to retain the list of parent nodes
  * while walking the radix tree in order to implement certain operations that
  * need to navigate the tree upward.
+ * raxStack 是一个简单的指针堆栈，一旦达到给定数量的项目，它就能够从使用堆栈分配的数组切换到动态堆。
+ * 它用于在遍历基数树时保留父节点列表，以实现需要向上导航树的某些操作。
  * ------------------------------------------------------------------------- */
 
 /* Initialize the stack. */
@@ -99,6 +108,7 @@ static inline void raxStackInit(raxStack *ts) {
 }
 
 /* Push an item into the stack, returns 1 on success, 0 on out of memory. */
+//将一个项目压入堆栈，成功返回 1，内存不足返回 0。
 static inline int raxStackPush(raxStack *ts, void *ptr) {
     if (ts->items == ts->maxitems) {
         if (ts->stack == ts->static_items) {
@@ -128,6 +138,7 @@ static inline int raxStackPush(raxStack *ts, void *ptr) {
 
 /* Pop an item from the stack, the function returns NULL if there are no
  * items to pop. */
+//从堆栈中弹出一个项目，如果没有要弹出的项目，该函数返回 NULL。
 static inline void *raxStackPop(raxStack *ts) {
     if (ts->items == 0) return NULL;
     ts->items--;
@@ -136,12 +147,14 @@ static inline void *raxStackPop(raxStack *ts) {
 
 /* Return the stack item at the top of the stack without actually consuming
  * it. */
+//返回堆栈顶部的堆栈项而不实际使用它。
 static inline void *raxStackPeek(raxStack *ts) {
     if (ts->items == 0) return NULL;
     return ts->stack[ts->items-1];
 }
 
 /* Free the stack in case we used heap allocation. */
+//在我们使用堆分配的情况下释放堆栈。
 static inline void raxStackFree(raxStack *ts) {
     if (ts->stack != ts->static_items) rax_free(ts->stack);
 }
@@ -154,10 +167,15 @@ static inline void raxStackFree(raxStack *ts) {
  * 'nodesize'. The padding is needed to store the child pointers to aligned
  * addresses. Note that we add 4 to the node size because the node has a four
  * bytes header. */
+/**
+ * 返回大小为“nodesize”的节点的字符部分所需的填充。需要填充来存储指向对齐地址的子指针。
+ * 请注意，我们将节点大小添加 4，因为该节点具有四个字节的标头。
+ * */
 #define raxPadding(nodesize) ((sizeof(void*)-((nodesize+4) % sizeof(void*))) & (sizeof(void*)-1))
 
 /* Return the pointer to the last child pointer in a node. For the compressed
  * nodes this is the only child pointer. */
+//返回指向节点中最后一个子指针的指针。对于压缩节点，这是唯一的子指针。
 #define raxNodeLastChildPtr(n) ((raxNode**) ( \
     ((char*)(n)) + \
     raxNodeCurrentLength(n) - \
@@ -166,6 +184,7 @@ static inline void raxStackFree(raxStack *ts) {
 ))
 
 /* Return the pointer to the first child pointer. */
+//返回指向第一个子指针的指针。
 #define raxNodeFirstChildPtr(n) ((raxNode**) ( \
     (n)->data + \
     (n)->size + \
@@ -174,6 +193,7 @@ static inline void raxStackFree(raxStack *ts) {
 /* Return the current total size of the node. Note that the second line
  * computes the padding after the string of characters, needed in order to
  * save pointers to aligned addresses. */
+//返回节点的当前总大小。请注意，第二行计算字符串后的填充，这是保存指向对齐地址的指针所必需的。
 #define raxNodeCurrentLength(n) ( \
     sizeof(raxNode)+(n)->size+ \
     raxPadding((n)->size)+ \
@@ -185,6 +205,10 @@ static inline void raxStackFree(raxStack *ts) {
  * If datafield is true, the allocation is made large enough to hold the
  * associated data pointer.
  * Returns the new node pointer. On out of memory NULL is returned. */
+/**
+ * 分配具有指定子节点数的新非压缩节点。如果 datafield 为真，则分配足够大以保存关联的数据指针。
+ * 返回新的节点指针。内存不足时返回 NULL。
+ * */
 raxNode *raxNewNode(size_t children, int datafield) {
     size_t nodesize = sizeof(raxNode)+children+raxPadding(children)+
                       sizeof(raxNode*)*children;
@@ -200,6 +224,7 @@ raxNode *raxNewNode(size_t children, int datafield) {
 
 /* Allocate a new rax and return its pointer. On out of memory the function
  * returns NULL. */
+//分配一个新的 rax 并返回它的指针。在内存不足时，该函数返回 NULL。
 rax *raxNew(void) {
     rax *rax = rax_malloc(sizeof(*rax));
     if (rax == NULL) return NULL;
@@ -216,6 +241,7 @@ rax *raxNew(void) {
 
 /* realloc the node to make room for auxiliary data in order
  * to store an item in that node. On out of memory NULL is returned. */
+//重新分配节点以便为辅助数据腾出空间，以便在该节点中存储项目。内存不足时返回 NULL。
 raxNode *raxReallocForData(raxNode *n, void *data) {
     if (data == NULL) return n; /* No reallocation needed, setting isnull=1 */
     size_t curlen = raxNodeCurrentLength(n);
@@ -223,6 +249,7 @@ raxNode *raxReallocForData(raxNode *n, void *data) {
 }
 
 /* Set the node auxiliary data to the specified pointer. */
+//将节点辅助数据设置为指定的指针。
 void raxSetData(raxNode *n, void *data) {
     n->iskey = 1;
     if (data != NULL) {
@@ -236,6 +263,7 @@ void raxSetData(raxNode *n, void *data) {
 }
 
 /* Get the node auxiliary data. */
+//获取节点辅助数据。
 void *raxGetData(raxNode *n) {
     if (n->isnull) return NULL;
     void **ndata =(void**)((char*)n+raxNodeCurrentLength(n)-sizeof(void*));
@@ -253,6 +281,12 @@ void *raxGetData(raxNode *n) {
  * On success the new parent node pointer is returned (it may change because
  * of the realloc, so the caller should discard 'n' and use the new value).
  * On out of memory NULL is returned, and the old node is still valid. */
+/**
+ * 将一个新的子节点添加到代表字符“c”的节点“n”并返回其新指针，以及引用的子指针。
+ * 此外，'parentlink' 填充了新子节点存储位置的 raxNode 指针，这对于调用者在重新分配子指针时替换子指针很有用。
+ * 成功时返回新的父节点指针（它可能会因为重新分配而改变，所以调用者应该丢弃'n'并使用新值）。
+ * 内存不足时返回 NULL，旧节点仍然有效。
+ * */
 raxNode *raxAddChild(raxNode *n, unsigned char c, raxNode **childptr, raxNode ***parentlink) {
     assert(n->iscompr == 0);
 
@@ -302,6 +336,21 @@ raxNode *raxAddChild(raxNode *n, unsigned char c, raxNode **childptr, raxNode **
      * it is inserted in-place lexicographically. Assuming we are adding
      * a child "c" in our case pos will be = 2 after the end of the following
      * loop. */
+    /**
+     * 重新分配后，最后我们最多有 816 个字节（取决于系统指针大小和所需的节点填充），即“数据”部分中的附加字符，
+     * 加上一个指向新子节点的指针，加上为了将地址存储到对齐的位置所需的填充。
+     * 因此，如果我们从以下节点开始，具有“abde”边。
+     * 注意：
+     *   - 为简单起见，我们假设 4 字节指针。
+     *   - 下面每个空格对应一个字节
+     *   [HDR][abde][Aptr][Bptr][Dptr][Eptr]|AUXP|
+     * 在重新分配之后，我们需要：1 个字节用于新的边缘字符加上 4 个字节用于新的子指针（假设是 32 位机器）。
+     * 但是在边缘字符添加 1 个字节后，标题 + 边缘字符不再对齐，因此我们还需要 3 个字节的填充。
+     * 总共重新分配将增加 1+4+3 个字节 = 8 个字节：（空白字节由“.”表示）
+     * [HDR][abde][Aptr][Bptr][Dptr][Eptr]|AUXP|[.. ..][....]
+     * 让我们找到插入新孩子的位置，以确保它按字典顺序插入到位。
+     * 假设我们在我们的例子中添加一个子“c”，在下面的循环结束后，pos 将是 = 2。
+     * */
     int pos;
     for (pos = 0; pos < n->size; pos++) {
         if (n->data[pos] > c) break;
@@ -310,6 +359,7 @@ raxNode *raxAddChild(raxNode *n, unsigned char c, raxNode **childptr, raxNode **
     /* Now, if present, move auxiliary data pointer at the end
      * so that we can mess with the other data without overwriting it.
      * We will obtain something like that:
+     * 现在，如果存在，请将辅助数据指针移到末尾，以便我们可以在不覆盖其他数据的情况下弄乱它。我们会得到类似的东西：
      *
      * [HDR*][abde][Aptr][Bptr][Dptr][Eptr][....][....]|AUXP|
      */
@@ -331,6 +381,12 @@ raxNode *raxAddChild(raxNode *n, unsigned char c, raxNode **childptr, raxNode **
      * Another way to think at the shift is, how many bytes we need to
      * move child pointers forward *other than* the obvious sizeof(void*)
      * needed for the additional pointer itself. */
+    /**
+     * 计算“移位”，即由于在字符串部分中添加了新的子字节，我们需要将指针部分向前移动多少字节。
+     * 请注意，如果我们没有填充，那将始终为“1”，因为我们在节点的字符串部分中添加了一个字节（现在基本上有“abde”）。
+     * 然而，我们有填充，所以它可以是 0，或者最多 8。
+     * 另一种思考移位的方法是，除了附加指针本身所需的明显 sizeof(void) 之外，我们需要将子指针向前移动多少字节。
+     * */
     size_t shift = newlen - curlen - sizeof(void*);
 
     /* We said we are adding a node with edge 'c'. The insertion
@@ -340,6 +396,9 @@ raxNode *raxAddChild(raxNode *n, unsigned char c, raxNode **childptr, raxNode **
      *
      * To start, move all the child pointers after the insertion point
      * of shift+sizeof(pointer) bytes on the right, to obtain:
+     * 我们说我们正在添加一个边为“c”的节点。插入点在 'b' 和 'd' 之间，
+     * 所以 'pos' 变量值是我们需要向前移动的第一个子指针的索引，以便为新指针腾出空间。
+     * 首先，将所有子指针移到右边shift+sizeof(pointer)字节的插入点之后，得到：
      *
      * [HDR*][abde][Aptr][Bptr][....][....][Dptr][Eptr]|AUXP|
      */
@@ -354,6 +413,9 @@ raxNode *raxAddChild(raxNode *n, unsigned char c, raxNode **childptr, raxNode **
      * in our example there was no pre-existing padding, so we added one byte
      * plus there bytes of padding. After the next memmove() things will look
      * like that:
+     * 将指针也移动到插入位置的左侧。如果已经有一些填充可以使用，我们通常不需要做任何事情。
+     * 在这种情况下，指针的最终目的地将是相同的，但是在我们的示例中没有预先存在的填充，所以我们添加了一个字节加上填充字节。
+     * 在下一个 memmove() 之后，事情将如下所示：
      *
      * [HDR*][abde][....][Aptr][Bptr][....][Dptr][Eptr]|AUXP|
      */
@@ -365,6 +427,7 @@ raxNode *raxAddChild(raxNode *n, unsigned char c, raxNode **childptr, raxNode **
     /* Now make the space for the additional char in the data section,
      * but also move the pointers before the insertion point to the right
      * by shift bytes, in order to obtain the following:
+     * 现在为数据段中的附加字符腾出空间，还要将插入点之前的指针向右移动字节，以获得以下结果：
      *
      * [HDR*][ab.d][e...][Aptr][Bptr][....][Dptr][Eptr]|AUXP|
      */

@@ -81,8 +81,9 @@ static inline size_t spt_min(size_t a, size_t b) {
 
 
 /*
- * For discussion on the portability of the various methods, see
- * http://lists.freebsd.org/pipermail/freebsd-stable/2008-June/043136.html
+ * For discussion on the portability of the various methods,
+ * 讨论各种方法的可移植性
+ * see http://lists.freebsd.org/pipermail/freebsd-stable/2008-June/043136.html
  */
 int spt_clearenv(void) {
 #ifdef HAVE_CLEARENV
@@ -188,6 +189,11 @@ static int spt_copyargs(int argc, char *argv[]) {
  * As this range will overwrite some or all of the argv and environ
  * strings, a deep copy of these two arrays is performed.
  */
+/**
+ * 初始化并填充 SPT 以允许将来调用 setproctitle()。由于 setproctitle() 基本上需要覆盖 argv[0]，
+ * 因此我们试图确定从 argv[0] 开始我们可以用于此目的的最大连续块是什么。
+ * 由于此范围将覆盖部分或全部 argv 和 environ 字符串，因此执行这两个数组的深层复制。
+ * */
 void spt_init(int argc, char *argv[]) {
         char **envp = environ;
 	char *base, *end, *nul, *tmp;

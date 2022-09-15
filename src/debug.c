@@ -62,7 +62,7 @@ typedef ucontext_t sigcontext_t;
 #endif
 
 /* Globals */
-static int bug_report_start = 0; /* True if bug report header was already logged. */
+static int bug_report_start = 0; /* True if bug report header was already logged. 如果已经记录了错误报告标题，则为真。*/
 static pthread_mutex_t bug_report_start_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 /* Forward declarations */
@@ -77,8 +77,11 @@ void logStackTrace(void *eip, int uplevel);
  * The SHA1 is then xored against the string pointed by digest.
  * Since xor is commutative, this operation is used in order to
  * "add" digests relative to unordered elements.
+ * 计算 's' 处字符串的 sha1，长度为 'len' 字节。然后将 SHA1 与摘要指向的字符串进行异或运算。
+ * 由于 xor 是可交换的，因此使用此操作是为了“添加”相对于无序元素的摘要。
  *
- * So digest(a,b,c,d) will be the same of digest(b,a,c,d) */
+ * So digest(a,b,c,d) will be the same of digest(b,a,c,d)
+ * 所以 digest(a,b,c,d) 将与 digest(b,a,c,d) 相同*/
 void xorDigest(unsigned char *digest, const void *ptr, size_t len) {
     SHA1_CTX ctx;
     unsigned char hash[20];
@@ -112,6 +115,12 @@ void xorStringObjectDigest(unsigned char *digest, robj *o) {
  * Also note that mixdigest("foo") followed by mixdigest("bar")
  * will lead to a different digest compared to "fo", "obar".
  */
+/**
+ * 此函数不仅计算 SHA1 并将其与摘要进行异或运算，还执行“摘要”本身的摘要并将旧值替换为新值。
+ * 所以最终的摘要将是： digest = SHA1(digest xor SHA1(data)) 每次我们想要保留顺序时都会使用此函数，
+ * 以便 digest(a,b,c,d) 与 digest(b, c,d,a) 另请注意，与 "fo"、"obar" 相比，mixdigest("foo")
+ * 后跟 mixdigest("bar") 将导致不同的摘要。
+ * */
 void mixDigest(unsigned char *digest, const void *ptr, size_t len) {
     SHA1_CTX ctx;
 
@@ -135,6 +144,11 @@ void mixStringObjectDigest(unsigned char *digest, robj *o) {
  * Note that this function does not reset the initial 'digest' passed, it
  * will continue mixing this object digest to anything that was already
  * present. */
+/**
+ * 此函数计算存储在对象“o”中的数据结构的摘要。它是 DEBUG DIGEST 命令的核心：
+ * 当获取整个数据集的摘要时，我们获取键和值对的摘要，然后将所有这些进行异或。
+ * 请注意，此函数不会重置传递的初始“摘要”，它将继续将此对象摘要与已经存在的任何内容混合。
+ * */
 void xorObjectDigest(redisDb *db, robj *keyobj, unsigned char *digest, robj *o) {
     uint32_t aux = htonl(o->type);
     mixDigest(digest,&aux,sizeof(aux));
@@ -272,6 +286,10 @@ void xorObjectDigest(redisDb *db, robj *keyobj, unsigned char *digest, robj *o) 
  * the result. For list instead we use a feedback entering the output digest
  * as input in order to ensure that a different ordered list will result in
  * a different digest. */
+/**
+ * 计算数据集摘要。由于键、集合元素、散列元素没有排序，我们使用了一个技巧：每个聚合摘要都是它们元素摘要的异或。
+ * 这样订单不会改变结果。对于列表，我们使用输入输出摘要作为输入的反馈，以确保不同的有序列表将导致不同的摘要。
+ * */
 void computeDatasetDigest(unsigned char *final) {
     unsigned char digest[20];
     dictIterator *di = NULL;
@@ -1657,6 +1675,11 @@ void logRegisters(ucontext_t *uc) {
  * test) or when an API call requires a raw fd.
  *
  * Close it with closeDirectLogFiledes(). */
+/**
+ * 返回一个文件描述符以使用 write(2) 系统调用直接写入 Redis 日志，该描述符可用于代码的关键部分，
+ * 其中 Redis 的其余部分不可信（例如在内存测试期间）或当API 调用需要原始 fd。
+ * 用 closeDirectLogFiledes() 关闭它。
+ * */
 int openDirectLogFiledes(void) {
     int log_to_stdout = server.logfile[0] == '\0';
     int fd = log_to_stdout ?
@@ -1666,6 +1689,7 @@ int openDirectLogFiledes(void) {
 }
 
 /* Used to close what closeDirectLogFiledes() returns. */
+//用于关闭 closeDirectLogFiledes() 返回的内容。
 void closeDirectLogFiledes(int fd) {
     int log_to_stdout = server.logfile[0] == '\0';
     if (!log_to_stdout) close(fd);
@@ -1678,6 +1702,10 @@ void closeDirectLogFiledes(int fd) {
  * The eip argument is optional (can take NULL).
  * The uplevel argument indicates how many of the calling functions to skip.
  */
+/**
+ * 使用 backtrace() 调用记录堆栈跟踪。此函数旨在安全地从信号处理程序中调用。
+ * eip 参数是可选的（可以为 NULL）。 uplevel 参数指示要跳过多少个调用函数。
+ * */
 void logStackTrace(void *eip, int uplevel) {
     void *trace[100];
     int trace_size = 0, fd = openDirectLogFiledes();
@@ -1739,6 +1767,7 @@ void logConfigDebugInfo(void) {
 }
 
 /* Log modules info. Something we wanna do last since we fear it may crash. */
+//记录模块信息。我们想做最后的事情，因为我们担心它可能会崩溃。
 void logModulesInfo(void) {
     serverLogRaw(LL_WARNING|LL_RAW, "\n------ MODULES INFO OUTPUT ------\n");
     sds infostring = modulesCollectInfo(sdsempty(), NULL, 1, 0);
@@ -1749,6 +1778,9 @@ void logModulesInfo(void) {
 /* Log information about the "current" client, that is, the client that is
  * currently being served by Redis. May be NULL if Redis is not serving a
  * client right now. */
+/**
+ * 有关“当前”客户端的日志信息，即 Redis 当前正在服务的客户端。如果 Redis 现在不为客户端提供服务，则可能为 NULL。
+ * */
 void logCurrentClient(void) {
     if (server.current_client == NULL) return;
 
@@ -1790,6 +1822,7 @@ void logCurrentClient(void) {
 #define MEMTEST_MAX_REGIONS 128
 
 /* A non destructive memory test executed during segfault. */
+//在段错误期间执行的非破坏性内存测试。
 int memtest_test_linux_anonymous_maps(void) {
     FILE *fp;
     char line[1024];
@@ -1870,6 +1903,10 @@ static void killMainThread(void) {
  * should be used only when it's critical to stop the threads for some reason.
  * Currently Redis does this only on crash (for instance on SIGSEGV) in order
  * to perform a fast memory check without other threads messing with memory. */
+/**
+ * 以不干净的方式杀死正在运行的线程（当前线程除外）。仅当出于某种原因必须停止线程时才应使用此功能。
+ * 目前 Redis 仅在崩溃时执行此操作（例如在 SIGSEGV 上），以便执行快速内存检查，而其他线程不会弄乱内存。
+ * */
 void killThreads(void) {
     killMainThread();
     bioKillThreads();
@@ -1896,6 +1933,8 @@ void doFastMemoryTest(void) {
 /* Scans the (assumed) x86 code starting at addr, for a max of `len`
  * bytes, searching for E8 (callq) opcodes, and dumping the symbols
  * and the call offset if they appear to be valid. */
+//扫描从 addr 开始的（假定的）x86 代码，最大为 `len` 字节，搜索 E8 (callq) 操作码，
+// 如果符号和调用偏移量看起来有效，则转储它们。
 void dumpX86Calls(void *addr, size_t len) {
     size_t j;
     unsigned char *p = addr;
@@ -2089,6 +2128,10 @@ void watchdogSignalHandler(int sig, siginfo_t *info, void *secret) {
 /* Schedule a SIGALRM delivery after the specified period in milliseconds.
  * If a timer is already scheduled, this function will re-schedule it to the
  * specified time. If period is 0 the current timer is disabled. */
+/**
+ * 在以毫秒为单位的指定时间段后安排 SIGALRM 交付。如果一个定时器已经被调度，这个函数将把它重新调度到指定的时间。
+ * 如果 period 为 0，则当前定时器被禁用。
+ * */
 void watchdogScheduleSignal(int period) {
     struct itimerval it;
 
@@ -2131,9 +2174,11 @@ void applyWatchdogPeriod() {
 
 /* Positive input is sleep time in microseconds. Negative input is fractions
  * of microseconds, i.e. -10 means 100 nanoseconds. */
+//正输入是以微秒为单位的睡眠时间。负输入是微秒的分数，即 -10 表示 100 纳秒。
 void debugDelay(int usec) {
     /* Since even the shortest sleep results in context switch and system call,
      * the way we achieve short sleeps is by statistically sleeping less often. */
+    //由于即使是最短的睡眠也会导致上下文切换和系统调用，因此我们实现短睡眠的方式是在统计上减少睡眠频率。
     if (usec < 0) usec = (rand() % -usec) == 0 ? 1: 0;
     if (usec) usleep(usec);
 }

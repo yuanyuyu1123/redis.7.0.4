@@ -47,6 +47,13 @@
  *
  * Uses script.c for interaction back with Redis.
  */
+/**
+ * script_lua.c 单元提供 eval.c 和 function_lua.c 之间的共享功能。
+ * 提供的功能：执行 Lua 代码，假设代码位于 Lua 栈顶。此外，解析执行结果并将其转换为响应并回复客户端。
+ * 从 Lua 代码中运行 Redis 命令（包括解析回复并从中创建一个 Lua 对象）。将 Redis API 注册到 Lua 解释器。
+ * 仅注册共享 API（仅在 eval.c 上相关的 API（如调试）在 eval.c 上注册）。
+ * 使用 script.c 与 Redis 交互。
+ * */
 
 #include "server.h"
 #include "script.h"

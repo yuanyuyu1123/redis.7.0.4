@@ -296,6 +296,7 @@ static standardConfig *lookupConfig(sds name) {
  *----------------------------------------------------------------------------*/
 
 /* Get enum value from name. If there is no match INT_MIN is returned. */
+//从名称中获取枚举值。如果没有匹配，则返回 INT_MIN。
 int configEnumGetValue(configEnum *ce, sds *argv, int argc, int bitflags) {
     if (argc == 0 || (!bitflags && argc != 1)) return INT_MIN;
     int values = 0;
@@ -313,17 +314,19 @@ int configEnumGetValue(configEnum *ce, sds *argv, int argc, int bitflags) {
 }
 
 /* Get enum name/s from value. If no matches are found "unknown" is returned. */
+//从值中获取枚举名称。如果未找到匹配项，则返回“未知”。
 static sds configEnumGetName(configEnum *ce, int values, int bitflags) {
     sds names = NULL;
     int unmatched = values;
     for( ; ce->name != NULL; ce++) {
-        if (values == ce->val) { /* Short path for perfect match */
+        if (values == ce->val) { /* Short path for perfect match 完美匹配的捷径*/
             sdsfree(names);
             return sdsnew(ce->name);
         }
 
         /* Note: for bitflags, we want them sorted from high to low, so that if there are several / partially
          * overlapping entries, we'll prefer the ones matching more bits. */
+        //注意：对于位标志，我们希望它们从高到低排序，这样如果有几个部分重叠的条目，我们会更喜欢匹配更多位的条目。
         if (bitflags && ce->val && ce->val == (unmatched & ce->val)) {
             names = names ? sdscatfmt(names, " %s", ce->name) : sdsnew(ce->name);
             unmatched &= ~ce->val;
@@ -336,7 +339,7 @@ static sds configEnumGetName(configEnum *ce, int values, int bitflags) {
     return names;
 }
 
-/* Used for INFO generation. */
+/* Used for INFO generation. 用于 INFO 生成。*/
 const char *evictPolicyToString(void) {
     for (configEnum *ce = maxmemory_policy_enum; ce->name != NULL; ce++) {
         if (server.maxmemory_policy == ce->val)
@@ -385,6 +388,9 @@ void queueLoadModule(sds path, sds *argv, int argc) {
 /* Parse an array of `arg_len` sds strings, validate and populate
  * server.client_obuf_limits if valid.
  * Used in CONFIG SET and configuration file parsing. */
+/**
+ * 解析 `arg_len` sds 字符串数组，验证并填充 server.client_obuf_limits（如果有效）。用于 CONFIG SET 和配置文件解析。
+ * */
 static int updateClientOutputBufferLimit(sds *args, int arg_len, const char **err) {
     int j;
     int class;
@@ -441,6 +447,9 @@ static int updateClientOutputBufferLimit(sds *args, int arg_len, const char **er
 /* Note this is here to support detecting we're running a config set from
  * within conf file parsing. This is only needed to support the deprecated
  * abnormal aggregate `save T C` functionality. Remove in the future. */
+/**
+ * 请注意，这是为了支持检测我们正在从 conf 文件解析中运行配置集。这只需要支持已弃用的异常聚合 `save T C` 功能。将来删除。
+ * */
 static int reading_config_file;
 
 void loadServerConfigFromString(char *config) {
@@ -639,6 +648,10 @@ loaderr:
  * Both filename and options can be NULL, in such a case are considered
  * empty. This way loadServerConfig can be used to just load a file or
  * just load a string. */
+/**
+ * 从指定的文件名加载服务器配置。该函数在加载之前将存储在“选项”字符串中的附加配置指令附加到配置文件中。
+ * 文件名和选项都可以为 NULL，在这种情况下被认为是空的。这样 loadServerConfig 可用于仅加载文件或仅加载字符串。
+ * */
 #define CONFIG_READ_LEN 1024
 void loadServerConfig(char *filename, char config_from_stdin, char *options) {
     sds config = sdsempty();
@@ -731,6 +744,7 @@ static int performInterfaceSet(standardConfig *config, sds value, const char **e
 }
 
 /* Find the config by name and attempt to set it to value. */
+//按名称查找配置并尝试将其设置为值。
 int performModuleConfigSetFromName(sds name, sds value, const char **err) {
     standardConfig *config = lookupConfig(name);
     if (!config || !(config->flags & MODULE_CONFIG)) {
@@ -741,6 +755,7 @@ int performModuleConfigSetFromName(sds name, sds value, const char **err) {
 }
 
 /* Find config by name and attempt to set it to its default value. */
+//按名称查找配置并尝试将其设置为默认值。
 int performModuleConfigSetDefaultFromName(sds name, const char **err) {
     standardConfig *config = lookupConfig(name);
     serverAssert(config);
@@ -1012,10 +1027,12 @@ void configGetCommand(client *c) {
 /* We use the following dictionary type to store where a configuration
  * option is mentioned in the old configuration file, so it's
  * like "maxmemory" -> list of line numbers (first line is zero). */
+//我们使用以下字典类型来存储旧配置文件中提到配置选项的位置，因此它类似于“maxmemory” -> 行号列表（第一行为零）。
 void dictListDestructor(dict *d, void *val);
 
 /* Sentinel config rewriting is implemented inside sentinel.c by
  * rewriteConfigSentinelOption(). */
+//Sentinel 配置重写是在 sentinel.c 中通过 rewriteConfigSentinelOption() 实现的。
 void rewriteConfigSentinelOption(struct rewriteConfigState *state);
 
 dictType optionToLineDictType = {
@@ -1051,7 +1068,7 @@ struct rewriteConfigState {
                              and debug information. */
 };
 
-/* Free the configuration rewrite state. */
+/* Free the configuration rewrite state. 释放配置重写状态。*/
 void rewriteConfigReleaseState(struct rewriteConfigState *state) {
     sdsfreesplitres(state->lines,state->numlines);
     dictRelease(state->option_to_line);
@@ -1059,7 +1076,7 @@ void rewriteConfigReleaseState(struct rewriteConfigState *state) {
     zfree(state);
 }
 
-/* Create the configuration rewrite state */
+/* Create the configuration rewrite state 创建配置重写状态*/
 struct rewriteConfigState *rewriteConfigCreateState() {
     struct rewriteConfigState *state = zmalloc(sizeof(*state));
     state->option_to_line = dictCreate(&optionToLineDictType);
@@ -1071,13 +1088,13 @@ struct rewriteConfigState *rewriteConfigCreateState() {
     return state;
 }
 
-/* Append the new line to the current configuration state. */
+/* Append the new line to the current configuration state. 将新行附加到当前配置状态。*/
 void rewriteConfigAppendLine(struct rewriteConfigState *state, sds line) {
     state->lines = zrealloc(state->lines, sizeof(char*) * (state->numlines+1));
     state->lines[state->numlines++] = line;
 }
 
-/* Populate the option -> list of line numbers map. */
+/* Populate the option -> list of line numbers map. 填充选项 -> 行号列表列表。*/
 void rewriteConfigAddLineNumberToOption(struct rewriteConfigState *state, sds option, int linenum) {
     list *l = dictFetchValue(state->option_to_line,option);
 
@@ -1092,6 +1109,7 @@ void rewriteConfigAddLineNumberToOption(struct rewriteConfigState *state, sds op
  * This is useful as only unused lines of processed options will be blanked
  * in the config file, while options the rewrite process does not understand
  * remain untouched. */
+//将指定的选项添加到已处理的选项集中。这很有用，因为只有未使用的已处理选项行将在配置文件中空白，而重写过程不理解的选项保持不变。
 void rewriteConfigMarkAsProcessed(struct rewriteConfigState *state, const char *option) {
     sds opt = sdsnew(option);
 
@@ -1103,6 +1121,10 @@ void rewriteConfigMarkAsProcessed(struct rewriteConfigState *state, const char *
  *
  * If it is impossible to read the old file, NULL is returned.
  * If the old file does not exist at all, an empty state is returned. */
+/**
+ * 读取旧文件，将其分成几行以填充新创建的配置重写状态，并将其返回给调用者。
+ * 如果无法读取旧文件，则返回 NULL。如果旧文件根本不存在，则返回空状态。
+ * */
 struct rewriteConfigState *rewriteConfigReadOldFile(char *path) {
     FILE *fp = fopen(path,"r");
     if (fp == NULL && errno != ENOENT) return NULL;
@@ -1216,6 +1238,13 @@ struct rewriteConfigState *rewriteConfigReadOldFile(char *path) {
  *
  * "line" is either used, or freed, so the caller does not need to free it
  * in any way. */
+/**
+ * 用新的“行”重写指定的配置选项。它逐步使用文件中已用于旧版本文件中相同配置选项的行，从选项映射中删除该行 -> 行号。
+ * 如果有与给定配置选项相关联的行并且“force”不为零，则该行将附加到配置文件中。
+ * Usually "force" is true when an option has not its default value, so it must be rewritten even if not present previously.
+ * 第一次将一行附加到配置文件中时，会添加一条注释以显示从该点开始配置文件是由 CONFIG REWRITE 生成的。
+ * “line”要么被使用，要么被释放，所以调用者不需要以任何方式释放它。
+ * */
 void rewriteConfigRewriteLine(struct rewriteConfigState *state, const char *option, sds line, int force) {
     sds o = sdsnew(option);
     list *l = dictFetchValue(state->option_to_line,o);
@@ -1253,6 +1282,7 @@ void rewriteConfigRewriteLine(struct rewriteConfigState *state, const char *opti
 
 /* Write the long long 'bytes' value as a string in a way that is parsable
  * inside redis.conf. If possible uses the GB, MB, KB notation. */
+//以可在 redis.conf 中解析的方式将 long long 'bytes' 值写入字符串。如果可能，请使用 GB、MB、KB 表示法。
 int rewriteConfigFormatMemory(char *buf, size_t len, long long bytes) {
     int gb = 1024*1024*1024;
     int mb = 1024*1024;
@@ -1270,6 +1300,7 @@ int rewriteConfigFormatMemory(char *buf, size_t len, long long bytes) {
 }
 
 /* Rewrite a simple "option-name <bytes>" configuration option. */
+//重写一个简单的“option-name <bytes>”配置选项。
 void rewriteConfigBytesOption(struct rewriteConfigState *state, const char *option, long long value, long long defvalue) {
     char buf[64];
     int force = value != defvalue;
@@ -1281,6 +1312,7 @@ void rewriteConfigBytesOption(struct rewriteConfigState *state, const char *opti
 }
 
 /* Rewrite a simple "option-name n%" configuration option. */
+//重写一个简单的“option-name n%”配置选项。
 void rewriteConfigPercentOption(struct rewriteConfigState *state, const char *option, long long value, long long defvalue) {
     int force = value != defvalue;
     sds line = sdscatprintf(sdsempty(),"%s %lld%%",option,value);
@@ -1731,6 +1763,11 @@ cleanup:
  * written. This is currently only used for testing purposes.
  *
  * On error -1 is returned and errno is set accordingly, otherwise 0. */
+/**
+ * 重写“路径”处的配置文件。如果配置文件已经存在，我们尽量保留注释和整体结构。
+ * 除非已明确包含在旧配置文件中，否则默认值的配置参数不会被重写。 force_write 标志会覆盖此行为并强制写入所有内容。
+ * 这目前仅用于测试目的。错误时返回 -1 并相应地设置 errno，否则为 0。
+ * */
 int rewriteConfig(char *path, int force_write) {
     struct rewriteConfigState *state;
     sds newcontent;
@@ -1805,6 +1842,15 @@ static char loadbuf[LOADBUF_SIZE];
  * * A function defining how to rewrite this type on CONFIG REWRITE.
  * * A Macro defining how to create this type.
  */
+/**
+ * 以下是支持的通用配置类型。要添加具有这些类型之一的新配置，请将其添加到 standardConfig 表中，并为每种类型创建宏。
+ * 每种类型都包含以下内容：
+ *   定义如何在启动时加载此类型的函数。
+ *   定义如何在 CONFIG SET 上更新此类型的函数。
+ *   定义如何在 CONFIG SET 上序列化此类型的函数。
+ *   定义如何在 CONFIG REWRITE 上重写此类型的函数。
+ *   定义如何创建此类型的宏。
+ * */
 
 /* Bool Configs */
 static void boolConfigInit(standardConfig *config) {
@@ -2019,6 +2065,7 @@ static void enumConfigRewrite(standardConfig *config, const char *name, struct r
 
 /* Gets a 'long long val' and sets it into the union, using a macro to get
  * compile time type check. */
+//获取一个“long long val”并将其设置到联合中，使用宏进行编译时类型检查。
 int setNumericType(standardConfig *config, long long val, const char **err) {
     if (config->data.numeric.numeric_type == NUMERIC_TYPE_INT) {
         *(config->data.numeric.config.i) = (int) val;
@@ -2048,6 +2095,7 @@ int setNumericType(standardConfig *config, long long val, const char **err) {
 
 /* Gets a 'long long val' and sets it with the value from the union, using a
  * macro to get compile time type check. */
+//获取一个“long long val”并将其设置为联合中的值，使用宏进行编译时类型检查。
 #define GET_NUMERIC_TYPE(val) \
     if (config->data.numeric.numeric_type == NUMERIC_TYPE_INT) { \
         val = *(config->data.numeric.config.i); \

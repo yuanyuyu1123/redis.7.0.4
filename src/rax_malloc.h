@@ -34,6 +34,10 @@
  * Just define the following defines to what you want to use. Also add
  * the include of your alternate allocator if needed (not needed in order
  * to use the default libc allocator). */
+/**
+ * 分配器选择。该文件用于在编译时更改 Rax 分配器。只需将以下定义定义为您要使用的内容。
+ * 如果需要，还可以添加备用分配器的包含（不需要使用默认的 libc 分配器）。
+ * */
 
 #ifndef RAX_ALLOC_H
 #define RAX_ALLOC_H

@@ -39,6 +39,7 @@ void sunionDiffGenericCommand(client *c, robj **setkeys, int setnum,
 /* Factory method to return a set that *can* hold "value". When the object has
  * an integer-encodable value, an intset will be returned. Otherwise a regular
  * hash table. */
+//工厂方法返回一个可以保存“值”的集合。当对象具有可整数编码的值时，将返回一个 intset。否则为常规哈希表。
 robj *setTypeCreate(sds value) {
     if (isSdsRepresentableAsLongLong(value,NULL) == C_OK)
         return createIntsetObject();
@@ -49,6 +50,7 @@ robj *setTypeCreate(sds value) {
  *
  * If the value was already member of the set, nothing is done and 0 is
  * returned, otherwise the new element is added and 1 is returned. */
+//将指定的值添加到集合中。如果值已经是集合的成员，则什么都不做并返回 0，否则添加新元素并返回 1。
 int setTypeAdd(robj *subject, sds value) {
     long long llval;
     if (subject->encoding == OBJ_ENCODING_HT) {
@@ -154,6 +156,13 @@ void setTypeReleaseIterator(setTypeIterator *si) {
  * used field with values which are easy to trap if misused.
  *
  * When there are no longer elements -1 is returned. */
+/**
+ * 移动到集合中的下一个条目。返回当前位置的对象。
+ * 由于集合元素可以在内部存储为 SDS 字符串或简单的整数数组，因此 setTypeNext 返回您正在迭代的集合对象的编码，
+ * 并将相应地填充适当的指针 (sdsele) 或 (llele)。
+ * 请注意，sdsele 和 llele 指针都应该被传递，并且不能为 NULL，
+ * 因为该函数将尝试使用如果误用很容易捕获的值来防御性地填充未使用的字段。当不再有元素时，返回 -1。
+ * */
 int setTypeNext(setTypeIterator *si, sds *sdsele, int64_t *llele) {
     if (si->encoding == OBJ_ENCODING_HT) {
         dictEntry *de = dictNext(si->di);
@@ -177,6 +186,10 @@ int setTypeNext(setTypeIterator *si, sds *sdsele, int64_t *llele) {
  *
  * This function is the way to go for write operations where COW is not
  * an issue. */
+/**
+ * setTypeNext() 的非写时复制友好版本但易于使用的版本是 setTypeNextObject()，返回新的 SDS 字符串。
+ * 因此，如果您不保留指向该对象的指针，则应针对它调用 sdsfree()。此功能是在 COW 不是问题的情况下进行写入操作的方法。
+ * */
 sds setTypeNextObject(setTypeIterator *si) {
     int64_t intele;
     sds sdsele;
@@ -208,6 +221,13 @@ sds setTypeNextObject(setTypeIterator *si) {
  * Note that both the sdsele and llele pointers should be passed and cannot
  * be NULL since the function will try to defensively populate the non
  * used field with values which are easy to trap if misused. */
+/**
+ * 从非空集合中返回随机元素。如果集合被编码为整数的“intset”blob，则返回的元素可以是 int64_t 值，如果集合是常规集合，
+ * 则返回的元素可以是 SDS 字符串。调用者提供两个指针以填充正确的对象。
+ * 该函数的返回值是对象的 object->encoding 字段，调用者使用它来检查是否填充了 int64_t 指针或 sds 指针。
+ * 请注意，sdsele 和 llele 指针都应该被传递，并且不能为 NULL，
+ * 因为该函数将尝试使用如果误用很容易捕获的值来防御性地填充未使用的字段。
+ * */
 int setTypeRandomElement(robj *setobj, sds *sdsele, int64_t *llele) {
     if (setobj->encoding == OBJ_ENCODING_HT) {
         dictEntry *de = dictGetFairRandomKey(setobj->ptr);
@@ -235,6 +255,7 @@ unsigned long setTypeSize(const robj *subject) {
 /* Convert the set to specified encoding. The resulting dict (when converting
  * to a hash table) is presized to hold the number of elements in the original
  * set. */
+//将集合转换为指定的编码。生成的 dict（当转换为哈希表时）预先调整大小以保存原始集合中的元素数量。
 void setTypeConvert(robj *setobj, int enc) {
     setTypeIterator *si;
     serverAssertWithInfo(NULL,setobj,setobj->type == OBJ_SET &&
@@ -269,6 +290,9 @@ void setTypeConvert(robj *setobj, int enc) {
  * has the same encoding as the original one.
  *
  * The resulting object always has refcount set to 1 */
+/**
+ * 这是 COPY 命令的辅助函数。复制一个集合对象，并保证返回的对象与原始对象具有相同的编码。结果对象始终将 refcount 设置为 1
+ * */
 robj *setTypeDup(robj *o) {
     robj *set;
     setTypeIterator *si;
@@ -452,6 +476,10 @@ void scardCommand(client *c) {
 /* How many times bigger should be the set compared to the remaining size
  * for us to use the "create new set" strategy? Read later in the
  * implementation for more info. */
+/**
+ * 处理“SPOP key <count>”变体。该命令的正常版本由 spopCommand() 函数本身处理。
+ * 与我们使用“创建新集合”策略的剩余大小相比，集合应该大多少倍？稍后阅读实现中的更多信息。
+ * */
 #define SPOP_MOVE_STRATEGY_MUL 5
 
 void spopWithCountCommand(client *c) {
@@ -652,6 +680,10 @@ void spopCommand(client *c) {
 /* How many times bigger should be the set compared to the requested size
  * for us to don't use the "remove elements" strategy? Read later in the
  * implementation for more info. */
+/**
+ * 处理“SRANDMEMBER key <count>”变体。该命令的正常版本由 srandmemberCommand() 函数本身处理。
+ * 与我们不使用“删除元素”策略的请求大小相比，该集合应该大多少倍？稍后阅读实现中的更多信息。
+ * */
 #define SRANDMEMBER_SUB_STRATEGY_MUL 3
 
 void srandmemberWithCountCommand(client *c) {
@@ -840,6 +872,7 @@ int qsortCompareSetsByCardinality(const void *s1, const void *s2) {
 
 /* This is used by SDIFF and in this case we can receive NULL that should
  * be handled as empty sets. */
+//这由 SDIFF 使用，在这种情况下，我们可以接收应作为空集处理的 NULL。
 int qsortCompareSetsByRevCardinality(const void *s1, const void *s2) {
     robj *o1 = *(robj**)s1, *o2 = *(robj**)s2;
     unsigned long first = o1 ? setTypeSize(o1) : 0;
@@ -857,6 +890,8 @@ int qsortCompareSetsByRevCardinality(const void *s1, const void *s2) {
  *
  * 'limit' work for SINTERCARD, stop searching after reaching the limit.
  * Passing a 0 means unlimited.
+ * 'cardinality_only' 适用于 SINTERCARD，仅返回具有最小处理和内存开销的基数。
+ * 'limit' 适用于 SINTERCARD，达到限制后停止搜索。传递 0 表示无限制。
  */
 void sinterGenericCommand(client *c, robj **setkeys,
                           unsigned long setnum, robj *dstkey,

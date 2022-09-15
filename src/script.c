@@ -41,6 +41,7 @@ scriptFlag scripts_flags_def[] = {
 };
 
 /* On script invocation, holding the current run context */
+//在脚本调用时，保持当前运行上下文
 static scriptRunCtx *curr_run_ctx = NULL;
 
 static void exitScriptTimedoutMode(scriptRunCtx *run_ctx) {
@@ -77,6 +78,7 @@ client* scriptGetCaller() {
 /* interrupt function for scripts, should be call
  * from time to time to reply some special command (like ping)
  * and also check if the run should be terminated. */
+//脚本的中断函数，应不时调用以回复一些特殊命令（如 ping）并检查是否应终止运行。
 int scriptInterrupt(scriptRunCtx *run_ctx) {
     if (run_ctx->flags & SCRIPT_TIMEDOUT) {
         /* script already timedout
@@ -128,6 +130,7 @@ uint64_t scriptFlagsToCmdFlags(uint64_t cmd_flags, uint64_t script_flags) {
 }
 
 /* Prepare the given run ctx for execution */
+//准备给定的运行 ctx 以执行
 int scriptPrepareForRun(scriptRunCtx *run_ctx, client *engine_client, client *caller, const char *funcname, uint64_t script_flags, int ro) {
     serverAssert(!curr_run_ctx);
 
@@ -254,6 +257,7 @@ int scriptPrepareForRun(scriptRunCtx *run_ctx, client *engine_client, client *ca
 }
 
 /* Reset the given run ctx after execution */
+//执行后重置给定的运行 ctx
 void scriptResetRun(scriptRunCtx *run_ctx) {
     serverAssert(curr_run_ctx);
 
@@ -276,6 +280,7 @@ void scriptResetRun(scriptRunCtx *run_ctx) {
 }
 
 /* return true if a script is currently running */
+//如果脚本当前正在运行，则返回 true
 int scriptIsRunning() {
     return curr_run_ctx != NULL;
 }
@@ -464,6 +469,7 @@ static int scriptVerifyClusterState(scriptRunCtx *run_ctx, client *c, client *or
 }
 
 /* set RESP for a given run_ctx */
+//为给定的 run_ctx 设置 RESP
 int scriptSetResp(scriptRunCtx *run_ctx, int resp) {
     if (resp != 2 && resp != 3) {
         return C_ERR;
@@ -475,6 +481,7 @@ int scriptSetResp(scriptRunCtx *run_ctx, int resp) {
 
 /* set Repl for a given run_ctx
  * either: PROPAGATE_AOF | PROPAGATE_REPL*/
+//为给定的 run_ctx 设置 Repl：PROPAGATE_AOF | PROPAGATE_REPL
 int scriptSetRepl(scriptRunCtx *run_ctx, int repl) {
     if ((repl & ~(PROPAGATE_AOF | PROPAGATE_REPL)) != 0) {
         return C_ERR;
@@ -514,6 +521,10 @@ static int scriptVerifyAllowStale(client *c, sds *err) {
  * up to the engine to take and parse.
  * The err out variable is set only if error occurs and describe the error.
  * If err is set on reply is written to the run_ctx client. */
+/**
+ * 调用 Redis 命令。回复被写入 run_ctx 客户端，由引擎来获取和解析。
+ * 仅当发生错误并描述错误时才设置 err out 变量。如果在回复时设置了 err，则将其写入 run_ctx 客户端。
+ * */
 void scriptCall(scriptRunCtx *run_ctx, robj* *argv, int argc, sds *err) {
     client *c = run_ctx->c;
 
@@ -581,6 +592,7 @@ error:
 }
 
 /* Returns the time when the script invocation started */
+//返回脚本调用开始的时间
 mstime_t scriptTimeSnapshot() {
     serverAssert(curr_run_ctx);
     return curr_run_ctx->snapshot_time;

@@ -8,6 +8,9 @@
  * The slow queries log is actually not "logged" in the Redis log file
  * but is accessible thanks to the SLOWLOG command.
  *
+ * Slowlog 实现了一个系统，该系统能够记住执行时间超过 M 微秒的最新 N 个查询。
+ * 使用 'slowlog-log-slower-than' 配置指令设置要记录在慢日志中的执行时间，也可以使用 CONFIG SETGET 命令读取和写入。
+ * 慢查询日志实际上并没有“记录”在 Redis 日志文件中，但可以通过 SLOWLOG 命令访问。
  * ----------------------------------------------------------------------------
  *
  * Copyright (c) 2009-2012, Salvatore Sanfilippo <antirez at gmail dot com>
@@ -45,6 +48,7 @@
 /* Create a new slowlog entry.
  * Incrementing the ref count of all the objects retained is up to
  * this function. */
+//创建一个新的慢日志条目。增加所有保留对象的引用计数取决于此函数。
 slowlogEntry *slowlogCreateEntry(client *c, robj **argv, int argc, long long duration) {
     slowlogEntry *se = zmalloc(sizeof(*se));
     int j, slargc = argc;
@@ -97,6 +101,7 @@ slowlogEntry *slowlogCreateEntry(client *c, robj **argv, int argc, long long dur
  * function matches the one of the 'free' method of adlist.c.
  *
  * This function will take care to release all the retained object. */
+//释放缓慢的日志条目。该参数是无效的，因此该函数的原型与 adlist.c 的“免费”方法之一相匹配。此函数将负责释放所有保留的对象。
 void slowlogFreeEntry(void *septr) {
     slowlogEntry *se = septr;
     int j;
@@ -111,6 +116,7 @@ void slowlogFreeEntry(void *septr) {
 
 /* Initialize the slow log. This function should be called a single time
  * at server startup. */
+//初始化慢日志。此函数应在服务器启动时调用一次。
 void slowlogInit(void) {
     server.slowlog = listCreate();
     server.slowlog_entry_id = 0;
@@ -120,6 +126,7 @@ void slowlogInit(void) {
 /* Push a new entry into the slow log.
  * This function will make sure to trim the slow log accordingly to the
  * configured max length. */
+//将新条目推送到慢速日志中。此功能将确保根据配置的最大长度修剪慢日志。
 void slowlogPushEntryIfNeeded(client *c, robj **argv, int argc, long long duration) {
     if (server.slowlog_log_slower_than < 0) return; /* Slowlog disabled */
     if (duration >= server.slowlog_log_slower_than)
@@ -132,6 +139,7 @@ void slowlogPushEntryIfNeeded(client *c, robj **argv, int argc, long long durati
 }
 
 /* Remove all the entries from the current slow log. */
+//从当前慢日志中删除所有条目。
 void slowlogReset(void) {
     while (listLength(server.slowlog) > 0)
         listDelNode(server.slowlog,listLast(server.slowlog));
@@ -139,6 +147,7 @@ void slowlogReset(void) {
 
 /* The SLOWLOG command. Implements all the subcommands needed to handle the
  * Redis slow log. */
+//SLOWLOG 命令。实现处理 Redis 慢日志所需的所有子命令。
 void slowlogCommand(client *c) {
     if (c->argc == 2 && !strcasecmp(c->argv[1]->ptr,"help")) {
         const char *help[] = {

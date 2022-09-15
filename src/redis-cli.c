@@ -81,7 +81,7 @@
 #define REDIS_CLI_CLUSTER_YES_ENV "REDISCLI_CLUSTER_YES"
 
 #define CLUSTER_MANAGER_SLOTS               16384
-#define CLUSTER_MANAGER_PORT_INCR           10000 /* same as CLUSTER_PORT_INCR */
+#define CLUSTER_MANAGER_PORT_INCR           10000 /* same as CLUSTER_PORT_INCR 与 CLUSTER_PORT_INCR 相同*/
 #define CLUSTER_MANAGER_MIGRATE_TIMEOUT     60000
 #define CLUSTER_MANAGER_MIGRATE_PIPELINE    10
 #define CLUSTER_MANAGER_REBALANCE_THRESHOLD 2
@@ -154,20 +154,20 @@
 #define LOG_COLOR_RESET     "0m"
 
 /* cliConnect() flags. */
-#define CC_FORCE (1<<0)         /* Re-connect if already connected. */
-#define CC_QUIET (1<<1)         /* Don't log connecting errors. */
+#define CC_FORCE (1<<0)         /* Re-connect if already connected.如果已经连接，请重新连接。 */
+#define CC_QUIET (1<<1)         /* Don't log connecting errors. 不要记录连接错误。*/
 
 /* DNS lookup */
-#define NET_IP_STR_LEN 46       /* INET6_ADDRSTRLEN is 46 */
+#define NET_IP_STR_LEN 46       /* INET6_ADDRSTRLEN is 46    INET6_ADDRSTRLEN 为 46*/
 
-/* --latency-dist palettes. */
+/* --latency-dist palettes.    --latency-dist 调色板。*/
 int spectrum_palette_color_size = 19;
 int spectrum_palette_color[] = {0,233,234,235,237,239,241,243,245,247,144,143,142,184,226,214,208,202,196};
 
 int spectrum_palette_mono_size = 13;
 int spectrum_palette_mono[] = {0,233,234,235,237,239,241,243,245,247,249,251,253};
 
-/* The actual palette in use. */
+/* The actual palette in use. 实际使用的调色板。*/
 int *spectrum_palette;
 int spectrum_palette_size;
 
@@ -179,20 +179,21 @@ static void dictSdsDestructor(dict *d, void *val);
 static void dictListDestructor(dict *d, void *val);
 
 /* Command documentation info used for help output */
+//用于帮助输出的命令文档信息
 struct commandDocs {
     char *name;
-    char *params; /* A string describing the syntax of the command arguments. */
+    char *params; /* A string describing the syntax of the command arguments. 描述命令参数语法的字符串。*/
     char *summary;
     char *group;
     char *since;
 };
 
-/* Cluster Manager Command Info */
+/* Cluster Manager Command Info 集群管理器命令信息*/
 typedef struct clusterManagerCommand {
     char *name;
     int argc;
     char **argv;
-    sds stdin_arg; /* arg from stdin. (-X option) */
+    sds stdin_arg; /* arg from stdin. (-X option) 来自标准输入的 arg。 （-X 选项）*/
     int flags;
     int replicas;
     char *from;
@@ -221,12 +222,12 @@ static struct config {
     cliSSLconfig sslconfig;
     long repeat;
     long interval;
-    int dbnum; /* db num currently selected */
+    int dbnum; /* db num currently selected  当前选择的 db 数量*/
     int interactive;
     int shutdown;
     int monitor_mode;
     int pubsub_mode;
-    int blocking_state_aborted; /* used to abort monitor_mode and pubsub_mode. */
+    int blocking_state_aborted; /* used to abort monitor_mode and pubsub_mode. 用于中止 monitor_mode 和 pubsub_mode。*/
     int latency_mode;
     int latency_dist_mode;
     int latency_history;
@@ -250,33 +251,34 @@ static struct config {
     int memkeys;
     unsigned memkeys_samples;
     int hotkeys;
-    int stdin_lastarg; /* get last arg from stdin. (-x option) */
-    int stdin_tag_arg; /* get <tag> arg from stdin. (-X option) */
-    char *stdin_tag_name; /* Placeholder(tag name) for user input. */
+    int stdin_lastarg; /* get last arg from stdin. (-x option) 从标准输入获取最后一个参数。 （-x 选项） */
+    int stdin_tag_arg; /* get <tag> arg from stdin. (-X option) 从标准输入获取 <tag> arg。 （-X 选项）*/
+    char *stdin_tag_name; /* Placeholder(tag name) for user input. 用户输入的占位符（标签名称）。*/
     int askpass;
-    int quoted_input;   /* Force input args to be treated as quoted strings */
-    int output; /* output mode, see OUTPUT_* defines */
-    int push_output; /* Should we display spontaneous PUSH replies */
+    int quoted_input;   /* Force input args to be treated as quoted strings 强制输入参数被视为带引号的字符串*/
+    int output; /* output mode, see OUTPUT_* defines 输出模式，见 OUTPUT_ 定义*/
+    int push_output; /* Should we display spontaneous PUSH replies 我们是否应该显示自发的 PUSH 回复*/
     sds mb_delim;
     sds cmd_delim;
     char prompt[128];
     char *eval;
     int eval_ldb;
-    int eval_ldb_sync;  /* Ask for synchronous mode of the Lua debugger. */
-    int eval_ldb_end;   /* Lua debugging session ended. */
-    int enable_ldb_on_eval; /* Handle manual SCRIPT DEBUG + EVAL commands. */
+    int eval_ldb_sync;  /* Ask for synchronous mode of the Lua debugger. 请求 Lua 调试器的同步模式。*/
+    int eval_ldb_end;   /* Lua debugging session ended. Lua 调试会话结束。*/
+    int enable_ldb_on_eval; /* Handle manual SCRIPT DEBUG + EVAL commands. 处理手动 SCRIPT DEBUG + EVAL 命令。*/
     int last_cmd_type;
     int verbose;
     int set_errcode;
     clusterManagerCommand cluster_manager_command;
     int no_auth_warning;
     int resp2;
-    int resp3; /* value of 1: specified explicitly, value of 2: implicit like --json option */
+    int resp3; /* value of 1: specified explicitly, value of 2: implicit like --json option
+ *                值 1：显式指定，值 2：隐式，如 --json 选项*/
     int in_multi;
     int pre_multi_dbnum;
 } config;
 
-/* User preferences. */
+/* User preferences. 用户偏好。*/
 static struct pref {
     int hints;
 } pref;
@@ -325,15 +327,15 @@ static void cliRefreshPrompt(void) {
         prompt = sdscatlen(prompt,addr,strlen(addr));
     }
 
-    /* Add [dbnum] if needed */
+    /* Add [dbnum] if needed  如果需要，添加 [dbnum]*/
     if (config.dbnum != 0)
         prompt = sdscatfmt(prompt,"[%i]",config.dbnum);
 
-    /* Add TX if in transaction state*/
+    /* Add TX if in transaction state  如果处于交易状态，则添加 TX*/
     if (config.in_multi)  
         prompt = sdscatlen(prompt,"(TX)",4);
 
-    /* Copy the prompt in the static buffer. */
+    /* Copy the prompt in the static buffer. 将提示复制到静态缓冲区中。*/
     prompt = sdscatlen(prompt,"> ",2);
     snprintf(config.prompt,sizeof(config.prompt),"%s",prompt);
     sdsfree(prompt);
@@ -347,23 +349,26 @@ static void cliRefreshPrompt(void) {
  * The function returns NULL (if the file is /dev/null or cannot be
  * obtained for some error), or an SDS string that must be freed by
  * the user. */
+/**返回指定 'dotfilename' 的点文件的名称。通常它只是将用户 HOME 连接到 'dotfilename' 中指定的文件。
+ * 但是，如果设置了环境变量“envoverride”，则将其值作为路径。
+ * 该函数返回 NULL（如果文件为 devnull 或因某些错误而无法获取），或必须由用户释放的 SDS 字符串。*/
 static sds getDotfilePath(char *envoverride, char *dotfilename) {
     char *path = NULL;
     sds dotPath = NULL;
 
-    /* Check the env for a dotfile override. */
+    /* Check the env for a dotfile override. 检查 env 是否有 dotfile 覆盖。*/
     path = getenv(envoverride);
     if (path != NULL && *path != '\0') {
         if (!strcmp("/dev/null", path)) {
             return NULL;
         }
 
-        /* If the env is set, return it. */
+        /* If the env is set, return it. 如果设置了 env，则返回它。*/
         dotPath = sdsnew(path);
     } else {
         char *home = getenv("HOME");
         if (home != NULL && *home != '\0') {
-            /* If no override is set use $HOME/<dotfilename>. */
+            /* If no override is set use $HOME/<dotfilename>. 如果未设置覆盖，请使用 HOME<dotfilename>。*/
             dotPath = sdscatprintf(sdsempty(), "%s/%s", home, dotfilename);
         }
     }
@@ -410,7 +415,7 @@ typedef struct {
     sds *argv;
     sds full;
 
-    /* Only used for help on commands */
+    /* Only used for help on commands 仅用于命令帮助*/
     struct commandDocs org;
 } helpEntry;
 
@@ -422,6 +427,7 @@ static sds cliVersion(void) {
     version = sdscatprintf(sdsempty(), "%s", REDIS_VERSION);
 
     /* Add git commit and working tree status when available */
+    //可用时添加 git commit 和工作树状态
     if (strtoll(redisGitSHA1(),NULL,16)) {
         version = sdscatprintf(version, " (git:%s", redisGitSHA1());
         if (strtoll(redisGitDirty(),NULL,10))
@@ -432,6 +438,7 @@ static sds cliVersion(void) {
 }
 
 /* For backwards compatibility with pre-7.0 servers. Initializes command help. */
+//为了向后兼容 7.0 之前的服务器。初始化命令帮助。
 static void cliOldInitHelp(void) {
     int commandslen = sizeof(commandHelp)/sizeof(struct commandHelp);
     int groupslen = sizeof(commandGroups)/sizeof(char*);
@@ -474,6 +481,9 @@ static void cliOldInitHelp(void) {
  * to may support more commands, so this function integrates the previous
  * entries with additional entries obtained using the COMMAND command
  * available in recent versions of Redis. */
+/**为了向后兼容 7.0 之前的服务器。 cliOldInitHelp() 使用 help.h 文件中的命令和组名设置 helpEntries 数组。
+ * 但是，我们连接的 Redis 实例可能支持更多命令，因此此功能将以前的条目与使用最近版本的 Redis 中
+ * 可用的 COMMAND 命令获得的附加条目集成在一起。*/
 static void cliOldIntegrateHelp(void) {
     if (cliConnect(CC_QUIET) == REDIS_ERR) return;
 
@@ -482,6 +492,7 @@ static void cliOldIntegrateHelp(void) {
 
     /* Scan the array reported by COMMAND and fill only the entries that
      * don't already match what we have. */
+    //扫描 COMMAND 报告的数组并仅填充与我们现有的内容不匹配的条目。
     for (size_t j = 0; j < reply->elements; j++) {
         redisReply *entry = reply->element[j];
         if (entry->type != REDIS_REPLY_ARRAY || entry->elements < 4 ||
@@ -528,6 +539,7 @@ static void cliOldIntegrateHelp(void) {
 }
 
 /* Concatenate a string to an sds string, but if it's empty substitute double quote marks. */
+//将字符串连接到 sds 字符串，但如果它是空的，则替换双引号。
 static sds sdscat_orempty(sds params, char *value) {
     if (value[0] == '\0') {
         return sdscat(params, "\"\"");
@@ -538,6 +550,7 @@ static sds sdscat_orempty(sds params, char *value) {
 static sds cliAddArgument(sds params, redisReply *argMap);
 
 /* Concatenate a list of arguments to the parameter string, separated by a separator string. */
+//将参数列表连接到参数字符串，由分隔符字符串分隔。
 static sds cliConcatArguments(sds params, redisReply *arguments, char *separator) {
     for (size_t j = 0; j < arguments->elements; j++) {
         params = cliAddArgument(params, arguments->element[j]);
@@ -549,6 +562,7 @@ static sds cliConcatArguments(sds params, redisReply *arguments, char *separator
 }
 
 /* Add an argument to the parameter string. */
+//将参数添加到参数字符串。
 static sds cliAddArgument(sds params, redisReply *argMap) {
     char *name = NULL;
     char *type = NULL;
@@ -560,6 +574,7 @@ static sds cliAddArgument(sds params, redisReply *argMap) {
     sds repeatPart = sdsempty();
 
     /* First read the fields describing the argument. */
+    //首先阅读描述参数的字段。
     if (argMap->type != REDIS_REPLY_MAP && argMap->type != REDIS_REPLY_ARRAY) {
         return params;
     }
@@ -596,6 +611,7 @@ static sds cliAddArgument(sds params, redisReply *argMap) {
     }
 
     /* Then build the "repeating part" of the argument string. */
+    //然后构建参数字符串的“重复部分”。
     if (!strcmp(type, "key") ||
         !strcmp(type, "string") ||
         !strcmp(type, "integer") ||
@@ -614,6 +630,7 @@ static sds cliAddArgument(sds params, redisReply *argMap) {
     }
 
     /* Finally, build the parameter string. */
+    //最后，构建参数字符串。
     if (tokenPart[0] != '\0' && strcmp(type, "pure-token") != 0) {
         tokenPart = sdscat(tokenPart, " ");
     }
@@ -639,6 +656,7 @@ static sds cliAddArgument(sds params, redisReply *argMap) {
 }
 
 /* Fill in the fields of a help entry for the command/subcommand name. */
+//填写命令子命令名称的帮助条目字段。
 static void cliFillInCommandHelpEntry(helpEntry *help, char *cmdname, char *subcommandname) {
     help->argc = subcommandname ? 2 : 1;
     help->argv = zmalloc(sizeof(sds) * help->argc);
@@ -646,6 +664,7 @@ static void cliFillInCommandHelpEntry(helpEntry *help, char *cmdname, char *subc
     sdstoupper(help->argv[0]);
     if (subcommandname) {
         /* Subcommand name is two words separated by a pipe character. */
+        //子命令名称是由管道字符分隔的两个单词。
         help->argv[1] = sdsnew(strchr(subcommandname, '|') + 1);
         sdstoupper(help->argv[1]);
     }
@@ -668,6 +687,11 @@ static void cliFillInCommandHelpEntry(helpEntry *help, char *cmdname, char *subc
  * Returns a pointer to the next available position in the help entries table.
  * If the command has subcommands, this is called recursively for the subcommands.
  */
+/**
+ * 为“规范”中描述的命令子命令初始化命令帮助条目。 'next' 指向下一个要填写的帮助条目。
+ * 'groups' 是一组要填写的命令组名称。返回一个指向帮助条目表中下一个可用位置的指针。
+ * 如果该命令有子命令，则为子命令递归调用。
+ * */
 static helpEntry *cliInitCommandHelpEntry(char *cmdname, char *subcommandname,
                                           helpEntry *next, redisReply *specs,
                                           dict *groups) {
@@ -714,10 +738,12 @@ static helpEntry *cliInitCommandHelpEntry(char *cmdname, char *subcommandname,
 }
 
 /* Returns the total number of commands and subcommands in the command docs table. */
+//返回命令文档表中的命令和子命令的总数。
 static size_t cliCountCommands(redisReply* commandTable) {
     size_t numCommands = commandTable->elements / 2;
 
-    /* The command docs table maps command names to a map of their specs. */    
+    /* The command docs table maps command names to a map of their specs. */
+    //命令文档表将命令名称映射到其规范的映射。
     for (size_t i = 0; i < commandTable->elements; i += 2) {
         assert(commandTable->element[i]->type == REDIS_REPLY_STRING);  /* Command name. */
         assert(commandTable->element[i + 1]->type == REDIS_REPLY_MAP ||
@@ -737,6 +763,7 @@ static size_t cliCountCommands(redisReply* commandTable) {
 }
 
 /* Comparator for sorting help table entries. */
+//用于排序帮助表条目的比较器。
 int helpEntryCompare(const void *entry1, const void *entry2) {
     helpEntry *i1 = (helpEntry *)entry1;
     helpEntry *i2 = (helpEntry *)entry2;
@@ -747,6 +774,7 @@ int helpEntryCompare(const void *entry1, const void *entry2) {
  * Called after the command help entries have already been filled in.
  * Extends the help table with new entries for the command groups.
  */
+//初始化命令组的命令帮助条目。在已填写命令帮助条目后调用。使用命令组的新条目扩展帮助表。
 void cliInitGroupHelpEntries(dict *groups) {
     dictIterator *iter = dictGetIterator(groups);
     dictEntry *entry;
@@ -774,6 +802,7 @@ void cliInitGroupHelpEntries(dict *groups) {
 }
 
 /* Initializes help entries for all commands in the COMMAND DOCS reply. */
+//初始化 COMMAND DOCS 回复中所有命令的帮助条目。
 void cliInitCommandHelpEntries(redisReply *commandTable, dict *groups) {
     helpEntry *next = helpEntries;
     for (size_t i = 0; i < commandTable->elements; i += 2) {
@@ -790,8 +819,10 @@ void cliInitCommandHelpEntries(redisReply *commandTable, dict *groups) {
 /* cliInitHelp() sets up the helpEntries array with the command and group
  * names and command descriptions obtained using the COMMAND DOCS command.
  */
+//cliInitHelp() 使用命令和组名称以及使用 COMMAND DOCS 命令获得的命令描述设置 helpEntries 数组。
 static void cliInitHelp(void) {
     /* Dict type for a set of strings, used to collect names of command groups. */
+    //一组字符串的字典类型，用于收集命令组的名称。
     dictType groupsdt = {
         dictSdsHash,                /* hash function */
         NULL,                       /* key dup */
@@ -807,12 +838,14 @@ static void cliInitHelp(void) {
     if (cliConnect(CC_QUIET) == REDIS_ERR) {
         /* Can not connect to the server, but we still want to provide
          * help, generate it only from the old help.h data instead. */
+        //无法连接到服务器，但我们仍然想提供帮助，只能从旧的 help.h 数据生成它。
         cliOldInitHelp();
         return;
     }
     commandTable = redisCommand(context, "COMMAND DOCS");
     if (commandTable == NULL || commandTable->type == REDIS_REPLY_ERROR) {
         /* New COMMAND DOCS subcommand not supported - generate help from old help.h data instead. */
+        //不支持新的 COMMAND DOCS 子命令 - 改为从旧的 help.h 数据生成帮助。
         freeReplyObject(commandTable);
         cliOldInitHelp();
         cliOldIntegrateHelp();
@@ -821,6 +854,7 @@ static void cliInitHelp(void) {
     if (commandTable->type != REDIS_REPLY_MAP && commandTable->type != REDIS_REPLY_ARRAY) return;
 
     /* Scan the array reported by COMMAND DOCS and fill in the entries */
+    //扫描 COMMAND DOCS 报告的数组并填写条目
     helpEntriesLen = cliCountCommands(commandTable);
     helpEntries = zmalloc(sizeof(helpEntry)*helpEntriesLen);
 
@@ -834,6 +868,7 @@ static void cliInitHelp(void) {
 }
 
 /* Output command help to stdout. */
+//输出命令帮助到标准输出。
 static void cliOutputCommandHelp(struct commandDocs *help, int group) {
     printf("\r\n  \x1b[1m%s\x1b[0m \x1b[90m%s\x1b[0m\r\n", help->name, help->params);
     printf("  \x1b[33msummary:\x1b[0m %s\r\n", help->summary);
@@ -866,6 +901,7 @@ static void cliOutputGenericHelp(void) {
 }
 
 /* Output all command help, filtering by group or command name. */
+//输出所有命令帮助，按组或命令名称过滤。
 static void cliOutputHelp(int argc, char **argv) {
     int i, j;
     char *group = NULL;
@@ -882,6 +918,7 @@ static void cliOutputHelp(int argc, char **argv) {
     if (helpEntries == NULL) {
         /* Initialize the help using the results of the COMMAND command.
          * In case we are using redis-cli help XXX, we need to init it. */
+        //使用 COMMAND 命令的结果初始化帮助。如果我们使用 redis-cli help XXX，我们需要初始化它。
         cliInitHelp();
     }
 
@@ -908,7 +945,7 @@ static void cliOutputHelp(int argc, char **argv) {
     printf("\r\n");
 }
 
-/* Linenoise completion callback. */
+/* Linenoise completion callback. Linenoise完成回调。*/
 static void completionCallback(const char *buf, linenoiseCompletions *lc) {
     size_t startpos = 0;
     int mask;
@@ -937,7 +974,7 @@ static void completionCallback(const char *buf, linenoiseCompletions *lc) {
     }
 }
 
-/* Linenoise hints callback. */
+/* Linenoise hints callback. Linenoise 提示回调。*/
 static char *hintsCallback(const char *buf, int *color, int *bold) {
     if (!pref.hints) return NULL;
 
@@ -947,12 +984,13 @@ static char *hintsCallback(const char *buf, int *color, int *bold) {
     helpEntry *entry = NULL;
 
     /* Check if the argument list is empty and return ASAP. */
+    //检查参数列表是否为空并尽快返回。
     if (argc == 0) {
         sdsfreesplitres(argv,argc);
         return NULL;
     }
 
-    /* Search longest matching prefix command */
+    /* Search longest matching prefix command 搜索最长匹配前缀命令*/
     for (i = 0; i < helpEntriesLen; i++) {
         if (!(helpEntries[i].type & CLI_HELP_COMMAND)) continue;
 
@@ -980,6 +1018,7 @@ static char *hintsCallback(const char *buf, int *color, int *bold) {
 
         /* Remove arguments from the returned hint to show only the
             * ones the user did not yet type. */
+        //从返回的提示中删除参数以仅显示用户尚未键入的参数。
         int toremove = argc-matchlen;
         while(toremove > 0 && sdslen(hint)) {
             if (hint[0] == '[') break;
@@ -987,7 +1026,7 @@ static char *hintsCallback(const char *buf, int *color, int *bold) {
             sdsrange(hint,1,-1);
         }
 
-        /* Add an initial space if needed. */
+        /* Add an initial space if needed. 如果需要，添加一个初始空间。*/
         if (!endspace) {
             sds newhint = sdsnewlen(" ",1);
             newhint = sdscatsds(newhint,hint);
@@ -1008,7 +1047,7 @@ static void freeHintsCallback(void *ptr) {
  * Networking / parsing
  *--------------------------------------------------------------------------- */
 
-/* Send AUTH command to the server */
+/* Send AUTH command to the server 向服务器发送 AUTH 命令*/
 static int cliAuth(redisContext *ctx, char *user, char *auth) {
     redisReply *reply;
     if (auth == NULL) return REDIS_OK;
@@ -1033,6 +1072,7 @@ static int cliAuth(redisContext *ctx, char *user, char *auth) {
 }
 
 /* Send SELECT input_dbnum to the server */
+//将 SELECT input_dbnum 发送到服务器
 static int cliSelect(void) {
     redisReply *reply;
     if (config.conn_info.input_dbnum == config.dbnum) return REDIS_OK;
@@ -1056,6 +1096,7 @@ static int cliSelect(void) {
 }
 
 /* Select RESP3 mode if redis-cli was started with the -3 option.  */
+//如果 redis-cli 使用 -3 选项启动，则选择 RESP3 模式。
 static int cliSwitchProto(void) {
     redisReply *reply;
     if (!config.resp3 || config.resp2) return REDIS_OK;
@@ -1083,6 +1124,9 @@ static int cliSwitchProto(void) {
  *      CC_FORCE: The connection is performed even if there is already
  *                a connected socket.
  *      CC_QUIET: Don't print errors if connection fails. */
+/**连接到服务器。可以将某些标志传递给函数：
+ *  CC_FORCE：即使已经有连接的套接字，也会执行连接。
+ *  CC_QUIET：如果连接失败，不要打印错误。*/
 static int cliConnect(int flags) {
     if (context == NULL || flags & CC_FORCE) {
         if (context != NULL) {
@@ -1093,6 +1137,7 @@ static int cliConnect(int flags) {
         }
 
         /* Do not use hostsocket when we got redirected in cluster mode */
+        //当我们在集群模式下被重定向时，不要使用 hostsocket
         if (config.hostsocket == NULL ||
             (config.cluster_mode && config.cluster_reissue_command)) {
             context = redisConnect(config.conn_info.hostip,config.conn_info.hostport);
@@ -1133,9 +1178,12 @@ static int cliConnect(int flags) {
          * in order to prevent timeouts caused by the execution of long
          * commands. At the same time this improves the detection of real
          * errors. */
+        /**在 Redis 上下文套接字中设置激进的 KEEP_ALIVE 套接字选项，以防止执行长命令导致超时。
+         * 同时，这改进了对实际错误的检测。*/
         anetKeepAlive(NULL, context->fd, REDIS_CLI_KEEPALIVE_INTERVAL);
 
         /* Do AUTH, select the right DB, switch to RESP3 if needed. */
+        //执行 AUTH，选择正确的 DB，如果需要，切换到 RESP3。
         if (cliAuth(context, config.conn_info.user, config.conn_info.auth) != REDIS_OK)
             return REDIS_ERR;
         if (cliSelect() != REDIS_OK)
@@ -1145,6 +1193,7 @@ static int cliConnect(int flags) {
     }
 
     /* Set a PUSH handler if configured to do so. */
+    //如果配置为这样做，请设置 PUSH 处理程序。
     if (config.push_output) {
         redisSetPushCallback(context, cliPushHandler);
     }
@@ -1154,6 +1203,7 @@ static int cliConnect(int flags) {
 
 /* In cluster, if server replies ASK, we will redirect to a different node.
  * Before sending the real command, we need to send ASKING command first. */
+//在集群中，如果服务器回复 ASK，我们将重定向到不同的节点。在发送真正的命令之前，我们需要先发送 ASKING 命令。
 static int cliSendAsking() {
     redisReply *reply;
 
@@ -1190,6 +1240,7 @@ static int isInvalidateReply(redisReply *reply) {
 /* Special display handler for RESP3 'invalidate' messages.
  * This function does not validate the reply, so it should
  * already be confirmed correct */
+/**RESP3“无效”消息的特殊显示处理程序。这个函数不验证回复，所以它应该已经被确认正确*/
 static sds cliFormatInvalidateTTY(redisReply *r) {
     sds out = sdsnew("-> invalidate: ");
 
@@ -1206,6 +1257,7 @@ static sds cliFormatInvalidateTTY(redisReply *r) {
 }
 
 /* Returns non-zero if cliFormatReplyTTY renders the reply in multiple lines. */
+/**如果 cliFormatReplyTTY 在多行中呈现回复，则返回非零值。*/
 static int cliIsMultilineValueTTY(redisReply *r) {
     switch (r->type) {
     case REDIS_REPLY_ARRAY:
@@ -1244,6 +1296,7 @@ static sds cliFormatReplyTTY(redisReply *r, char *prefix) {
         /* If you are producing output for the standard output we want
         * a more interesting output with quoted characters and so forth,
         * unless it's a verbatim string type. */
+        /**如果您正在为标准输出生成输出，我们想要一个带有引号字符等的更有趣的输出，除非它是逐字字符串类型。*/
         if (r->type == REDIS_REPLY_STRING) {
             out = sdscatrepr(out,r->str,r->len);
             out = sdscat(out,"\n");
@@ -1281,6 +1334,7 @@ static sds cliFormatReplyTTY(redisReply *r, char *prefix) {
             sds tmp;
 
             /* Calculate chars needed to represent the largest index */
+            //计算表示最大索引所需的字符
             i = r->elements;
             if (r->type == REDIS_REPLY_MAP) i /= 2;
             do {
@@ -1289,11 +1343,13 @@ static sds cliFormatReplyTTY(redisReply *r, char *prefix) {
             } while(i);
 
             /* Prefix for nested multi bulks should grow with idxlen+2 spaces */
+            //嵌套多块的前缀应与 idxlen+2 个空格一起增长
             memset(_prefixlen,' ',idxlen+2);
             _prefixlen[idxlen+2] = '\0';
             _prefix = sdscat(sdsnew(prefix),_prefixlen);
 
             /* Setup prefix format for every entry */
+            //为每个条目设置前缀格式
             char numsep;
             if (r->type == REDIS_REPLY_SET) numsep = '~';
             else if (r->type == REDIS_REPLY_MAP) numsep = '#';
@@ -1307,6 +1363,7 @@ static sds cliFormatReplyTTY(redisReply *r, char *prefix) {
 
                 /* Don't use the prefix for the first element, as the parent
                  * caller already prepended the index number. */
+                //不要对第一个元素使用前缀，因为父调用者已经在索引号前面。
                 out = sdscatprintf(out,_prefixfmt,i == 0 ? "" : prefix,human_idx);
 
                 /* Format the multi bulk entry */
@@ -1346,6 +1403,7 @@ int isColorTerm(void) {
 
 /* Helper function for sdsCatColorizedLdbReply() appending colorize strings
  * to an SDS string. */
+//sdsCatColorizedLdbReply() 的辅助函数将着色字符串附加到 SDS 字符串。
 sds sdscatcolor(sds o, char *s, size_t len, char *color) {
     if (!isColorTerm()) return sdscatlen(o,s,len);
 
@@ -1367,6 +1425,7 @@ sds sdscatcolor(sds o, char *s, size_t len, char *color) {
 
 /* Colorize Lua debugger status replies according to the prefix they
  * have. */
+//根据 Lua 调试器状态回复的前缀着色。
 sds sdsCatColorizedLdbReply(sds o, char *s, size_t len) {
     char *color = "white";
 
@@ -1504,6 +1563,7 @@ static sds cliFormatReplyCSV(redisReply *r) {
 
 /* Append specified buffer to out and return it, using required JSON output
  * mode. */
+//使用所需的 JSON 输出模式将指定的缓冲区附加到 out 并返回它。
 static sds jsonStringOutput(sds out, const char *p, int len, int mode) {
     if (mode == OUTPUT_JSON) {
         return escapeJsonString(out, p, len);
@@ -1577,6 +1637,9 @@ static sds cliFormatReplyJson(sds out, redisReply *r, int mode) {
                  * and in RESP3, they can be other types. 
                  * The first one(cliFormatReplyJson) is to convert non string type to string
                  * The Second one(escapeJsonString) is to escape the converted string */
+                /**根据 JSON 规范，JSON 映射键必须是字符串，而在 RESP3 中，它们可以是其他类型。
+                 * 第一个（cliFormatReplyJson）是将非字符串类型转换为字符串
+                 * 第二个（escapeJsonString）是将转换后的字符串转义*/
                 sds keystr = cliFormatReplyJson(sdsempty(),key,mode);
                 if (keystr[0] == '"') out = sdscatsds(out,keystr);
                 else out = sdscatfmt(out,"\"%S\"",keystr);
@@ -1597,6 +1660,7 @@ static sds cliFormatReplyJson(sds out, redisReply *r, int mode) {
 }
 
 /* Generate reply strings in various output modes */
+//以各种输出模式生成回复字符串
 static sds cliFormatReply(redisReply *reply, int mode, int verbatim) {
     sds out;
 
@@ -1622,6 +1686,7 @@ static sds cliFormatReply(redisReply *reply, int mode, int verbatim) {
 }
 
 /* Output any spontaneous PUSH reply we receive */
+//输出我们收到的任何自发的 PUSH 回复
 static void cliPushHandler(void *privdata, void *reply) {
     UNUSED(privdata);
     sds out;
@@ -1897,6 +1962,7 @@ static int cliSendCommand(int argc, char **argv, long repeat) {
 }
 
 /* Send a command reconnecting the link if needed. */
+//如果需要，发送重新连接链接的命令。
 static redisReply *reconnectingRedisCommand(redisContext *c, const char *fmt, ...) {
     redisReply *reply = NULL;
     int tries = 0;
@@ -2546,6 +2612,14 @@ void cliLoadPreferences(void) {
  * - CONFIG SET masterauth/masteruser/requirepass
  * - HELLO with [AUTH username password]
  * - MIGRATE with [AUTH password] or [AUTH2 username password] */
+/**
+ * 某些命令可能包含敏感信息，不应放在历史文件中。目前这些命令包括：
+ *   - AUTH
+ *   - ACL SETUSER
+ *   - CONFIG SET masterauthmasteruserrequirepass
+ *   - HELLO with [AUTH username password]
+ *   - MIGRATE with [AUTH password] 或 [AUTH2 username password]
+ * */
 static int isSensitiveCommand(int argc, char **argv) {
     if (!strcasecmp(argv[0],"auth")) {
         return 1;
@@ -2855,12 +2929,12 @@ static int evalMode(int argc, char **argv) {
 
 /* The Cluster Manager global structure */
 static struct clusterManager {
-    list *nodes;    /* List of nodes in the configuration. */
+    list *nodes;    /* List of nodes in the configuration. 配置中的节点列表。*/
     list *errors;
-    int unreachable_masters;    /* Masters we are not able to reach. */
+    int unreachable_masters;    /* Masters we are not able to reach. 我们无法达到的master*/
 } cluster_manager;
 
-/* Used by clusterManagerFixSlotsCoverage */
+/* Used by clusterManagerFixSlotsCoverage  由 clusterManagerFixSlotsCoverage 使用*/
 dict *clusterManagerUncoveredSlots = NULL;
 
 typedef struct clusterManagerNode {
@@ -2891,6 +2965,7 @@ typedef struct clusterManagerNode {
 } clusterManagerNode;
 
 /* Data structure used to represent a sequence of cluster nodes. */
+//用于表示集群节点序列的数据结构。
 typedef struct clusterManagerNodeArray {
     clusterManagerNode **nodes; /* Actual nodes array */
     clusterManagerNode **alloc; /* Pointer to the allocated memory */
@@ -3118,6 +3193,9 @@ static int parseClusterNodeAddress(char *addr, char **ip_ptr, int *port_ptr,
  * If host and port can be detected, it returns 1 and it stores host and
  * port into variables referenced by 'ip_ptr' and 'port_ptr' pointers,
  * elsewhere it returns 0. */
+/**从命令参数获取主机 ip 和端口。如果只提供了一个参数，则它必须采用 'ip:port' 的形式，否则第一个参数必须是 ip，
+ * 第二个参数必须是端口。如果可以检测到主机和端口，则返回 1 并将主机和端口存储到由“ip_ptr”和“port_ptr”指针引用的变量中，
+ * 在其他地方返回 0。*/
 static int getClusterHostFromCmdArgs(int argc, char **argv,
                                      char **ip_ptr, int *port_ptr) {
     int port = 0;
@@ -3248,6 +3326,8 @@ static sds clusterManagerGetNodeRDBFilename(clusterManagerNode *node) {
  * latest case, if the 'err' arg is not NULL, it gets allocated with a copy
  * of reply error (it's up to the caller function to free it), elsewhere
  * the error is directly printed. */
+/**检查回复是否为 NULL 或其类型是否为 REDIS_REPLY_ERROR。
+ * 在最新的情况下，如果 'err' 参数不是 NULL，它会被分配一个回复错误的副本（由调用者函数来释放它），在其他地方直接打印错误。*/
 static int clusterManagerCheckRedisReply(clusterManagerNode *n,
                                          redisReply *r, char **err)
 {
@@ -3265,6 +3345,7 @@ static int clusterManagerCheckRedisReply(clusterManagerNode *n,
 }
 
 /* Call MULTI command on a cluster node. */
+//在集群节点上调用 MULTI 命令。
 static int clusterManagerStartTransaction(clusterManagerNode *node) {
     redisReply *reply = CLUSTER_MANAGER_COMMAND(node, "MULTI");
     int success = clusterManagerCheckRedisReply(node, reply, NULL);
@@ -3273,6 +3354,7 @@ static int clusterManagerStartTransaction(clusterManagerNode *node) {
 }
 
 /* Call EXEC command on a cluster node. */
+//在集群节点上调用 EXEC 命令。
 static int clusterManagerExecTransaction(clusterManagerNode *node,
                                          clusterManagerOnReplyError onerror)
 {
@@ -3355,6 +3437,7 @@ static void clusterManagerRemoveNodeFromList(list *nodelist,
 }
 
 /* Return the node with the specified name (ID) or NULL. */
+//返回具有指定名称 (ID) 或 NULL 的节点。
 static clusterManagerNode *clusterManagerNodeByName(const char *name) {
     if (cluster_manager.nodes == NULL) return NULL;
     clusterManagerNode *found = NULL;
@@ -3379,6 +3462,7 @@ static clusterManagerNode *clusterManagerNodeByName(const char *name) {
  * part of the node ID as long as the prefix in unique across the
  * cluster.
  */
+/**与 clusterManagerNodeByName 类似，但指定的名称可以只是节点 ID 的第一部分，只要前缀在整个集群中是唯一的。*/
 static clusterManagerNode *clusterManagerNodeByAbbreviatedName(const char*name)
 {
     if (cluster_manager.nodes == NULL) return NULL;
@@ -3407,6 +3491,7 @@ static void clusterManagerNodeResetSlots(clusterManagerNode *node) {
 }
 
 /* Call "INFO" redis command on the specified node and return the reply. */
+/**在指定节点上调用“INFO”redis 命令并返回回复。*/
 static redisReply *clusterManagerGetNodeRedisInfo(clusterManagerNode *node,
                                                   char **err)
 {
@@ -3434,6 +3519,7 @@ static int clusterManagerNodeIsCluster(clusterManagerNode *node, char **err) {
 
 /* Checks whether the node is empty. Node is considered not-empty if it has
  * some key or if it already knows other nodes */
+/**检查节点是否为空。如果节点有一些密钥或者它已经知道其他节点，则节点被认为是非空的*/
 static int clusterManagerNodeIsEmpty(clusterManagerNode *node, char **err) {
     redisReply *info = clusterManagerGetNodeRedisInfo(node, err);
     int is_empty = 1;
@@ -3485,6 +3571,15 @@ result:
  * offending slaves can be stored into the 'offending' argument,
  * so that the optimizer can try changing the configuration of the
  * slaves violating the anti-affinity goals. */
+/**返回反亲和度分数，这是衡量当前集群布局中违反反亲和性的数量，即master和slave在不同IP地址分布的严重程度，
+ * 使得同一个master的slave不在主控主机中，也在不同的主机中。
+ * 分数计算如下：SAME_AS_MASTER = 10000 每个从机在其主机的相同 IP 中。
+ * SAME_AS_SLAVE = 1 每个从站与同一主站的另一个从站具有相同的 IP。
+ * FINAL_SCORE = SAME_AS_MASTER + SAME_AS_SLAVE 所以分数越高意味着反亲和度越差，而零意味着完美的反亲和度。
+ * 反亲和优化将尝试获得尽可能低的分数。由于我们不想牺牲从属不应该与主控在同一主机中这一事实，
+ * 因此我们将 10000 倍的分数分配给此违规行为，以便我们仅在不影响第一个因素的情况下针对第二个因素进行优化一。
+ * ipnodes 参数是一个 clusterManagerNodeArray 数组，每个 IP 一个，而 ip_count 是配置中的 IP 总数。
+ * 该函数返回上述分数，并且可以将违规从站列表存储到“违规”参数中，以便优化器可以尝试更改违反反亲和目标的从站配置。*/
 static int clusterManagerGetAntiAffinityScore(clusterManagerNodeArray *ipnodes,
     int ip_count, clusterManagerNode ***offending, int *offending_len)
 {
@@ -3635,6 +3730,7 @@ cleanup:
 }
 
 /* Return a representable string of the node's flags */
+//返回节点标志的可表示字符串
 static sds clusterManagerNodeFlagString(clusterManagerNode *node) {
     sds flags = sdsempty();
     if (!node->flags_str) return flags;
@@ -3653,6 +3749,7 @@ static sds clusterManagerNodeFlagString(clusterManagerNode *node) {
 }
 
 /* Return a representable string of the node's slots */
+//返回节点槽的可表示字符串
 static sds clusterManagerNodeSlotsString(clusterManagerNode *node) {
     sds slots = sdsempty();
     int first_range_idx = -1, last_slot_idx = -1, i;
@@ -3767,6 +3864,9 @@ static sds clusterManagerNodeGetJSON(clusterManagerNode *node,
  * However if the key contains the {...} pattern, only the part between
  * { and } is hashed. This may be useful in the future to force certain
  * keys to be in the same node (assuming no resharding is in progress). */
+/**我们有 16384 个哈希槽。给定密钥的哈希槽作为密钥的 crc16 的最低有效 14 位获得。
+ * 但是，如果键包含 {...} 模式，则只有 { 和 } 之间的部分被散列。
+ * 这可能在将来强制某些键在同一个节点中有用（假设没有重新分片正在进行）。*/
 static unsigned int clusterManagerKeyHashSlot(char *key, int keylen) {
     int s, e; /* start-end indexes of { and } */
 
@@ -3789,6 +3889,7 @@ static unsigned int clusterManagerKeyHashSlot(char *key, int keylen) {
 }
 
 /* Return a string representation of the cluster node. */
+//返回集群节点的字符串表示。
 static sds clusterManagerNodeInfo(clusterManagerNode *node, int indent) {
     sds info = sdsempty();
     sds spaces = sdsempty();
@@ -3882,6 +3983,7 @@ static void clusterManagerShowClusterInfo(void) {
 }
 
 /* Flush dirty slots configuration of the node by calling CLUSTER ADDSLOTS */
+//通过调用 CLUSTER ADDSLOTS 刷新节点的脏槽配置
 static int clusterManagerAddSlots(clusterManagerNode *node, char**err)
 {
     redisReply *reply = NULL;
@@ -3930,6 +4032,8 @@ cleanup:
  * If the slot is unassigned or if the reply is an error, return NULL.
  * Use the **err argument in order to check whether the slot is unassigned
  * or the reply resulted in an error. */
+/**从节点 n 的角度获取分配槽的节点。如果插槽未分配或回复错误，则返回 NULL。
+ * 使用 err 参数来检查槽是否未分配或回复是否导致错误。*/
 static clusterManagerNode *clusterManagerGetSlotOwner(clusterManagerNode *n,
                                                       int slot, char **err)
 {
@@ -3976,6 +4080,7 @@ static clusterManagerNode *clusterManagerGetSlotOwner(clusterManagerNode *n,
 }
 
 /* Set slot status to "importing" or "migrating" */
+//将插槽状态设置为“正在导入”或“正在迁移”
 static int clusterManagerSetSlot(clusterManagerNode *node1,
                                  clusterManagerNode *node2,
                                  int slot, const char *status, char **err) {
@@ -4069,6 +4174,7 @@ static int clusterManagerBumpEpoch(clusterManagerNode *node) {
 /* Callback used by clusterManagerSetSlotOwner transaction. It should ignore
  * errors except for ADDSLOTS errors.
  * Return 1 if the error should be ignored. */
+/**clusterManagerSetSlotOwner 事务使用的回调。它应该忽略除 ADDSLOTS 错误之外的错误。如果应该忽略错误，则返回 1。*/
 static int clusterManagerOnSetOwnerErr(redisReply *reply,
     clusterManagerNode *n, int bulk_idx)
 {
@@ -4099,6 +4205,8 @@ static int clusterManagerSetSlotOwner(clusterManagerNode *owner,
  * on both nodes. Every key with same name on both nodes but having different
  * values will be added to the *diffs list. Return 0 in case of reply
  * error. */
+/**通过在两个节点上调用 DEBUG DIGEST-VALUE redis 命令，获取指定节点 n1 和 n2 的 keys_reply 中指定键值的哈希值。
+ * 两个节点上具有相同名称但具有不同值的每个键都将添加到差异列表中。回复错误时返回 0。*/
 static int clusterManagerCompareKeysValues(clusterManagerNode *n1,
                                           clusterManagerNode *n2,
                                           redisReply *keys_reply,
@@ -4161,6 +4269,8 @@ cleanup:
 /* Migrate keys taken from reply->elements. It returns the reply from the
  * MIGRATE command, or NULL if something goes wrong. If the argument 'dots'
  * is not NULL, a dot will be printed for every migrated key. */
+/**迁移从回复->元素中获取的键。它返回来自 MIGRATE 命令的回复，如果出现问题，则返回 NULL。
+ * 如果参数 'dots' 不为 NULL，将为每个迁移的键打印一个点。*/
 static redisReply *clusterManagerMigrateKeysInReply(clusterManagerNode *source,
                                                     clusterManagerNode *target,
                                                     redisReply *reply,
@@ -4244,6 +4354,7 @@ cleanup:
 }
 
 /* Migrate all keys in the given slot from source to target.*/
+//将给定槽中的所有键从源迁移到目标。
 static int clusterManagerMigrateKeysInSlot(clusterManagerNode *source,
                                            clusterManagerNode *target,
                                            int slot, int timeout,
@@ -4410,6 +4521,11 @@ next:
  * CLUSTER_MANAGER_OPT_UPDATE  -- Update node->slots for source/target nodes.
  * CLUSTER_MANAGER_OPT_QUIET   -- Don't print info messages.
 */
+/**使用 MIGRATE 在源节点和目标节点之间移动槽。选项：
+ *  CLUSTER_MANAGER_OPT_VERBOSE -- 为每个移动的键打印一个点。
+ *  CLUSTER_MANAGER_OPT_COLD -- 移动键而不打开重新配置节点的插槽。
+ *  CLUSTER_MANAGER_OPT_UPDATE -- 更新节点->源目标节点的槽。
+ *  CLUSTER_MANAGER_OPT_QUIET -- 不打印信息消息。*/
 static int clusterManagerMoveSlot(clusterManagerNode *source,
                                   clusterManagerNode *target,
                                   int slot, int opts,  char**err)
@@ -4446,6 +4562,9 @@ static int clusterManagerMoveSlot(clusterManagerNode *source,
          * If we inform any other node first, it can happen that the target node
          * crashes before it is set as the new owner and then the slot is left
          * without an owner which results in redirect loops. See issue #7116. */
+        /**将新节点设置为所有已知节点中槽的所有者。我们首先通知目标节点。它将信息传播到集群的其余部分。
+         * 如果我们先通知任何其他节点，则可能会发生目标节点在被设置为新所有者之前崩溃，然后插槽没有所有者，从而导致重定向循环。
+         * 见问题 7116。*/
         success = clusterManagerSetSlot(target, target, slot, "node", err);
         if (!success) return 0;
 
@@ -4453,6 +4572,8 @@ static int clusterManagerMoveSlot(clusterManagerNode *source,
          * slot and the target node has already informed the source node, the
          * source node has turned itself into a replica. This is not an error in
          * this scenario so we ignore it. See issue #9223. */
+        /**通知源节点。如果源节点刚刚丢失了它的最后一个槽并且目标节点已经通知了源节点，则源节点已经将自己变成了副本。
+         * 在这种情况下，这不是错误，因此我们忽略它。见问题 9223。*/
         success = clusterManagerSetSlot(source, target, slot, "node", err);
         const char *acceptable = "ERR Please use SETSLOT only with masters.";
         if (!success && err && !strncmp(*err, acceptable, strlen(acceptable))) {
@@ -4464,6 +4585,7 @@ static int clusterManagerMoveSlot(clusterManagerNode *source,
 
         /* We also inform the other nodes to avoid redirects in case the target
          * node is slow to propagate the change to the entire cluster. */
+        //我们还通知其他节点避免重定向，以防目标节点将更改传播到整个集群的速度很慢。
         listIter li;
         listNode *ln;
         listRewind(cluster_manager.nodes, &li);
@@ -4475,7 +4597,7 @@ static int clusterManagerMoveSlot(clusterManagerNode *source,
             if (!success) return 0;
         }
     }
-    /* Update the node logical config */
+    /* Update the node logical config 更新节点逻辑配置*/
     if (opts & CLUSTER_MANAGER_OPT_UPDATE) {
         source->slots[slot] = 0;
         target->slots[slot] = 1;
@@ -4485,6 +4607,7 @@ static int clusterManagerMoveSlot(clusterManagerNode *source,
 
 /* Flush the dirty node configuration by calling replicate for slaves or
  * adding the slots defined in the masters. */
+//通过为从属调用复制或添加在主控中定义的槽来刷新脏节点配置。
 static int clusterManagerFlushNodeConfig(clusterManagerNode *node, char **err) {
     if (!node->dirty) return 0;
     redisReply *reply = NULL;
@@ -4503,6 +4626,7 @@ static int clusterManagerFlushNodeConfig(clusterManagerNode *node, char **err) {
              * the slave does not know the master node yet. So on errors
              * we return ASAP leaving the dirty flag set, to flush the
              * config later. */
+            /**如果集群尚未加入，则从属节点可能还不知道主节点。因此，如果出现错误，我们会尽快返回并保留脏标志集，以便稍后刷新配置。*/
             goto cleanup;
         }
     } else {
@@ -4515,7 +4639,7 @@ cleanup:
     return success;
 }
 
-/* Wait until the cluster configuration is consistent. */
+/* Wait until the cluster configuration is consistent. 等到集群配置一致。*/
 static void clusterManagerWaitForClusterJoin(void) {
     printf("Waiting for the cluster to join\n");
     int counter = 0,
@@ -4576,6 +4700,9 @@ static void clusterManagerWaitForClusterJoin(void) {
  * If CLUSTER_MANAGER_OPT_GETFRIENDS flag is set into 'opts' argument,
  * and node already knows other nodes, the node's friends list is populated
  * with the other nodes info. */
+/**通过调用“CLUSTER NODES”命令加载节点的集群配置。然后更新节点的配置（名称、复制、插槽...）。
+ * 如果 CLUSTER_MANAGER_OPT_GETFRIENDS 标志设置为 'opts' 参数，并且节点已经知道其他节点，
+ * 则节点的朋友列表将填充其他节点信息。*/
 static int clusterManagerNodeLoadInfo(clusterManagerNode *node, int opts,
                                       char **err)
 {
@@ -4752,6 +4879,8 @@ cleanup:
  * point. All nodes will be loaded inside the cluster_manager.nodes list.
  * Warning: if something goes wrong, it will free the starting node before
  * returning 0. */
+/**使用参数“节点”作为起点检索有关集群的信息。所有节点都将加载到 cluster_manager.nodes 列表中。
+ * 警告：如果出现问题，它将在返回 0 之前释放起始节点。*/
 static int clusterManagerLoadInfoFromNode(clusterManagerNode *node) {
     if (node->context == NULL && !clusterManagerNodeConnect(node)) {
         freeClusterManagerNode(node);
@@ -4831,6 +4960,7 @@ invalid_friend:
 }
 
 /* Compare functions used by various sorting operations. */
+//比较各种排序操作使用的函数。
 int clusterManagerSlotCompare(const void *slot1, const void *slot2) {
     const char **i1 = (const char **)slot1;
     const char **i2 = (const char **)slot2;
@@ -5016,6 +5146,7 @@ cleanup:
 /* Check for disconnected cluster links. It returns a dict whose keys
  * are the unreachable node addresses and the values are lists of
  * node addresses that cannot reach the unreachable node. */
+/**检查断开的集群链接。它返回一个字典，其键是无法到达的节点地址，值是无法到达无法到达节点的节点地址列表。*/
 static dict *clusterManagerGetLinkStatus(void) {
     if (cluster_manager.nodes == NULL) return NULL;
     dict *status = dictCreate(&clusterManagerLinkDictType);
@@ -5052,6 +5183,7 @@ static dict *clusterManagerGetLinkStatus(void) {
 }
 
 /* Add the error string to cluster_manager.errors and print it. */
+//将错误字符串添加到 cluster_manager.errors 并打印出来。
 static void clusterManagerOnError(sds err) {
     if (cluster_manager.errors == NULL)
         cluster_manager.errors = listCreate();
@@ -5062,6 +5194,8 @@ static void clusterManagerOnError(sds err) {
 /* Check the slots coverage of the cluster. The 'all_slots' argument must be
  * and array of 16384 bytes. Every covered slot will be set to 1 in the
  * 'all_slots' array. The function returns the total number if covered slots.*/
+/**检查集群的槽位覆盖率。 'all_slots' 参数必须是 16384 字节的数组。 'all_slots' 数组中的每个被覆盖的插槽都将设置为 1。
+ * 如果被覆盖的插槽，该函数返回总数。*/
 static int clusterManagerGetCoveredSlots(char *all_slots) {
     if (cluster_manager.nodes == NULL) return 0;
     listIter li;
@@ -5097,6 +5231,7 @@ static void clusterManagerPrintSlotsList(list *slots) {
 
 /* Return the node, among 'nodes' with the greatest number of keys
  * in the specified slot. */
+//返回指定槽中键数最多的“节点”中的节点。
 static clusterManagerNode * clusterManagerGetNodeWithMostKeysInSlot(list *nodes,
                                                                     int slot,
                                                                     char **err)
@@ -5135,6 +5270,7 @@ static clusterManagerNode * clusterManagerGetNodeWithMostKeysInSlot(list *nodes,
 /* This function returns the master that has the least number of replicas
  * in the cluster. If there are multiple masters with the same smaller
  * number of replicas, one at random is returned. */
+/**该函数返回集群中副本数最少的主节点。如果有多个具有相同数量较少副本的主服务器，则随机返回一个。*/
 
 static clusterManagerNode *clusterManagerNodeWithLeastReplicas() {
     clusterManagerNode *node = NULL;
@@ -5154,6 +5290,7 @@ static clusterManagerNode *clusterManagerNodeWithLeastReplicas() {
 }
 
 /* This function returns a random master node, return NULL if none */
+/**该函数返回一个随机的主节点，如果没有返回NULL*/
 
 static clusterManagerNode *clusterManagerNodeMasterRandom() {
     int master_count = 0;
@@ -5233,6 +5370,10 @@ static int clusterManagerFixSlotsCoverage(char *all_slots) {
      * 1) No node has keys for this slot.
      * 2) A single node has keys for this slot.
      * 3) Multiple nodes have keys for this slot. */
+    /**对于每个槽，根据实际情况采取措施：
+     *   1）没有节点有该槽的键。
+     *   2）单个节点有这个槽的键。
+     *   3）多个节点有这个槽的键。*/
     none = listCreate();
     single = listCreate();
     multi = listCreate();
@@ -5250,9 +5391,11 @@ static int clusterManagerFixSlotsCoverage(char *all_slots) {
     dictReleaseIterator(iter);
 
     /* we want explicit manual confirmation from users for all the fix cases */
+    /**我们希望用户对所有修复案例进行明确的手动确认*/
     int ignore_force = 1;
 
     /*  Handle case "1": keys in no node. */
+    /**处理案例“1”：没有节点中的键。*/
     if (listLength(none) > 0) {
         printf("The following uncovered slots have no keys "
                "across the cluster:\n");
@@ -5274,6 +5417,7 @@ static int clusterManagerFixSlotsCoverage(char *all_slots) {
                 }
                 /* Since CLUSTER ADDSLOTS succeeded, we also update the slot
                  * info into the node struct, in order to keep it synced */
+                /**由于 CLUSTER ADDSLOTS 成功，我们还将槽信息更新到节点结构中，以保持同步*/
                 n->slots[s] = 1;
                 fixed++;
             }
@@ -5281,6 +5425,7 @@ static int clusterManagerFixSlotsCoverage(char *all_slots) {
     }
 
     /*  Handle case "2": keys only in one node. */
+    /**处理案例“2”：仅在一个节点中的键。*/
     if (listLength(single) > 0) {
         printf("The following uncovered slots have keys in just one node:\n");
         clusterManagerPrintSlotsList(single);
@@ -5306,6 +5451,7 @@ static int clusterManagerFixSlotsCoverage(char *all_slots) {
                 }
                 /* Since CLUSTER ADDSLOTS succeeded, we also update the slot
                  * info into the node struct, in order to keep it synced */
+                /**由于 CLUSTER ADDSLOTS 成功，我们还将槽信息更新到节点结构中，以保持同步*/
                 n->slots[atoi(slot)] = 1;
                 fixed++;
             }
@@ -5313,6 +5459,7 @@ static int clusterManagerFixSlotsCoverage(char *all_slots) {
     }
 
     /* Handle case "3": keys in multiple nodes. */
+    /**处理案例“3”：多个节点中的键。*/
     if (listLength(multi) > 0) {
         printf("The following uncovered slots have keys in multiple nodes:\n");
         clusterManagerPrintSlotsList(multi);
@@ -5342,6 +5489,7 @@ static int clusterManagerFixSlotsCoverage(char *all_slots) {
                 }
                 /* Since CLUSTER ADDSLOTS succeeded, we also update the slot
                  * info into the node struct, in order to keep it synced */
+                /**由于 CLUSTER ADDSLOTS 成功，我们还将槽信息更新到节点结构中，以保持同步*/
                 target->slots[atoi(slot)] = 1;
                 listIter nli;
                 listNode *nln;
@@ -5350,6 +5498,7 @@ static int clusterManagerFixSlotsCoverage(char *all_slots) {
                     clusterManagerNode *src = nln->value;
                     if (src == target) continue;
                     /* Assign the slot to target node in the source node. */
+                    /**将槽分配给源节点中的目标节点。*/
                     if (!clusterManagerSetSlot(src, target, s, "NODE", NULL))
                         fixed = -1;
                     if (fixed < 0) goto cleanup;
@@ -5357,6 +5506,7 @@ static int clusterManagerFixSlotsCoverage(char *all_slots) {
                      * (even if we will actually migrate keys away)
                      * in order to avoid receiving redirections
                      * for MIGRATE. */
+                    /**将源节点设置为“正在导入”状态（即使我们实际上会将密钥迁移出去）以避免接收到 MIGRATE 的重定向。*/
                     if (!clusterManagerSetSlot(src, target, s,
                                                "IMPORTING", NULL)) fixed = -1;
                     if (fixed < 0) goto cleanup;
@@ -5384,6 +5534,7 @@ cleanup:
 /* Slot 'slot' was found to be in importing or migrating state in one or
  * more nodes. This function fixes this condition by migrating keys where
  * it seems more sensible. */
+/**在一个或多个节点中发现插槽“插槽”处于导入或迁移状态。此功能通过将键迁移到看起来更合理的位置来解决此问题。*/
 static int clusterManagerFixOpenSlot(int slot) {
     int force_fix = config.cluster_manager_command.flags &
                     CLUSTER_MANAGER_CMD_FLAG_FIX_WITH_UNREACHABLE_MASTERS;
@@ -5396,18 +5547,21 @@ static int clusterManagerFixOpenSlot(int slot) {
     clusterManagerLogInfo(">>> Fixing open slot %d\n", slot);
     /* Try to obtain the current slot owner, according to the current
      * nodes configuration. */
+    /**根据当前节点配置，尝试获取当前 slot owner。*/
     int success = 1;
     list *owners = listCreate();    /* List of nodes claiming some ownership.
                                        it could be stating in the configuration
                                        to have the node ownership, or just
-                                       holding keys for such slot. */
+                                       holding keys for such slot.
+                                       声称拥有某些所有权的节点列表。它可能在配置中声明拥有节点所有权，或者只是持有此类插槽的密钥。*/
     list *migrating = listCreate();
     list *importing = listCreate();
     sds migrating_str = sdsempty();
     sds importing_str = sdsempty();
-    clusterManagerNode *owner = NULL; /* The obvious slot owner if any. */
+    clusterManagerNode *owner = NULL; /* The obvious slot owner if any. 明显的插槽所有者（如果有）。*/
 
     /* Iterate all the nodes, looking for potential owners of this slot. */
+    /**迭代所有节点，寻找该槽的潜在所有者。*/
     listIter li;
     listNode *ln;
     listRewind(cluster_manager.nodes, &li);
@@ -5433,11 +5587,13 @@ static int clusterManagerFixOpenSlot(int slot) {
 
     /* If we have only a single potential owner for this slot,
      * set it as "owner". */
+    /**如果此插槽只有一个潜在所有者，请将其设置为“所有者”。*/
     if (listLength(owners) == 1) owner = listFirst(owners)->value;
 
     /* Scan the list of nodes again, in order to populate the
      * list of nodes in importing or migrating state for
      * this slot. */
+    /**再次扫描节点列表，以填充此插槽的处于导入或迁移状态的节点列表。*/
     listRewind(cluster_manager.nodes, &li);
     while ((ln = listNext(&li)) != NULL) {
         clusterManagerNode *n = ln->value;
@@ -5473,6 +5629,7 @@ static int clusterManagerFixOpenSlot(int slot) {
         /* If the node is neither migrating nor importing and it's not
          * the owner, then is added to the importing list in case
          * it has keys in the slot. */
+        /**如果节点既没有迁移也没有导入，并且它不是所有者，则将其添加到导入列表中，以防它在槽中有键。*/
         if (!is_migrating && !is_importing && n != owner) {
             redisReply *r = CLUSTER_MANAGER_COMMAND(n,
                 "CLUSTER COUNTKEYSINSLOT %d", slot);
@@ -5497,12 +5654,14 @@ static int clusterManagerFixOpenSlot(int slot) {
 
     /* If there is no slot owner, set as owner the node with the biggest
      * number of keys, among the set of migrating / importing nodes. */
+    /**如果没有槽所有者，则将迁移导入节点集合中键数最多的节点设置为所有者。*/
     if (owner == NULL) {
         clusterManagerLogInfo(">>> No single clear owner for the slot, "
                               "selecting an owner by # of keys...\n");
         owner = clusterManagerGetNodeWithMostKeysInSlot(cluster_manager.nodes,
                                                         slot, NULL);
         // If we still don't have an owner, we can't fix it.
+        //如果我们仍然没有所有者，我们将无法修复它。
         if (owner == NULL) {
             clusterManagerLogErr("[ERR] Can't select a slot owner. "
                                  "Impossible to fix.\n");
@@ -5511,6 +5670,7 @@ static int clusterManagerFixOpenSlot(int slot) {
         }
 
         // Use ADDSLOTS to assign the slot.
+        //使用 ADDSLOTS 分配插槽。
         clusterManagerLogWarn("*** Configuring %s:%d as the slot owner\n",
                               owner->ip, owner->port);
         success = clusterManagerClearSlotStatus(owner, slot);
@@ -5519,9 +5679,11 @@ static int clusterManagerFixOpenSlot(int slot) {
         if (!success) goto cleanup;
         /* Since CLUSTER ADDSLOTS succeeded, we also update the slot
          * info into the node struct, in order to keep it synced */
+        //由于 CLUSTER ADDSLOTS 成功，我们还将槽信息更新到节点结构中，以保持同步
         owner->slots[slot] = 1;
         /* Remove the owner from the list of migrating/importing
          * nodes. */
+        //从迁移导入节点列表中删除所有者。
         clusterManagerRemoveNodeFromList(migrating, owner);
         clusterManagerRemoveNodeFromList(importing, owner);
     }
@@ -5534,9 +5696,12 @@ static int clusterManagerFixOpenSlot(int slot) {
      * Note that this case also covers multiple nodes having the slot
      * in migrating state, since migrating is a valid state only for
      * slot owners. */
+    /**如果插槽有多个所有者，我们需要修复它，使单个节点成为所有者，并且所有其他节点都处于导入状态。
+     * 稍后可以通过上述基本案例之一处理修复。请注意，这种情况还包括多个节点的插槽处于迁移状态，因为迁移仅对插槽所有者有效。*/
     if (listLength(owners) > 1) {
         /* Owner cannot be NULL at this point, since if there are more owners,
          * the owner has been set in the previous condition (owner == NULL). */
+        //此时所有者不能为 NULL，因为如果有更多所有者，则所有者已设置为先前的条件（所有者 == NULL）。
         assert(owner != NULL);
         listRewind(owners, &li);
         while ((ln = listNext(&li)) != NULL) {
@@ -5546,14 +5711,16 @@ static int clusterManagerFixOpenSlot(int slot) {
             if (!success) goto cleanup;
             n->slots[slot] = 0;
             /* Assign the slot to the owner in the node 'n' configuration.' */
+            //将插槽分配给节点“n”配置中的所有者。
             success = clusterManagerSetSlot(n, owner, slot, "node", NULL);
             if (!success) goto cleanup;
             success = clusterManagerSetSlot(n, owner, slot, "importing", NULL);
             if (!success) goto cleanup;
-            /* Avoid duplicates. */
+            /* Avoid duplicates. 避免重复。*/
             clusterManagerRemoveNodeFromList(importing, n);
             listAddNodeTail(importing, n);
             /* Ensure that the node is not in the migrating list. */
+            //确保该节点不在迁移列表中。
             clusterManagerRemoveNodeFromList(migrating, n);
         }
     }
@@ -5561,6 +5728,7 @@ static int clusterManagerFixOpenSlot(int slot) {
 
     /* Case 1: The slot is in migrating state in one node, and in
      *         importing state in 1 node. That's trivial to address. */
+    /**情况1：slot在一个节点处于迁移状态，在1个节点处于导入状态。这是微不足道的。*/
     if (listLength(migrating) == 1 && listLength(importing) == 1) {
         clusterManagerNode *src = listFirst(migrating)->value;
         clusterManagerNode *dst = listFirst(importing)->value;
@@ -5575,6 +5743,8 @@ static int clusterManagerFixOpenSlot(int slot) {
      * they probably got keys about the slot after a restart so opened
      * the slot. In this case we just move all the keys to the owner
      * according to the configuration. */
+    /**案例 2：有多个节点声称该 slot 正在导入，他们可能在重新启动后获得了有关该 slot 的密钥，因此打开了该 slot。
+     * 在这种情况下，我们只是根据配置将所有密钥移动到所有者。*/
     else if (listLength(migrating) == 0 && listLength(importing) > 0) {
         clusterManagerLogInfo(">>> Case 2: Moving all the %d slot keys to its "
                               "owner %s:%d\n", slot, owner->ip, owner->port);
@@ -5592,6 +5762,7 @@ static int clusterManagerFixOpenSlot(int slot) {
         }
         /* Since the slot has been moved in "cold" mode, ensure that all the
          * other nodes update their own configuration about the slot itself. */
+        /**由于插槽已在“冷”模式下移动，因此请确保所有其他节点更新他们自己关于插槽本身的配置。*/
         listRewind(cluster_manager.nodes, &li);
         while ((ln = listNext(&li)) != NULL) {
             clusterManagerNode *n = ln->value;
@@ -5611,6 +5782,10 @@ static int clusterManagerFixOpenSlot(int slot) {
      * If no importing node has the same ID as the destination node of the
      * migrating node, the slot's state is closed on both the migrating node
      * and the importing nodes. */
+    /**情况3：槽在一个节点中处于迁移状态，但多个其他节点声称处于导入状态并且槽中没有任何密钥。
+     * 我们搜索与迁移节点的目标节点具有相同 ID 的导入节点。
+     * 在这种情况下，我们将插槽从迁移节点移动到该节点，并关闭所有其他导入节点上的导入状态。
+     * 如果没有导入节点与迁移节点的目标节点具有相同的 ID，则该槽的状态在迁移节点和导入节点上都是关闭的。*/
     else if (listLength(migrating) == 1 && listLength(importing) > 1) {
         int try_to_fix = 1;
         clusterManagerNode *src = listFirst(migrating)->value;
@@ -5644,9 +5819,11 @@ static int clusterManagerFixOpenSlot(int slot) {
                                   slot, src->ip, src->port,
                                   dst->ip, dst->port);
             /* Move the slot to the destination node. */
+            //将槽移动到目标节点。
             success = clusterManagerMoveSlot(src, dst, slot, move_opts, NULL);
             if (!success) goto cleanup;
             /* Close slot on all the other importing nodes. */
+            //关闭所有其他导入节点上的插槽。
             listRewind(importing, &li);
             while ((ln = listNext(&li)) != NULL) {
                 clusterManagerNode *n = ln->value;
@@ -5659,6 +5836,7 @@ static int clusterManagerFixOpenSlot(int slot) {
                                   "migrating and importing nodes.\n", slot);
             /* Close the slot on both the migrating node and the importing
              * nodes. */
+            //关闭迁移节点和导入节点上的插槽。
             success = clusterManagerClearSlotStatus(src, slot);
             if (!success) goto cleanup;
             listRewind(importing, &li);
@@ -5688,6 +5866,8 @@ static int clusterManagerFixOpenSlot(int slot) {
          * there is a migrating node that actually don't have any key or is the
          * slot owner. We can just close the slot, probably a reshard
          * interrupted in the middle. */
+        /**案例4：没有声称处于导入状态的槽，但有一个迁移节点实际上没有任何密钥或者是槽的所有者。
+         * 我们可以关闭插槽，可能是中间中断的重新分片。*/
         if (try_to_close_slot) {
             clusterManagerNode *n = listFirst(migrating)->value;
             clusterManagerLogInfo(">>> Case 4: Closing slot %d on %s:%d\n",
@@ -5726,7 +5906,7 @@ static int clusterManagerFixMultipleSlotOwners(int slot, list *owners) {
     if (!owner) owner = listFirst(owners)->value;
     clusterManagerLogInfo(">>> Setting slot %d owner: %s:%d\n",
                           slot, owner->ip, owner->port);
-    /* Set the slot owner. */
+    /* Set the slot owner. 设置槽所有者。*/
     if (!clusterManagerSetSlotOwner(owner, slot, 0)) return 0;
     listIter li;
     listNode *ln;
@@ -5734,6 +5914,7 @@ static int clusterManagerFixMultipleSlotOwners(int slot, list *owners) {
     /* Update configuration in all the other master nodes by assigning the slot
      * itself to the new owner, and by eventually migrating keys if the node
      * has keys for the slot. */
+    /**通过将插槽本身分配给新所有者来更新所有其他主节点中的配置，如果节点具有插槽的密钥，则最终迁移密钥。*/
     while ((ln = listNext(&li)) != NULL) {
         clusterManagerNode *n = ln->value;
         if (n == owner) continue;
@@ -5772,7 +5953,7 @@ static int clusterManagerCheckCluster(int quiet) {
         clusterManagerLogOk("[OK] All nodes agree about slots "
                             "configuration.\n");
     }
-    /* Check open slots */
+    /* Check open slots 检查打开的插槽*/
     clusterManagerLogInfo(">>> Check for open slots...\n");
     listIter li;
     listRewind(cluster_manager.nodes, &li);
@@ -5871,6 +6052,7 @@ static int clusterManagerCheckCluster(int quiet) {
     if (search_multiple_owners) {
         /* Check whether there are multiple owners, even when slots are
          * fully covered and there are no open slots. */
+        //检查是否有多个所有者，即使插槽已被完全覆盖且没有打开的插槽。
         clusterManagerLogInfo(">>> Check for multiple slot owners...\n");
         int slot = 0, slots_with_multiple_owners = 0;
         for (; slot < CLUSTER_MANAGER_SLOTS; slot++) {
@@ -5885,6 +6067,7 @@ static int clusterManagerCheckCluster(int quiet) {
                 else {
                     /* Nodes having keys for the slot will be considered
                      * owners too. */
+                    //拥有插槽密钥的节点也将被视为所有者。
                     int count = clusterManagerCountKeysInSlot(n, slot);
                     if (count > 0) listAddNodeTail(owners, n);
                 }
@@ -6031,6 +6214,7 @@ static void clusterManagerNodeArrayInit(clusterManagerNodeArray *array,
 
 /* Reset array->nodes to the original array allocation and re-count non-NULL
  * nodes. */
+//将 array->nodes 重置为原始数组分配并重新计算非 NULL 节点。
 static void clusterManagerNodeArrayReset(clusterManagerNodeArray *array) {
     if (array->nodes > array->alloc) {
         array->len = array->nodes - array->alloc;
@@ -6044,15 +6228,19 @@ static void clusterManagerNodeArrayReset(clusterManagerNodeArray *array) {
 }
 
 /* Shift array->nodes and store the shifted node into 'nodeptr'. */
+//移位数组->节点并将移位后的节点存储到“nodeptr”中。
 static void clusterManagerNodeArrayShift(clusterManagerNodeArray *array,
                                          clusterManagerNode **nodeptr)
 {
     assert(array->len > 0);
     /* If the first node to be shifted is not NULL, decrement count. */
+    //如果要移动的第一个节点不为 NULL，则递减计数。
     if (*array->nodes != NULL) array->count--;
     /* Store the first node to be shifted into 'nodeptr'. */
+    //将要移动的第一个节点存储到“nodeptr”中。
     *nodeptr = *array->nodes;
     /* Shift the nodes array and decrement length. */
+    //移动节点数组并减少长度。
     array->nodes++;
     array->len--;
 }
@@ -6087,6 +6275,7 @@ static void clusterManagerPrintNotClusterNodeError(clusterManagerNode *node,
 }
 
 /* Execute redis-cli in Cluster Manager mode */
+//在 Cluster Manager 模式下执行 redis-cli
 static void clusterManagerMode(clusterManagerCommandProc *proc) {
     int argc = config.cluster_manager_command.argc;
     char **argv = config.cluster_manager_command.argv;
@@ -6094,6 +6283,7 @@ static void clusterManagerMode(clusterManagerCommandProc *proc) {
     int success = proc(argc, argv);
 
     /* Initialized in createClusterManagerCommand. */
+    //在 createClusterManagerCommand 中初始化。
     if (config.stdin_lastarg) {
         zfree(config.cluster_manager_command.argv);
         sdsfree(config.cluster_manager_command.stdin_arg);
@@ -6224,6 +6414,7 @@ static int clusterManagerCommandCreate(int argc, char **argv) {
 
     /* Rotating the list sometimes helps to get better initial
      * anti-affinity before the optimizer runs. */
+    /**轮换列表有时有助于在优化器运行之前获得更好的初始反关联性。*/
     clusterManagerNode *first_node = interleaved[0];
     for (i = 0; i < (interleaved_len - 1); i++)
         interleaved[i] = interleaved[i + 1];
@@ -6316,6 +6507,7 @@ assign_replicas:
                 first = node;
                 /* Although hiredis supports connecting to a hostname, CLUSTER
                  * MEET requires an IP address, so we do a DNS lookup here. */
+                /**虽然hiredis 支持连接到主机名，但CLUSTER MEET 需要IP 地址，所以我们在这里进行DNS 查找。*/
                 if (anetResolve(NULL, first->ip, first_ip, sizeof(first_ip), ANET_NONE)
                     == ANET_ERR)
                 {
@@ -6330,6 +6522,9 @@ assign_replicas:
                 /* CLUSTER MEET bus-port parameter was added in 4.0.
                  * So if (bus_port == 0) or (bus_port == port + CLUSTER_MANAGER_PORT_INCR),
                  * we just call CLUSTER MEET with 2 arguments, using the old form. */
+                /**CLUSTER MEET 总线端口参数是在 4.0 中添加的。
+                 * 因此，如果 (bus_port == 0) 或 (bus_port == port + CLUSTER_MANAGER_PORT_INCR)，
+                 * 我们只需使用旧形式使用 2 个参数调用 CLUSTER MEET。*/
                 reply = CLUSTER_MANAGER_COMMAND(node, "cluster meet %s %d",
                                                 first->ip, first->port);
             } else {
@@ -6353,9 +6548,10 @@ assign_replicas:
         /* Give one second for the join to start, in order to avoid that
          * waiting for cluster join will find all the nodes agree about
          * the config as they are still empty with unassigned slots. */
+        /**给加入一秒钟的时间，以避免等待集群加入会发现所有节点都同意配置，因为它们仍然是空的，有未分配的插槽。*/
         sleep(1);
         clusterManagerWaitForClusterJoin();
-        /* Useful for the replicas */
+        /* Useful for the replicas 对副本有用*/
         listRewind(cluster_manager.nodes, &li);
         while ((ln = listNext(&li)) != NULL) {
             clusterManagerNode *node = ln->value;
@@ -6420,6 +6616,7 @@ static int clusterManagerCommandAddNode(int argc, char **argv) {
 
     /* If --cluster-master-id was specified, try to resolve it now so that we
      * abort before starting with the node configuration. */
+    /**如果指定了 --cluster-master-id，请立即尝试解决它，以便我们在开始配置节点之前中止。*/
     clusterManagerNode *master_node = NULL;
     if (config.cluster_manager_command.flags & CLUSTER_MANAGER_CMD_FLAG_SLAVE) {
         char *master_id = config.cluster_manager_command.master_id;
@@ -6471,6 +6668,7 @@ static int clusterManagerCommandAddNode(int argc, char **argv) {
 
     if (!master_node) {
         /* Send functions to the new node, if new node is a replica it will get the functions from its primary. */
+        /**将函数发送到新节点，如果新节点是副本，它将从其主节点获取函数。*/
         clusterManagerLogInfo(">>> Getting functions from cluster\n");
         reply = CLUSTER_MANAGER_COMMAND(refnode, "FUNCTION DUMP");
         if (!clusterManagerCheckRedisReply(refnode, reply, &err)) {
@@ -6507,9 +6705,11 @@ static int clusterManagerCommandAddNode(int argc, char **argv) {
     if (reply) freeReplyObject(reply);
 
     // Send CLUSTER MEET command to the new node
+    //向新节点发送 CLUSTER MEET 命令
     clusterManagerLogInfo(">>> Send CLUSTER MEET to node %s:%d to make it "
                           "join the cluster.\n", ip, port);
     /* CLUSTER MEET requires an IP address, so we do a DNS lookup here. */
+    //CLUSTER MEET 需要一个 IP 地址，所以我们在这里进行 DNS 查找。
     char first_ip[NET_IP_STR_LEN];
     if (anetResolve(NULL, first->ip, first_ip, sizeof(first_ip), ANET_NONE) == ANET_ERR) {
         fprintf(stderr, "Invalid IP address or hostname specified: %s\n", first->ip);
@@ -6521,6 +6721,9 @@ static int clusterManagerCommandAddNode(int argc, char **argv) {
         /* CLUSTER MEET bus-port parameter was added in 4.0.
          * So if (bus_port == 0) or (bus_port == port + CLUSTER_MANAGER_PORT_INCR),
          * we just call CLUSTER MEET with 2 arguments, using the old form. */
+        /**CLUSTER MEET 总线端口参数是在 4.0 中添加的。
+         * 因此，如果 (bus_port == 0) 或 (bus_port == port + CLUSTER_MANAGER_PORT_INCR)，
+         * 我们只需使用旧形式使用 2 个参数调用 CLUSTER MEET。*/
         reply = CLUSTER_MANAGER_COMMAND(new_node, "CLUSTER MEET %s %d",
                                         first_ip, first->port);
     } else {
@@ -6532,6 +6735,7 @@ static int clusterManagerCommandAddNode(int argc, char **argv) {
         goto cleanup;
 
     /* Additional configuration is needed if the node is added as a slave. */
+    /**如果节点被添加为从节点，则需要额外的配置。*/
     if (master_node) {
         sleep(1);
         clusterManagerWaitForClusterJoin();
@@ -6567,10 +6771,11 @@ static int clusterManagerCommandDeleteNode(int argc, char **argv) {
     clusterManagerNode *ref_node = clusterManagerNewNode(ip, port, 0);
     clusterManagerNode *node = NULL;
 
-    // Load cluster information
+    // Load cluster information 加载集群信息
     if (!clusterManagerLoadInfoFromNode(ref_node)) return 0;
 
     // Check if the node exists and is not empty
+    //检查节点是否存在且不为空
     node = clusterManagerNodeByName(node_id);
     if (node == NULL) {
         clusterManagerLogErr("[ERR] No such node ID %s\n", node_id);
@@ -6583,6 +6788,7 @@ static int clusterManagerCommandDeleteNode(int argc, char **argv) {
     }
 
     // Send CLUSTER FORGET to all the nodes but the node to remove
+    //向除要删除的节点之外的所有节点发送 CLUSTER FORGET
     clusterManagerLogInfo(">>> Sending CLUSTER FORGET messages to the "
                           "cluster...\n");
     listIter li;
@@ -6593,6 +6799,7 @@ static int clusterManagerCommandDeleteNode(int argc, char **argv) {
         if (n == node) continue;
         if (n->replicate && !strcasecmp(n->replicate, node_id)) {
             // Reconfigure the slave to replicate with some other node
+            //重新配置从属节点以与其他节点进行复制
             clusterManagerNode *master = clusterManagerNodeWithLeastReplicas();
             assert(master != NULL);
             clusterManagerLogInfo(">>> %s:%d as replica of %s:%d\n",
@@ -6611,6 +6818,7 @@ static int clusterManagerCommandDeleteNode(int argc, char **argv) {
     }
 
     /* Finally send CLUSTER RESET to the node. */
+    //最后向节点发送 CLUSTER RESET。
     clusterManagerLogInfo(">>> Sending CLUSTER RESET SOFT to the "
                           "deleted node.\n");
     redisReply *r = redisCommand(node->context, "CLUSTER RESET %s", "SOFT");
@@ -6755,6 +6963,7 @@ static int clusterManagerCommandReshard(int argc, char **argv) {
             from = p + 1;
         }
         /* Check if there's still another source to process. */
+        /**检查是否还有其他来源需要处理。*/
         if (!all && strlen(from) > 0) {
             if (!strcmp(from, "all")) all = 1;
             if (!all) {
@@ -6877,7 +7086,7 @@ static int clusterManagerCommandRebalance(int argc, char **argv) {
     listIter li;
     listNode *ln;
     listRewind(cluster_manager.nodes, &li);
-    /* Compute the total cluster weight. */
+    /* Compute the total cluster weight. 计算总集群权重。*/
     while ((ln = listNext(&li)) != NULL) {
         clusterManagerNode *n = ln->value;
         if (n->flags & CLUSTER_MANAGER_FLAG_SLAVE || n->replicate)
@@ -6893,6 +7102,7 @@ static int clusterManagerCommandRebalance(int argc, char **argv) {
     weightedNodes = zmalloc(nodes_involved * sizeof(clusterManagerNode *));
     if (weightedNodes == NULL) goto cleanup;
     /* Check cluster, only proceed if it looks sane. */
+    //检查集群，只有在它看起来正常时才继续。
     clusterManagerCheckCluster(1);
     if (cluster_manager.errors && listLength(cluster_manager.errors) > 0) {
         clusterManagerLogErr("*** Please fix your cluster problems "
@@ -6903,6 +7113,7 @@ static int clusterManagerCommandRebalance(int argc, char **argv) {
     /* Calculate the slots balance for each node. It's the number of
      * slots the node should lose (if positive) or gain (if negative)
      * in order to be balanced. */
+    /**计算每个节点的插槽余额。这是节点为了平衡而应该失去（如果为正）或获得（如果为负）的槽数。*/
     int threshold_reached = 0, total_balance = 0;
     float threshold = config.cluster_manager_command.threshold;
     i = 0;
@@ -6917,6 +7128,7 @@ static int clusterManagerCommandRebalance(int argc, char **argv) {
         /* Compute the percentage of difference between the
          * expected number of slots and the real one, to see
          * if it's over the threshold specified by the user. */
+        /**计算预期槽数与实际槽数之间的差异百分比，以查看它是否超过用户指定的阈值。*/
         int over_threshold = 0;
         if (threshold > 0) {
             if (n->slots_count > 0) {
@@ -6937,6 +7149,7 @@ static int clusterManagerCommandRebalance(int argc, char **argv) {
     /* Because of rounding, it is possible that the balance of all nodes
      * summed does not give 0. Make sure that nodes that have to provide
      * slots are always matched by nodes receiving slots. */
+    /**由于四舍五入，所有节点的余额总和可能不为 0。确保必须提供插槽的节点始终与接收插槽的节点匹配。*/
     while (total_balance > 0) {
         listRewind(involved, &li);
         while ((ln = listNext(&li)) != NULL) {
@@ -6948,6 +7161,7 @@ static int clusterManagerCommandRebalance(int argc, char **argv) {
         }
     }
     /* Sort nodes by their slots balance. */
+    /**按节点的插槽余额对节点进行排序。*/
     qsort(weightedNodes, nodes_involved, sizeof(clusterManagerNode *),
           clusterManagerCompareNodeBalance);
     clusterManagerLogInfo(">>> Rebalancing across %d nodes. "
@@ -6964,6 +7178,8 @@ static int clusterManagerCommandRebalance(int argc, char **argv) {
      * We take two indexes, one at the start, and one at the end,
      * incrementing or decrementing the indexes accordingly til we
      * find nodes that need to get/provide slots. */
+    /**现在我们在“sn”数组节点的开头应该获得槽，在末端节点必须给出槽。
+     * 我们采用两个索引，一个在开始，一个在结束，相应地递增或递减索引，直到找到需要获取提供槽的节点。*/
     int dst_idx = 0;
     int src_idx = nodes_involved - 1;
     int simulate = config.cluster_manager_command.flags &
@@ -6980,7 +7196,7 @@ static int clusterManagerCommandRebalance(int argc, char **argv) {
                                                             src->port,
                                                             dst->ip,
                                                             dst->port);
-            /* Actually move the slots. */
+            /* Actually move the slots. 实际移动插槽。*/
             list *lsrc = listCreate(), *table = NULL;
             listAddNodeTail(lsrc, src);
             table = clusterManagerComputeReshardTable(lsrc, numslots);
@@ -7193,6 +7409,7 @@ static int clusterManagerCommandImport(int argc, char **argv) {
 
     /* Use SCAN to iterate over the keys, migrating to the
      * right node as needed. */
+    //使用 SCAN 遍历键，根据需要迁移到正确的节点。
     int cursor = -999, timeout = config.cluster_manager_command.timeout;
     while (cursor != 0) {
         if (cursor < 0) cursor = 0;
@@ -7442,10 +7659,11 @@ static void latencyMode(void) {
 
     /* Set a default for the interval in case of --latency option
      * with --raw, --csv or when it is redirected to non tty. */
+    //为 --latency 选项与 --raw、--csv 或重定向到非 tty 时设置间隔的默认值。
     if (config.interval == 0) {
         config.interval = 1000;
     } else {
-        config.interval /= 1000; /* We need to convert to milliseconds. */
+        config.interval /= 1000; /* We need to convert to milliseconds. 我们需要转换为毫秒。*/
     }
 
     if (!context) exit(1);
@@ -7492,16 +7710,16 @@ static void latencyMode(void) {
 }
 
 /*------------------------------------------------------------------------------
- * Latency distribution mode -- requires 256 colors xterm
+ * Latency distribution mode -- requires 256 colors xterm 延迟分布模式——需要 256 色 xterm
  *--------------------------------------------------------------------------- */
 
 #define LATENCY_DIST_DEFAULT_INTERVAL 1000 /* milliseconds. */
 
-/* Structure to store samples distribution. */
+/* Structure to store samples distribution.存储样本分布的结构。 */
 struct distsamples {
-    long long max;   /* Max latency to fit into this interval (usec). */
-    long long count; /* Number of samples in this interval. */
-    int character;   /* Associated character in visualization. */
+    long long max;   /* Max latency to fit into this interval (usec). 适合此间隔的最大延迟 (usec)。*/
+    long long count; /* Number of samples in this interval. 此区间内的样本数。*/
+    int character;   /* Associated character in visualization. 可视化中的相关字符。*/
 };
 
 /* Helper function for latencyDistMode(). Performs the spectrum visualization
@@ -7515,6 +7733,11 @@ struct distsamples {
  * is the SUM(samples[i].count) for i to 0 up to the max sample.
  *
  * As a side effect the function sets all the buckets count to 0. */
+/**delayDistMode() 的辅助函数。执行针对 xterm 256 终端的收集样本的频谱可视化。
+ * 采用 distsamples 结构数组，从“最大值”值从小到大排序。
+ * last sample max 必须为 0，表示它保存了所有大于前一个的样本，也是 stop sentinel。
+ * “tot”是不同存储桶中的样本总数，因此它是从 i 到 0 直到最大样本的 SUM(samples[i].count)。
+ * 作为副作用，该函数将所有存储桶计数设置为 0 .*/
 void showLatencyDistSamples(struct distsamples *samples, long long tot) {
     int j;
 
@@ -7523,7 +7746,9 @@ void showLatencyDistSamples(struct distsamples *samples, long long tot) {
      * This way intensity of the different parts of the spectrum
      * don't change relative to the number of requests, which avoids to
      * pollute the visualization with non-latency related info. */
-    printf("\033[38;5;0m"); /* Set foreground color to black. */
+     /**我们将样本转换为调色板内的索引，该索引与给定存储桶所代表的百分比成比例。
+      * 这样，频谱不同部分的强度不会相对于请求的数量发生变化，从而避免了非延迟相关信息污染可视化。*/
+    printf("\033[38;5;0m"); /* Set foreground color to black. 将前景色设置为黑色。*/
     for (j = 0; ; j++) {
         int coloridx =
             ceil((double) samples[j].count / tot * (spectrum_palette_size-1));
@@ -7538,6 +7763,7 @@ void showLatencyDistSamples(struct distsamples *samples, long long tot) {
 
 /* Show the legend: different buckets values and colors meaning, so
  * that the spectrum is more easily readable. */
+//显示图例：不同的桶值和颜色含义，使光谱更易于阅读。
 void showLatencyDistLegend(void) {
     int j;
 
@@ -7568,6 +7794,7 @@ static void latencyDistMode(void) {
         /* We use a mostly logarithmic scale, with certain linear intervals
          * which are more interesting than others, like 1-10 milliseconds
          * range. */
+        /**我们主要使用对数刻度，具有比其他更有趣的某些线性间隔，例如 1-10 毫秒范围。*/
         {10,0,'.'},         /* 0.01 ms */
         {125,0,'-'},        /* 0.125 ms */
         {250,0,'*'},        /* 0.25 ms */
@@ -7613,7 +7840,7 @@ static void latencyDistMode(void) {
         freeReplyObject(reply);
         count++;
 
-        /* Populate the relevant bucket. */
+        /* Populate the relevant bucket. 填充相关存储桶。*/
         for (j = 0; ; j++) {
             if (samples[j].max == 0 || latency <= samples[j].max) {
                 samples[j].count++;
@@ -7621,7 +7848,7 @@ static void latencyDistMode(void) {
             }
         }
 
-        /* From time to time show the spectrum. */
+        /* From time to time show the spectrum. 不时显示频谱。*/
         if (count && (ustime()-history_start)/1000 > history_interval) {
             if ((outputs++ % 20) == 0)
                 showLatencyDistLegend();
@@ -7644,7 +7871,7 @@ int sendReplconf(const char* arg1, const char* arg2) {
     fprintf(stderr, "sending REPLCONF %s %s\n", arg1, arg2);
     redisReply *reply = redisCommand(context, "REPLCONF %s %s", arg1, arg2);
 
-    /* Handle any error conditions */
+    /* Handle any error conditions 处理任何错误情况*/
     if(reply == NULL) {
         fprintf(stderr, "\nI/O error\n");
         exit(1);
@@ -7668,6 +7895,7 @@ void sendRdbOnly(void) {
 /* Read raw bytes through a redisContext. The read operation is not greedy
  * and may not fill the buffer entirely.
  */
+/**通过 redisContext 读取原始字节。读取操作不是贪婪的，可能不会完全填满缓冲区。*/
 static ssize_t readConn(redisContext *c, char *buf, size_t len)
 {
     return c->funcs->read(c, buf, len);
@@ -7676,21 +7904,25 @@ static ssize_t readConn(redisContext *c, char *buf, size_t len)
 /* Sends SYNC and reads the number of bytes in the payload. Used both by
  * slaveMode() and getRDB().
  * returns 0 in case an EOF marker is used. */
+/**发送 SYNC 并读取有效负载中的字节数。 slaveMode() 和 getRDB() 都使用。如果使用 EOF 标记，则返回 0。*/
 unsigned long long sendSync(redisContext *c, char *out_eof) {
     /* To start we need to send the SYNC command and return the payload.
      * The hiredis client lib does not understand this part of the protocol
      * and we don't want to mess with its buffers, so everything is performed
      * using direct low-level I/O. */
+    /**首先，我们需要发送 SYNC 命令并返回有效负载。 hiredis 客户端库不理解协议的这一部分，
+     * 我们不想弄乱它的缓冲区，所以一切都使用直接的低级 IO 执行。*/
     char buf[4096], *p;
     ssize_t nread;
 
-    /* Send the SYNC command. */
+    /* Send the SYNC command. 发送同步命令。*/
     if (cliWriteConn(c, "SYNC\r\n", 6) != 6) {
         fprintf(stderr,"Error writing to master\n");
         exit(1);
     }
 
     /* Read $<payload>\r\n, making sure to read just up to "\n" */
+    //读取 <payload>\r\n，确保读取到 "\n"
     p = buf;
     while(1) {
         nread = readConn(c,p,1);
@@ -7746,6 +7978,7 @@ static void slaveMode(void) {
 
         if (usemark) {
             /* Update the last bytes array, and check if it matches our delimiter.*/
+            //更新最后一个字节数组，并检查它是否与我们的分隔符匹配。
             if (nread >= RDB_EOF_MARK_SIZE) {
                 memcpy(lastbytes,buf+nread-RDB_EOF_MARK_SIZE,RDB_EOF_MARK_SIZE);
             } else {
@@ -7761,13 +7994,14 @@ static void slaveMode(void) {
     if (usemark) {
         unsigned long long offset = ULLONG_MAX - payload;
         fprintf(stderr,"SYNC done after %llu bytes. Logging commands from master.\n", offset);
-        /* put the slave online */
+        /* put the slave online  让slave上线*/
         sleep(1);
         sendReplconf("ACK", "0");
     } else
         fprintf(stderr,"SYNC done. Logging commands from master.\n");
 
     /* Now we can use hiredis to read the incoming protocol. */
+    /**现在我们可以使用hiredis来读取传入的协议。*/
     config.output = OUTPUT_CSV;
     while (cliReadReply(0) == REDIS_OK);
     config.output = original_output;
@@ -7779,6 +8013,7 @@ static void slaveMode(void) {
 
 /* This function implements --rdb, so it uses the replication protocol in order
  * to fetch the RDB file from a remote server. */
+/**该函数实现了 --rdb，因此它使用复制协议从远程服务器获取 RDB 文件。*/
 static void getRDB(clusterManagerNode *node) {
     int fd;
     redisContext *s;
@@ -7839,6 +8074,7 @@ static void getRDB(clusterManagerNode *node) {
 
         if (usemark) {
             /* Update the last bytes array, and check if it matches our delimiter.*/
+            /**更新最后一个字节数组，并检查它是否与我们的分隔符匹配。*/
             if (nread >= RDB_EOF_MARK_SIZE) {
                 memcpy(lastbytes,buf+nread-RDB_EOF_MARK_SIZE,RDB_EOF_MARK_SIZE);
             } else {
@@ -7858,7 +8094,7 @@ static void getRDB(clusterManagerNode *node) {
     } else {
         fprintf(stderr,"Transfer finished with success.\n");
     }
-    redisFree(s); /* Close the connection ASAP as fsync() may take time. */
+    redisFree(s); /* Close the connection ASAP as fsync() may take time. 尽快关闭连接，因为 fsync() 可能需要一些时间。*/
     if (node)
         node->context = NULL;
     if (!write_to_stdout && fsync(fd) == -1) {
@@ -7874,7 +8110,7 @@ static void getRDB(clusterManagerNode *node) {
 }
 
 /*------------------------------------------------------------------------------
- * Bulk import (pipe) mode
+ * Bulk import (pipe) mode 批量导入（管道）模式
  *--------------------------------------------------------------------------- */
 
 #define PIPEMODE_WRITE_LOOP_MAX_BYTES (128*1024)
@@ -7883,14 +8119,14 @@ static void pipeMode(void) {
     char obuf[1024*16]; /* Output buffer */
     char aneterr[ANET_ERR_LEN];
     redisReply *reply;
-    int eof = 0; /* True once we consumed all the standard input. */
+    int eof = 0; /* True once we consumed all the standard input. 一旦我们消耗了所有的标准输入，那就是真的。*/
     int done = 0;
     char magic[20]; /* Special reply we recognize. */
     time_t last_read_time = time(NULL);
 
     srand(time(NULL));
 
-    /* Use non blocking I/O. */
+    /* Use non blocking I/O. 使用非阻塞 IO。*/
     if (anetNonBlock(aneterr,context->fd) == ANET_ERR) {
         fprintf(stderr, "Can't set the socket in non blocking mode: %s\n",
             aneterr);
@@ -7901,6 +8137,7 @@ static void pipeMode(void) {
 
     /* Transfer raw protocol and read replies from the server at the same
      * time. */
+    //传输原始协议并同时从服务器读取回复。
     while(!done) {
         int mask = AE_READABLE;
 
@@ -7908,6 +8145,7 @@ static void pipeMode(void) {
         mask = aeWait(context->fd,mask,1000);
 
         /* Handle the readable state: we can read replies from the server. */
+        //处理可读状态：我们可以读取来自服务器的回复。
         if (mask & AE_READABLE) {
             int read_error = 0;
 
@@ -7931,6 +8169,7 @@ static void pipeMode(void) {
                         /* Check if this is the reply to our final ECHO
                          * command. If so everything was received
                          * from the server. */
+                        /**检查这是否是对我们最终 ECHO 命令的回复。如果是这样，一切都从服务器接收。*/
                         if (memcmp(reply->str,magic,20) == 0) {
                             printf("Last reply received from server.\n");
                             done = 1;
@@ -7945,15 +8184,17 @@ static void pipeMode(void) {
             /* Abort on read errors. We abort here because it is important
              * to consume replies even after a read error: this way we can
              * show a potential problem to the user. */
+            /**读取错误时中止。我们在此处中止，因为即使在读取错误之后使用回复也很重要：这样我们可以向用户显示潜在问题。*/
             if (read_error) exit(1);
         }
 
         /* Handle the writable state: we can send protocol to the server. */
+        /**处理可写状态：我们可以向服务器发送协议。*/
         if (mask & AE_WRITABLE) {
             ssize_t loop_nwritten = 0;
 
             while(1) {
-                /* Transfer current buffer to server. */
+                /* Transfer current buffer to server. 将当前缓冲区传输到服务器。*/
                 if (obuf_len != 0) {
                     ssize_t nwritten = cliWriteConn(context,obuf+obuf_pos,obuf_len);
 
@@ -7976,6 +8217,7 @@ static void pipeMode(void) {
                     exit(1);
                 }
                 /* If buffer is empty, load from stdin. */
+                //如果缓冲区为空，则从标准输入加载。
                 if (obuf_len == 0 && !eof) {
                     ssize_t nread = read(STDIN_FILENO,obuf,sizeof(obuf));
 
@@ -7984,6 +8226,8 @@ static void pipeMode(void) {
                          * is garbage in the protocol we read from stdin, the ECHO
                          * will likely still be properly formatted.
                          * CRLF is ignored by Redis, so it has no effects. */
+                        /**ECHO 序列以“\r\n”开头，因此如果我们从标准输入读取的协议中有垃圾，则 ECHO 可能仍会正确格式化。
+                         * CRLF 被 Redis 忽略，因此没有任何效果。*/
                         char echo[] =
                         "\r\n*2\r\n$4\r\nECHO\r\n$20\r\n01234567890123456789\r\n";
                         int j;
@@ -7992,6 +8236,7 @@ static void pipeMode(void) {
                         /* Everything transferred, so we queue a special
                          * ECHO command that we can match in the replies
                          * to make sure everything was read from the server. */
+                        /**一切都传输了，所以我们排队一个特殊的 ECHO 命令，我们可以在回复中匹配它，以确保从服务器读取所有内容。*/
                         for (j = 0; j < 20; j++)
                             magic[j] = rand() & 0xff;
                         memcpy(echo+21,magic,20);
@@ -8016,6 +8261,7 @@ static void pipeMode(void) {
         /* Handle timeout, that is, we reached EOF, and we are not getting
          * replies from the server for a few seconds, nor the final ECHO is
          * received. */
+        /**处理超时，也就是我们到了 EOF，几秒钟内我们都没有收到服务器的回复，也没有收到最终的 ECHO。*/
         if (eof && config.pipe_timeout > 0 &&
             time(NULL)-last_read_time > config.pipe_timeout)
         {
@@ -8045,7 +8291,7 @@ static redisReply *sendScan(unsigned long long *it) {
     else
         reply = redisCommand(context,"SCAN %llu",*it);
 
-    /* Handle any error conditions */
+    /* Handle any error conditions 处理任何错误情况*/
     if(reply == NULL) {
         fprintf(stderr, "\nI/O error\n");
         exit(1);
@@ -8060,7 +8306,7 @@ static redisReply *sendScan(unsigned long long *it) {
         exit(1);
     }
 
-    /* Validate our types are correct */
+    /* Validate our types are correct 处理任何错误情况*/
     assert(reply->element[0]->type == REDIS_REPLY_STRING);
     assert(reply->element[1]->type == REDIS_REPLY_ARRAY);
 
@@ -8087,7 +8333,7 @@ static int getDbSize(void) {
         exit(1);
     }
 
-    /* Grab the number of keys and free our reply */
+    /* Grab the number of keys and free our reply  抓住钥匙的数量并免费回复我们*/
     size = reply->integer;
     freeReplyObject(reply);
 
@@ -8173,7 +8419,8 @@ static void getKeyTypes(dict *types_dict, redisReply *keys, typeinfo **types) {
         typeinfo *type = NULL;
         if (de)
             type = dictGetVal(de);
-        else if (strcmp(reply->str, "none")) /* create new types for modules, (but not for deleted keys) */
+        else if (strcmp(reply->str, "none")) /* create new types for modules, (but not for deleted keys)
+                                                为模块创建新类型，（但不是为已删除的键）*/
             type = typeinfo_add(types_dict, reply->str, &type_other);
         types[i] = type;
         freeReplyObject(reply);
@@ -8187,9 +8434,10 @@ static void getKeySizes(redisReply *keys, typeinfo **types,
     redisReply *reply;
     unsigned int i;
 
-    /* Pipeline size commands */
+    /* Pipeline size commands  管道大小命令*/
     for(i=0;i<keys->elements;i++) {
         /* Skip keys that disappeared between SCAN and TYPE (or unknown types when not in memkeys mode) */
+        /**跳过在 SCAN 和 TYPE 之间消失的键（或不在 memkeys 模式下时的未知类型）*/
         if(!types[i] || (!types[i]->sizecmd && !memkeys))
             continue;
 
@@ -8210,9 +8458,10 @@ static void getKeySizes(redisReply *keys, typeinfo **types,
         }
     }
 
-    /* Retrieve sizes */
+    /* Retrieve sizes  检索尺寸*/
     for(i=0;i<keys->elements;i++) {
         /* Skip keys that disappeared between SCAN and TYPE (or unknown types when not in memkeys mode) */
+        //跳过在 SCAN 和 TYPE 之间消失的键（或不在 memkeys 模式下时的未知类型）
         if(!types[i] || (!types[i]->sizecmd && !memkeys)) {
             sizes[i] = 0;
             continue;
@@ -8226,6 +8475,7 @@ static void getKeySizes(redisReply *keys, typeinfo **types,
         } else if(reply->type != REDIS_REPLY_INTEGER) {
             /* Theoretically the key could have been removed and
              * added as a different type between TYPE and SIZE */
+            //从理论上讲，密钥可能已被删除并添加为 TYPE 和 SIZE 之间的不同类型
             fprintf(stderr,
                 "Warning:  %s on '%s' failed (may have changed type)\n",
                 !memkeys? types[i]->sizecmd: "MEMORY USAGE",
@@ -8276,11 +8526,13 @@ static void findBigKeys(int memkeys, unsigned memkeys_samples) {
         pct = 100 * (double)sampled/total_keys;
 
         /* Grab some keys and point to the keys array */
+        //抓取一些键并指向键数组
         reply = sendScan(&it);
         scan_loops++;
         keys  = reply->element[1];
 
         /* Reallocate our type and size array if we need to */
+        //如果需要，重新分配我们的类型和大小数组
         if(keys->elements > arrsize) {
             types = zrealloc(types, sizeof(typeinfo*)*keys->elements);
             sizes = zrealloc(sizes, sizeof(unsigned long long)*keys->elements);
@@ -8301,6 +8553,7 @@ static void findBigKeys(int memkeys, unsigned memkeys_samples) {
         for(i=0;i<keys->elements;i++) {
             typeinfo *type = types[i];
             /* Skip keys that disappeared between SCAN and TYPE */
+            //跳过在 SCAN 和 TYPE 之间消失的键
             if(!type)
                 continue;
 
@@ -8311,6 +8564,7 @@ static void findBigKeys(int memkeys, unsigned memkeys_samples) {
 
             if(type->biggest<sizes[i]) {
                 /* Keep track of biggest key name for this type */
+                //跟踪此类型的最大键名
                 if (type->biggest_key)
                     sdsfree(type->biggest_key);
                 type->biggest_key = sdscatrepr(sdsempty(), keys->element[i]->str, keys->element[i]->len);
@@ -8325,16 +8579,17 @@ static void findBigKeys(int memkeys, unsigned memkeys_samples) {
                    !memkeys? type->sizeunit: "bytes");
 
                 /* Keep track of the biggest size for this type */
+                //跟踪此类型的最大尺寸
                 type->biggest = sizes[i];
             }
 
-            /* Update overall progress */
+            /* Update overall progress 更新整体进度*/
             if(sampled % 1000000 == 0) {
                 printf("[%05.2f%%] Sampled %llu keys so far\n", pct, sampled);
             }
         }
 
-        /* Sleep if we've been directed to do so */
+        /* Sleep if we've been directed to do so 如果我们被指示这样做，就睡觉*/
         if (config.interval && (scan_loops % 100) == 0) {
             usleep(config.interval);
         }
@@ -8353,6 +8608,7 @@ static void findBigKeys(int memkeys, unsigned memkeys_samples) {
        totlen, totlen ? (double)totlen/sampled : 0);
 
     /* Output the biggest keys we found, for types we did find */
+    //输出我们找到的最大键，对于我们确实找到的类型
     di = dictGetIterator(types_dict);
     while ((de = dictNext(di))) {
         typeinfo *type = dictGetVal(de);
@@ -8427,7 +8683,7 @@ static void findHotKeys(void) {
     double pct;
 
     signal(SIGINT, longStatLoopModeStop);
-    /* Total keys pre scanning */
+    /* Total keys pre scanning  预扫描按键总数*/
     total_keys = getDbSize();
 
     /* Status message */
@@ -8438,14 +8694,17 @@ static void findHotKeys(void) {
     /* SCAN loop */
     do {
         /* Calculate approximate percentage completion */
+        //计算大致完成百分比
         pct = 100 * (double)sampled/total_keys;
 
         /* Grab some keys and point to the keys array */
+        //抓取一些键并指向键数组
         reply = sendScan(&it);
         scan_loops++;
         keys  = reply->element[1];
 
         /* Reallocate our freqs array if we need to */
+        //如果需要，重新分配我们的 freqs 数组
         if(keys->elements > arrsize) {
             freqs = zrealloc(freqs, sizeof(unsigned long long)*keys->elements);
 
@@ -8462,12 +8721,12 @@ static void findHotKeys(void) {
         /* Now update our stats */
         for(i=0;i<keys->elements;i++) {
             sampled++;
-            /* Update overall progress */
+            /* Update overall progress 更新整体进度*/
             if(sampled % 1000000 == 0) {
                 printf("[%05.2f%%] Sampled %llu keys so far\n", pct, sampled);
             }
 
-            /* Use eviction pool here */
+            /* Use eviction pool here 在这里使用驱逐池*/
             k = 0;
             while (k < HOTKEYS_SAMPLE && freqs[i] > counters[k]) k++;
             if (k == 0) continue;
@@ -8486,7 +8745,7 @@ static void findHotKeys(void) {
                pct, hotkeys[k], freqs[i]);
         }
 
-        /* Sleep if we've been directed to do so */
+        /* Sleep if we've been directed to do so  如果我们被指示这样做，就睡觉*/
         if (config.interval && (scan_loops % 100) == 0) {
             usleep(config.interval);
         }
@@ -8519,6 +8778,8 @@ static void findHotKeys(void) {
 /* Return the specified INFO field from the INFO command output "info".
  * A new buffer is allocated for the result, that needs to be free'd.
  * If the field is not found NULL is returned. */
+/**从 INFO 命令输出“info”返回指定的 INFO 字段。为结果分配了一个新的缓冲区，该缓冲区需要被释放。
+ * 如果未找到该字段，则返回 NULL。*/
 static char *getInfoField(char *info, char *field) {
     char *p = strstr(info,field);
     char *n1, *n2;
@@ -8537,6 +8798,7 @@ static char *getInfoField(char *info, char *field) {
 
 /* Like the above function but automatically convert the result into
  * a long. On error (missing field) LONG_MIN is returned. */
+/**与上述函数类似，但会自动将结果转换为 long。出错时（缺少字段）返回 LONG_MIN。*/
 static long getLongInfoField(char *info, char *field) {
     char *value = getInfoField(info,field);
     long l;
@@ -8549,6 +8811,7 @@ static long getLongInfoField(char *info, char *field) {
 
 /* Convert number of bytes into a human readable string of the form:
  * 100B, 2G, 100M, 4K, and so forth. */
+/**将字节数转换为以下形式的人类可读字符串：100B、2G、100M、4K 等。*/
 void bytesToHuman(char *s, long long n) {
     double d;
 
@@ -8699,6 +8962,8 @@ static void scanMode(void) {
  *
  * With alpha = 6.2 the output follows the 80-20 rule where 20% of
  * the returned numbers will account for 80% of the frequency. */
+/**根据 alpha 的值，使用幂律分布返回从 min 到 max（包括两者）的整数：alpha 越大，越偏向较低的值。
+ * 当 alpha = 6.2 时，输出遵循 80-20 规则，其中 20% 的返回数字将占频率的 80%。*/
 long long powerLawRand(long long min, long long max, double alpha) {
     double pl, r;
 
@@ -8712,6 +8977,7 @@ long long powerLawRand(long long min, long long max, double alpha) {
 
 /* Generates a key name among a set of lru_test_sample_size keys, using
  * an 80-20 distribution. */
+//在一组 lru_test_sample_size 键中生成一个键名，使用 80-20 分布。
 void LRUTestGenKey(char *buf, size_t buflen) {
     snprintf(buf, buflen, "lru:%lld",
         powerLawRand(1, config.lru_test_sample_size, 6.2));
@@ -8730,6 +8996,7 @@ static void LRUTestMode(void) {
         /* Perform cycles of 1 second with 50% writes and 50% reads.
          * We use pipelining batching writes / reads N times per cycle in order
          * to fill the target instance easily. */
+        /**以 50% 的写入和 50% 的读取执行 1 秒的周期。我们使用流水线批处理每个周期写入读取 N 次，以便轻松填充目标实例。*/
         start_cycle = mstime();
         long long hits = 0, misses = 0;
         while(mstime() - start_cycle < LRU_CYCLE_PERIOD) {
@@ -8786,11 +9053,14 @@ static void LRUTestMode(void) {
  * Measure max latency of a running process that does not result from
  * syscalls. Basically this software should provide a hint about how much
  * time the kernel leaves the process without a chance to run.
+ * 内在延迟模式。
+ * 测量不是由系统调用导致的正在运行的进程的最大延迟。基本上，该软件应该提供有关内核离开进程而没有机会运行的时间的提示。
  *--------------------------------------------------------------------------- */
 
 /* This is just some computation the compiler can't optimize out.
  * Should run in less than 100-200 microseconds even using very
  * slow hardware. Runs in less than 10 microseconds in modern HW. */
+/**这只是编译器无法优化的一些计算。即使使用非常慢的硬件，也应该在不到 100-200 微秒内运行。在现代硬件中运行时间不到 10 微秒。*/
 unsigned long compute_something_fast(void) {
     unsigned char s[256], i, j, t;
     int count = 1000, k;
@@ -8990,7 +9260,7 @@ int main(int argc, char **argv) {
         clusterManagerMode(proc);
     }
 
-    /* Latency mode */
+    /* Latency mode 延迟模式*/
     if (config.latency_mode) {
         if (cliConnect(0) == REDIS_ERR) exit(1);
         latencyMode();
@@ -9065,22 +9335,26 @@ int main(int argc, char **argv) {
         LRUTestMode();
     }
 
-    /* Intrinsic latency mode */
+    /* Intrinsic latency mode  内在延迟模式*/
     if (config.intrinsic_latency_mode) intrinsicLatencyMode();
 
     /* Start interactive mode when no command is provided */
+    //未提供命令时启动交互模式
     if (argc == 0 && !config.eval) {
         /* Ignore SIGPIPE in interactive mode to force a reconnect */
+        //在交互模式下忽略 SIGPIPE 以强制重新连接
         signal(SIGPIPE, SIG_IGN);
         signal(SIGINT, sigIntHandler);
 
         /* Note that in repl mode we don't abort on connection error.
          * A new attempt will be performed for every command send. */
+        /**请注意，在 repl 模式下，我们不会因连接错误而中止。每次发送命令都会执行新的尝试。*/
         cliConnect(0);
         repl();
     }
 
     /* Otherwise, we have some arguments to execute */
+    //否则，我们有一些参数要执行
     if (config.eval) {
         if (cliConnect(0) != REDIS_OK) exit(1);
         return evalMode(argc,argv);

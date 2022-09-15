@@ -70,6 +70,8 @@ static int next_num(const char *str, char **end, int *result) {
 /* set current thread cpu affinity to cpu list, this function works like
  * taskset command (actually cpulist parsing logic reference to util-linux).
  * example of this function: "0,2,3", "0,2-3", "0-20:2". */
+//设置当前线程 cpu 亲和性到 cpu 列表，这个函数像 taskset 命令一样工作（实际上是 cpulist 解析逻辑参考 util-linux）。
+// 此函数的示例：“0,2,3”、“0,2-3”、“0-20:2”。
 void setcpuaffinity(const char *cpulist) {
     const char *p, *q;
     char *end = NULL;

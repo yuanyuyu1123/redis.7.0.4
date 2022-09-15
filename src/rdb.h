@@ -34,10 +34,12 @@
 #include "rio.h"
 
 /* TBD: include only necessary headers. */
+//待定：仅包括必要的标题。
 #include "server.h"
 
 /* The current RDB version. When the format changes in a way that is no longer
  * backward compatible this number gets incremented. */
+//当前的 RDB 版本。当格式以不再向后兼容的方式更改时，此数字会增加。
 #define RDB_VERSION 10
 
 /* Defines related to the dump file format. To store 32 bits lengths for short
@@ -54,6 +56,15 @@
  *
  * Lengths up to 63 are stored using a single byte, most DB keys, and may
  * values, will fit inside. */
+/**
+ * 与转储文件格式相关的定义。为短密钥存储 32 位长度需要大量空间，因此我们检查第一个字节的最高有效 2 位来解释长度：
+ * 00|XXXXXX => 如果两个 MSB 为 00，则 len 是这个的 6 位字节
+ * 01|XXXXXX XXXXXXXXX => 01，长度为 14 位，6 位 + 下一个字节的 8 位
+ * 10|000000 [32 位整数] => 净字节顺序中的完整 32 位 len 将遵循
+ * 10|000001 [64 位integer] => 一个完整的 64 位 len 净字节顺序将跟随
+ * 11|OBKIND 这意味着：特殊编码的对象将跟随。六位数字指定后面的对象类型。请参阅 RDB_ENC_ 定义。
+ * 最多 63 的长度使用单个字节存储，大多数 DB 键和可能的值都可以放入其中。
+ * */
 #define RDB_6BITLEN 0
 #define RDB_14BITLEN 1
 #define RDB_32BITLEN 0x80
@@ -64,26 +75,32 @@
 /* When a length of a string object stored on disk has the first two bits
  * set, the remaining six bits specify a special encoding for the object
  * accordingly to the following defines: */
+//当存储在磁盘上的字符串对象的长度设置了前两位时，其余六位根据以下定义为对象指定特殊编码：
 #define RDB_ENC_INT8 0        /* 8 bit signed integer */
 #define RDB_ENC_INT16 1       /* 16 bit signed integer */
 #define RDB_ENC_INT32 2       /* 32 bit signed integer */
-#define RDB_ENC_LZF 3         /* string compressed with FASTLZ */
+#define RDB_ENC_LZF 3         /* string compressed with FASTLZ 用 FASTLZ 压缩的字符串*/
 
 /* Map object types to RDB object types. Macros starting with OBJ_ are for
  * memory storage and may change. Instead RDB types must be fixed because
  * we store them on disk. */
+//将对象类型映射到 RDB 对象类型。以 OBJ_ 开头的宏用于内存存储，可能会发生变化。
+// 相反，RDB 类型必须是固定的，因为我们将它们存储在磁盘上。
 #define RDB_TYPE_STRING 0
 #define RDB_TYPE_LIST   1
 #define RDB_TYPE_SET    2
 #define RDB_TYPE_ZSET   3
 #define RDB_TYPE_HASH   4
-#define RDB_TYPE_ZSET_2 5 /* ZSET version 2 with doubles stored in binary. */
+#define RDB_TYPE_ZSET_2 5 /* ZSET version 2 with doubles stored in binary. ZSET 版本 2 以二进制形式存储双精度数。*/
 #define RDB_TYPE_MODULE 6
 #define RDB_TYPE_MODULE_2 7 /* Module value with annotations for parsing without
-                               the generating module being loaded. */
-/* NOTE: WHEN ADDING NEW RDB TYPE, UPDATE rdbIsObjectType() BELOW */
+                               the generating module being loaded.
+                               带有注释的模块值，用于在不加载生成模块的情况下进行解析。*/
 
-/* Object types for encoded objects. */
+/* NOTE: WHEN ADDING NEW RDB TYPE, UPDATE rdbIsObjectType() BELOW
+ * 注意：添加新的 RDB 类型时，请在下面更新 rdbIsObjectType()*/
+
+/* Object types for encoded objects.  编码对象的对象类型。*/
 #define RDB_TYPE_HASH_ZIPMAP    9
 #define RDB_TYPE_LIST_ZIPLIST  10
 #define RDB_TYPE_SET_INTSET    11
@@ -95,26 +112,28 @@
 #define RDB_TYPE_ZSET_LISTPACK 17
 #define RDB_TYPE_LIST_QUICKLIST_2   18
 #define RDB_TYPE_STREAM_LISTPACKS_2 19
-/* NOTE: WHEN ADDING NEW RDB TYPE, UPDATE rdbIsObjectType() BELOW */
+/* NOTE: WHEN ADDING NEW RDB TYPE, UPDATE rdbIsObjectType() BELOW
+ * 注意：添加新的 RDB 类型时，请在下面更新 rdbIsObjectType()*/
 
-/* Test if a type is an object type. */
+/* Test if a type is an object type. 测试一个类型是否是一个对象类型。 */
 #define rdbIsObjectType(t) ((t >= 0 && t <= 7) || (t >= 9 && t <= 19))
 
 /* Special RDB opcodes (saved/loaded with rdbSaveType/rdbLoadType). */
-#define RDB_OPCODE_FUNCTION2  245   /* function library data */
-#define RDB_OPCODE_FUNCTION   246   /* old function library data for 7.0 rc1 and rc2 */
-#define RDB_OPCODE_MODULE_AUX 247   /* Module auxiliary data. */
-#define RDB_OPCODE_IDLE       248   /* LRU idle time. */
-#define RDB_OPCODE_FREQ       249   /* LFU frequency. */
-#define RDB_OPCODE_AUX        250   /* RDB aux field. */
-#define RDB_OPCODE_RESIZEDB   251   /* Hash table resize hint. */
-#define RDB_OPCODE_EXPIRETIME_MS 252    /* Expire time in milliseconds. */
-#define RDB_OPCODE_EXPIRETIME 253       /* Old expire time in seconds. */
-#define RDB_OPCODE_SELECTDB   254   /* DB number of the following keys. */
-#define RDB_OPCODE_EOF        255   /* End of the RDB file. */
+//特殊的 RDB 操作码（使用 rdbSaveTyperdbLoadType 保存加载）。
+#define RDB_OPCODE_FUNCTION2  245   /* function library data 函数库数据*/
+#define RDB_OPCODE_FUNCTION   246   /* old function library data for 7.0 rc1 and rc2 7.0  rc1 和 rc2 的旧函数库数据*/
+#define RDB_OPCODE_MODULE_AUX 247   /* Module auxiliary data. 模块辅助数据。*/
+#define RDB_OPCODE_IDLE       248   /* LRU idle time. LRU 空闲时间。*/
+#define RDB_OPCODE_FREQ       249   /* LFU frequency. LFU 频率。*/
+#define RDB_OPCODE_AUX        250   /* RDB aux field. RDB 到字段。*/
+#define RDB_OPCODE_RESIZEDB   251   /* Hash table resize hint. 哈希表调整大小提示。*/
+#define RDB_OPCODE_EXPIRETIME_MS 252    /* Expire time in milliseconds. 以毫秒为单位的过期时间。*/
+#define RDB_OPCODE_EXPIRETIME 253       /* Old expire time in seconds. 旧过期时间（以秒为单位）。*/
+#define RDB_OPCODE_SELECTDB   254   /* DB number of the following keys. 以下键的 DB 编号。*/
+#define RDB_OPCODE_EOF        255   /* End of the RDB file. RDB 文件的结尾。*/
 
-/* Module serialized values sub opcodes */
-#define RDB_MODULE_OPCODE_EOF   0   /* End of module value. */
+/* Module serialized values sub opcodes  模块序列化值子操作码*/
+#define RDB_MODULE_OPCODE_EOF   0   /* End of module value. 模块值结束。 */
 #define RDB_MODULE_OPCODE_SINT  1   /* Signed integer. */
 #define RDB_MODULE_OPCODE_UINT  2   /* Unsigned integer. */
 #define RDB_MODULE_OPCODE_FLOAT 3   /* Float. */
@@ -122,22 +141,25 @@
 #define RDB_MODULE_OPCODE_STRING 5  /* String. */
 
 /* rdbLoad...() functions flags. */
+//rdbLoad...() 函数标志。
 #define RDB_LOAD_NONE   0
 #define RDB_LOAD_ENC    (1<<0)
 #define RDB_LOAD_PLAIN  (1<<1)
 #define RDB_LOAD_SDS    (1<<2)
 
 /* flags on the purpose of rdb save or load */
-#define RDBFLAGS_NONE 0                 /* No special RDB loading. */
-#define RDBFLAGS_AOF_PREAMBLE (1<<0)    /* Load/save the RDB as AOF preamble. */
-#define RDBFLAGS_REPLICATION (1<<1)     /* Load/save for SYNC. */
-#define RDBFLAGS_ALLOW_DUP (1<<2)       /* Allow duplicated keys when loading.*/
-#define RDBFLAGS_FEED_REPL (1<<3)       /* Feed replication stream when loading.*/
+//用于 rdb 保存或加载的标志
+#define RDBFLAGS_NONE 0                 /* No special RDB loading. 没有特殊的 RDB 加载。*/
+#define RDBFLAGS_AOF_PREAMBLE (1<<0)    /* Load/save the RDB as AOF preamble. 将 RDB 加载保存为 AOF 前导码。*/
+#define RDBFLAGS_REPLICATION (1<<1)     /* Load/save for SYNC. 同步的负载保存。*/
+#define RDBFLAGS_ALLOW_DUP (1<<2)       /* Allow duplicated keys when loading. 加载时允许重复键。*/
+#define RDBFLAGS_FEED_REPL (1<<3)       /* Feed replication stream when loading. 加载时提供复制流。*/
 
 /* When rdbLoadObject() returns NULL, the err flag is
  * set to hold the type of error that occurred */
-#define RDB_LOAD_ERR_EMPTY_KEY  1   /* Error of empty key */
-#define RDB_LOAD_ERR_OTHER      2   /* Any other errors */
+//当 rdbLoadObject() 返回 NULL 时，设置 err 标志以保存发生的错误类型
+#define RDB_LOAD_ERR_EMPTY_KEY  1   /* Error of empty key 空键错误*/
+#define RDB_LOAD_ERR_OTHER      2   /* Any other errors 任何其他错误*/
 
 int rdbSaveType(rio *rdb, unsigned char type);
 int rdbLoadType(rio *rdb);

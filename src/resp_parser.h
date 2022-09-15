@@ -36,48 +36,63 @@ typedef struct ReplyParser ReplyParser;
 
 typedef struct ReplyParserCallbacks {
     /* Called when the parser reaches an empty mbulk ('*-1') */
+    //当解析器到达一个空的 mbulk ('-1') 时调用
     void (*null_array_callback)(void *ctx, const char *proto, size_t proto_len);
 
     /* Called when the parser reaches an empty bulk ('$-1') (bulk len is -1) */
+    //当解析器到达一个空块（'-1'）时调用（bulk len 为 -1）
     void (*null_bulk_string_callback)(void *ctx, const char *proto, size_t proto_len);
 
     /* Called when the parser reaches a bulk ('$'), which is passed as 'str' along with its length 'len' */
+    //当解析器到达一个块（''）时调用，它作为'str'连同它的长度'len'一起传递
     void (*bulk_string_callback)(void *ctx, const char *str, size_t len, const char *proto, size_t proto_len);
 
     /* Called when the parser reaches an error ('-'), which is passed as 'str' along with its length 'len' */
+    //当解析器遇到错误 ('-') 时调用，该错误作为 'str' 及其长度 'len' 传递
     void (*error_callback)(void *ctx, const char *str, size_t len, const char *proto, size_t proto_len);
 
     /* Called when the parser reaches a simple string ('+'), which is passed as 'str' along with its length 'len' */
+    //当解析器到达一个简单字符串 ('+') 时调用，该字符串作为 'str' 及其长度 'len' 传递
     void (*simple_str_callback)(void *ctx, const char *str, size_t len, const char *proto, size_t proto_len);
 
     /* Called when the parser reaches a long long value (':'), which is passed as an argument 'val' */
+    //当解析器达到一个 long long 值 (':') 时调用，该值作为参数 'val' 传递
     void (*long_callback)(void *ctx, long long val, const char *proto, size_t proto_len);
 
     /* Called when the parser reaches an array ('*'). The array length is passed as an argument 'len' */
+    //当解析器到达一个数组 ('') 时调用。数组长度作为参数“len”传递
     void (*array_callback)(struct ReplyParser *parser, void *ctx, size_t len, const char *proto);
 
     /* Called when the parser reaches a set ('~'). The set length is passed as an argument 'len' */
+    //当解析器到达一个集合 ('~') 时调用。设置的长度作为参数“len”传递
     void (*set_callback)(struct ReplyParser *parser, void *ctx, size_t len, const char *proto);
 
     /* Called when the parser reaches a map ('%'). The map length is passed as an argument 'len' */
+    //当解析器到达一个映射 ('%') 时调用。地图长度作为参数“len”传递
     void (*map_callback)(struct ReplyParser *parser, void *ctx, size_t len, const char *proto);
 
     /* Called when the parser reaches a bool ('#'), which is passed as an argument 'val' */
+    //当解析器到达一个 bool ('') 时调用，它作为参数 'val' 传递
     void (*bool_callback)(void *ctx, int val, const char *proto, size_t proto_len);
 
     /* Called when the parser reaches a double (','), which is passed as an argument 'val' */
+    //当解析器到达作为参数 'val' 传递的双精度 (',') 时调用
     void (*double_callback)(void *ctx, double val, const char *proto, size_t proto_len);
 
     /* Called when the parser reaches a big number ('('), which is passed as 'str' along with its length 'len' */
+    //当解析器达到一个大数字（'（'）时调用，它作为'str'及其长度'len'传递
     void (*big_number_callback)(void *ctx, const char *str, size_t len, const char *proto, size_t proto_len);
 
     /* Called when the parser reaches a string ('='), which is passed as 'str' along with its 'format' and length 'len' */
+    //当解析器到达一个字符串 ('=') 时调用，该字符串作为 'str' 连同它的 'format' 和长度 'len' 一起传递
     void (*verbatim_string_callback)(void *ctx, const char *format, const char *str, size_t len, const char *proto, size_t proto_len);
 
     /* Called when the parser reaches an attribute ('|'). The attribute length is passed as an argument 'len' */
+    //当解析器到达一个属性 ('|') 时调用。属性长度作为参数“len”传递
     void (*attribute_callback)(struct ReplyParser *parser, void *ctx, size_t len, const char *proto);
 
     /* Called when the parser reaches a null ('_') */
+    //当解析器到达 null ('_') 时调用
     void (*null_callback)(void *ctx, const char *proto, size_t proto_len);
 
     void (*error)(void *ctx);
@@ -85,6 +100,7 @@ typedef struct ReplyParserCallbacks {
 
 struct ReplyParser {
     /* The current location in the reply buffer, needs to be set to the beginning of the reply */
+    //回复缓冲区中的当前位置，需要设置为回复的开头
     const char *curr_location;
     ReplyParserCallbacks callbacks;
 };

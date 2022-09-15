@@ -5,6 +5,9 @@
  * Redis that are using assertions, so instead of Redis disappearing with
  * SIGABORT, we get the details and stack trace inside the log file.
  *
+ * redisassert.h——替换assert.h，在Redis日志中打印堆栈跟踪。
+ * 这个文件应该包含在使用断言的 Redis 使用的库中，而不是 "assert.h"，因此我们不会在 SIGABORT 中消失 Redis，
+ * 而是在日志文件中获取详细信息和堆栈跟踪。
  * ----------------------------------------------------------------------------
  *
  * Copyright (c) 2006-2012, Salvatore Sanfilippo <antirez at gmail dot com>

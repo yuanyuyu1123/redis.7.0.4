@@ -8,6 +8,10 @@
  * a sequence counter. IDs generated in the same millisecond (or in a past
  * millisecond if the clock jumped backward) will use the millisecond time
  * of the latest generated ID and an incremented sequence. */
+/**
+ * 流项 ID：一个 128 位的数字，由毫秒时间和序列计数器组成。
+ * 在同一毫秒内生成的 ID（如果时钟向后跳，则在过去的毫秒内）将使用最新生成的 ID 的毫秒时间和递增的序列。
+ * */
 typedef struct streamID {
     uint64_t ms;        /* Unix time in milliseconds. */
     uint64_t seq;       /* Sequence number. */
@@ -29,6 +33,11 @@ typedef struct stream {
  * be implemented inside the function, but practically there is the AOF
  * rewriting code that also needs to iterate the stream to emit the XADD
  * commands. */
+/**
+ * 我们定义了一个迭代器以抽象的方式迭代流项目，而不关心基数树 + 列表包表示。
+ * 从技术上讲，迭代器仅在 streamReplyWithRange() 内部使用，因此可以在函数内部实现，
+ * 但实际上存在 AOF 重写代码，也需要迭代流以发出 XADD 命令。
+ * */
 typedef struct streamIterator {
     stream *stream;         /* The stream we are iterating. */
     streamID master_id;     /* ID of the master entry at listpack head. */
@@ -97,6 +106,7 @@ typedef struct streamNACK {
 
 /* Stream propagation information, passed to functions in order to propagate
  * XCLAIM commands to AOF and slaves. */
+//流传播信息，传递给函数以便将 XCLAIM 命令传播到 AOF 和从属。
 typedef struct streamPropInfo {
     robj *keyname;
     robj *groupname;
@@ -107,12 +117,12 @@ struct client;
 
 /* Flags for streamLookupConsumer */
 #define SLC_DEFAULT      0
-#define SLC_NO_REFRESH   (1<<0) /* Do not update consumer's seen-time */
+#define SLC_NO_REFRESH   (1<<0) /* Do not update consumer's seen-time 不更新消费者的观看时间*/
 
-/* Flags for streamCreateConsumer */
+/* Flags for streamCreateConsumer   streamCreateConsumer 的标志*/
 #define SCC_DEFAULT       0
-#define SCC_NO_NOTIFY     (1<<0) /* Do not notify key space if consumer created */
-#define SCC_NO_DIRTIFY    (1<<1) /* Do not dirty++ if consumer created */
+#define SCC_NO_NOTIFY     (1<<0) /* Do not notify key space if consumer created 如果消费者创建，则不通知密钥空间*/
+#define SCC_NO_DIRTIFY    (1<<1) /* Do not dirty++ if consumer created  如果消费者创建，不要dirty++*/
 
 #define SCG_INVALID_ENTRIES_READ -1
 

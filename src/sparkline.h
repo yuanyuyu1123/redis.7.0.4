@@ -31,6 +31,7 @@
 #define __SPARKLINE_H
 
 /* A sequence is represented of many "samples" */
+//一个序列由许多“样本”表示
 struct sample {
     double value;
     char *label;
@@ -44,8 +45,8 @@ struct sequence {
 };
 
 #define SPARKLINE_NO_FLAGS 0
-#define SPARKLINE_FILL 1      /* Fill the area under the curve. */
-#define SPARKLINE_LOG_SCALE 2 /* Use logarithmic scale. */
+#define SPARKLINE_FILL 1      /* Fill the area under the curve. 填充曲线下的区域。*/
+#define SPARKLINE_LOG_SCALE 2 /* Use logarithmic scale. 使用对数刻度。*/
 
 struct sequence *createSparklineSequence(void);
 void sparklineSequenceAddSample(struct sequence *seq, double value, char *label);

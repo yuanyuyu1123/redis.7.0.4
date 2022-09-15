@@ -34,6 +34,7 @@
 /* Every stream item inside the listpack, has a flags field that is used to
  * mark the entry as deleted, or having the same field as the "master"
  * entry at the start of the listpack> */
+//列表包中的每个流项目都有一个标志字段，用于将条目标记为已删除，或者与列表包开头的“主”条目具有相同的字段>
 #define STREAM_ITEM_FLAG_NONE 0             /* No special flags. */
 #define STREAM_ITEM_FLAG_DELETED (1<<0)     /* Entry is deleted. Skip it. */
 #define STREAM_ITEM_FLAG_SAMEFIELDS (1<<1)  /* Same fields as master entry. */
@@ -41,16 +42,22 @@
 /* For stream commands that require multiple IDs
  * when the number of IDs is less than 'STREAMID_STATIC_VECTOR_LEN',
  * avoid malloc allocation.*/
+//对于 ID 数小于 'STREAMID_STATIC_VECTOR_LEN' 时需要多个 ID 的流命令，请避免分配 malloc。
 #define STREAMID_STATIC_VECTOR_LEN 8
 
 /* Max pre-allocation for listpack. This is done to avoid abuse of a user
  * setting stream_node_max_bytes to a huge number. */
+//列表包的最大预分配。这样做是为了避免滥用用户将 stream_node_max_bytes 设置为一个巨大的数字。
 #define STREAM_LISTPACK_MAX_PRE_ALLOCATE 4096
 
 /* Don't let listpacks grow too big, even if the user config allows it.
  * doing so can lead to an overflow (trying to store more than 32bit length
  * into the listpack header), or actually an assertion since lpInsert
  * will return NULL. */
+/**
+ * 即使用户配置允许，也不要让列表包变得太大。这样做可能会导致溢出（试图将超过 32 位的长度存储到 listpack 标头中），
+ * 或者实际上是一个断言，因为 lpInsert 将返回 NULL。
+ * */
 #define STREAM_LISTPACK_MAX_SIZE (1<<30)
 
 void streamFreeCG(streamCG *cg);
@@ -75,11 +82,13 @@ stream *streamNew(void) {
     s->max_deleted_entry_id.seq = 0;
     s->max_deleted_entry_id.ms = 0;
     s->entries_added = 0;
-    s->cgroups = NULL; /* Created on demand to save memory when not used. */
+    s->cgroups = NULL; /* Created on demand to save memory when not used.
+ *                        按需创建以在不使用时节省内存。*/
     return s;
 }
 
 /* Free a stream, including the listpacks stored inside the radix tree. */
+//释放一个流，包括存储在基数树中的列表包。
 void freeStream(stream *s) {
     raxFreeWithCallback(s->rax,(void(*)(void*))lpFree);
     if (s->cgroups)
@@ -87,7 +96,7 @@ void freeStream(stream *s) {
     zfree(s);
 }
 
-/* Return the length of a stream. */
+/* Return the length of a stream. 返回流的长度。*/
 unsigned long streamLength(const robj *subject) {
     stream *s = subject->ptr;
     return s->length;
@@ -96,6 +105,7 @@ unsigned long streamLength(const robj *subject) {
 /* Set 'id' to be its successor stream ID.
  * If 'id' is the maximal possible id, it is wrapped around to 0-0 and a
  * C_ERR is returned. */
+//将 'id' 设置为其后继流 ID。如果 'id' 是最大可能的 id，则将其环绕为 0-0 并返回 C_ERR。
 int streamIncrID(streamID *id) {
     int ret = C_OK;
     if (id->seq == UINT64_MAX) {
@@ -116,6 +126,7 @@ int streamIncrID(streamID *id) {
 /* Set 'id' to be its predecessor stream ID.
  * If 'id' is the minimal possible id, it remains 0-0 and a C_ERR is
  * returned. */
+//将 'id' 设置为其前身流 ID。如果 'id' 是可能的最小 id，它保持 0-0 并返回 C_ERR。
 int streamDecrID(streamID *id) {
     int ret = C_OK;
     if (id->seq == 0) {
@@ -137,6 +148,10 @@ int streamDecrID(streamID *id) {
  * milliseconds Unix time is greater than the previous one, just use this
  * as time part and start with sequence part of zero. Otherwise we use the
  * previous time (and never go backward) and increment the sequence. */
+/**
+ * 在给定前一个的情况下生成下一个流项目 ID。如果当前的毫秒 Unix 时间大于前一个，只需将其用作时间部分并从零的序列部分开始。
+ * 否则我们使用前一次（并且永远不会倒退）并增加序列。
+ * */
 void streamNextID(streamID *last_id, streamID *new_id) {
     uint64_t ms = mstime();
     if (ms > last_id->ms) {
@@ -153,6 +168,10 @@ void streamNextID(streamID *last_id, streamID *new_id) {
  * has the same encoding as the original one.
  *
  * The resulting object always has refcount set to 1 */
+/**
+ * 这是 COPY 命令的辅助函数。复制一个 Stream 对象，并保证返回的对象与原始对象具有相同的编码。
+ * 结果对象始终将 refcount 设置为 1
+ * */
 robj *streamDup(robj *o) {
     robj *sobj;
 
@@ -262,6 +281,10 @@ robj *streamDup(robj *o) {
  * The 'valid" argument is an optional output parameter to get an indication
  * if the record was valid, when this parameter is NULL, the function will
  * fail with an assertion. */
+/**
+ * 这是 lpGet() 的包装函数，用于直接从列表包（可能将数字存储为字符串）中获取整数值，并在需要时转换字符串。
+ * 'valid' 参数是一个可选的输出参数，用于获取记录是否有效的指示，当此参数为 NULL 时，函数将因断言而失败。
+ * */
 static inline int64_t lpGetIntegerIfValid(unsigned char *ele, int *valid) {
     int64_t v;
     unsigned char *e = lpGet(ele,&v,NULL);
@@ -287,6 +310,7 @@ static inline int64_t lpGetIntegerIfValid(unsigned char *ele, int *valid) {
 
 /* Get an edge streamID of a given listpack.
  * 'master_id' is an input param, used to build the 'edge_id' output param */
+//获取给定列表包的边缘流 ID。 'master_id' 是一个输入参数，用于构建 'edge_id' 输出参数
 int lpGetEdgeStreamID(unsigned char *lp, int first, streamID *master_id, streamID *edge_id)
 {
    if (lp == NULL)
@@ -359,6 +383,7 @@ void streamLogListpackContent(unsigned char *lp) {
 
 /* Convert the specified stream entry ID as a 128 bit big endian number, so
  * that the IDs can be sorted lexicographically. */
+//将指定的流条目 ID 转换为 128 位大端数，以便可以按字典顺序对 ID 进行排序。
 void streamEncodeID(void *buf, streamID *id) {
     uint64_t e[2];
     e[0] = htonu64(id->ms);
@@ -369,6 +394,8 @@ void streamEncodeID(void *buf, streamID *id) {
 /* This is the reverse of streamEncodeID(): the decoded ID will be stored
  * in the 'id' structure passed by reference. The buffer 'buf' must point
  * to a 128 bit big-endian encoded ID. */
+//这与 streamEncodeID() 的相反：解码后的 ID 将存储在通过引用传递的 'id' 结构中。
+// 缓冲区“buf”必须指向一个 128 位大端编码的 ID。
 void streamDecodeID(void *buf, streamID *id) {
     uint64_t e[2];
     memcpy(e,buf,sizeof(e));

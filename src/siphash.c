@@ -39,6 +39,17 @@
       the function in the new form (returning an uint64_t) using just the
       relevant test vector.
  */
+/**
+ * 此版本由 Salvatore Sanfilippo <antirez@gmail.com> 通过以下方式修改：
+ * 1. 我们使用 SipHash 1-2。这被认为不如建议的 2-4 变体那么强大，但 AFAIK 对这种减少轮数的版本没有微不足道的攻击，
+ *   它的运行速度与我们之前使用的 Murmurhash2 相同，而 2-4 变体或多或少地使 Redis 的速度降低了 4%。
+ * 2. 硬代码轮次，希望编译器可以在这个原始的基础上对其进行更多优化。无论如何，我们总是想要标准的 2-4 变体。
+ * 3.修改原型和实现，使函数直接返回一个uint64_t值，哈希本身，而不是接收一个输出缓冲区。
+ *   这也意味着输出大小设置为 8 字节，并且删除了 16 字节的输出代码处理。
+ * 4. 提供不区分大小写的变体，以便在散列必须被散列表认为相同的字符串时使用，无论大小写如何。
+ *   如果我们没有直接不区分大小写的哈希函数，我们需要在一些临时缓冲区中执行文本转换，这很昂贵。
+ * 5.删除调试代码。 6. 将原来的 test.c 文件修改为一个独立的函数，只使用相关的测试向量来测试新形式的函数（返回一个 uint64_t）。
+ * */
 #include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -47,6 +58,7 @@
 
 /* Fast tolower() alike function that does not care about locale
  * but just returns a-z instead of A-Z. */
+//快速 tolower() 类似函数，不关心语言环境，只返回 a-z 而不是 A-Z。
 int siptlw(int c) {
     if (c >= 'A' && c <= 'Z') {
         return c+('a'-'A');
@@ -68,6 +80,7 @@ int siptlw(int c) {
 /* Test of the CPU is Little Endian and supports not aligned accesses.
  * Two interesting conditions to speedup the function that happen to be
  * in most of x86 servers. */
+//CPU 的测试是 Little Endian，支持非对齐访问。两个有趣的条件可以加速大多数 x86 服务器中的功能。
 #if defined(__X86_64__) || defined(__x86_64__) || defined (__i386__) \
 	|| defined (__aarch64__) || defined (__arm64__)
 #define UNALIGNED_LE_CPU

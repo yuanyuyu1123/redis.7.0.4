@@ -150,6 +150,7 @@ void sha256_final(SHA256_CTX *ctx, BYTE hash[])
 
 	// Since this implementation uses little endian byte ordering and SHA uses big endian,
 	// reverse all the bytes when copying the final state to the output hash.
+    //由于此实现使用 little endian 字节排序，而 SHA 使用 big endian，因此在将最终状态复制到输出哈希时反转所有字节。
 	for (i = 0; i < 4; ++i) {
 		hash[i]      = (ctx->state[0] >> (24 - i * 8)) & 0x000000ff;
 		hash[i + 4]  = (ctx->state[1] >> (24 - i * 8)) & 0x000000ff;

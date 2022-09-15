@@ -455,6 +455,7 @@ dictType setDictType = {
 };
 
 /* Sorted sets hash (note: a skiplist is used in addition to the hash table) */
+//排序集散列（注意：除了散列表外，还使用了跳过列表）
 dictType zsetDictType = {
     dictSdsHash,               /* hash function */
     NULL,                      /* key dup */
@@ -466,6 +467,7 @@ dictType zsetDictType = {
 };
 
 /* Db->dict, keys are sds strings, vals are Redis objects. */
+//db->dict，keys 是 sds 字符串，vals 是 Redis 对象。
 dictType dbDictType = {
     dictSdsHash,                /* hash function */
     NULL,                       /* key dup */
@@ -489,6 +491,7 @@ dictType dbExpiresDictType = {
 };
 
 /* Command table. sds string -> command struct pointer. */
+//命令表。 sds 字符串 -> 命令结构指针。
 dictType commandTableDictType = {
     dictSdsCaseHash,            /* hash function */
     NULL,                       /* key dup */
@@ -500,6 +503,7 @@ dictType commandTableDictType = {
 };
 
 /* Hash type hash table (note that small hashes are represented with listpacks) */
+//散列类型散列表（注意小散列用listpacks表示）
 dictType hashDictType = {
     dictSdsHash,                /* hash function */
     NULL,                       /* key dup */
@@ -510,7 +514,7 @@ dictType hashDictType = {
     NULL                        /* allow to expand */
 };
 
-/* Dict type without destructor */
+/* Dict type without destructor 没有析构函数的字典类型 */
 dictType sdsReplyDictType = {
     dictSdsHash,                /* hash function */
     NULL,                       /* key dup */
@@ -524,6 +528,8 @@ dictType sdsReplyDictType = {
 /* Keylist hash table type has unencoded redis objects as keys and
  * lists as values. It's used for blocking operations (BLPOP) and to
  * map swapped keys to a list of clients waiting for this keys to be loaded. */
+/**Keylist 哈希表类型将未编码的 redis 对象作为键，将列表作为值。
+ * 它用于阻塞操作 (BLPOP) 并将交换的密钥映射到等待加载此密钥的客户端列表。*/
 dictType keylistDictType = {
     dictObjHash,                /* hash function */
     NULL,                       /* key dup */
@@ -536,6 +542,7 @@ dictType keylistDictType = {
 
 /* Modules system dictionary type. Keys are module name,
  * values are pointer to RedisModule struct. */
+/**模块系统字典类型。键是模块名称，值是指向 RedisModule 结构的指针。*/
 dictType modulesDictType = {
     dictSdsCaseHash,            /* hash function */
     NULL,                       /* key dup */
@@ -546,7 +553,7 @@ dictType modulesDictType = {
     NULL                        /* allow to expand */
 };
 
-/* Migrate cache dict type. */
+/* Migrate cache dict type.迁移缓存字典类型。 */
 dictType migrateCacheDictType = {
     dictSdsHash,                /* hash function */
     NULL,                       /* key dup */
@@ -559,6 +566,7 @@ dictType migrateCacheDictType = {
 
 /* Dict for for case-insensitive search using null terminated C strings.
  * The keys stored in dict are sds though. */
+/**使用空终止的 C 字符串进行不区分大小写的搜索的字典。存储在 dict 中的密钥虽然是 sds。*/
 dictType stringSetDictType = {
     distCStrCaseHash,           /* hash function */
     NULL,                       /* key dup */
@@ -571,6 +579,7 @@ dictType stringSetDictType = {
 
 /* Dict for for case-insensitive search using null terminated C strings.
  * The key and value do not have a destructor. */
+/**使用空终止的 C 字符串进行不区分大小写的搜索的字典。键和值没有析构函数。*/
 dictType externalStringType = {
     distCStrCaseHash,           /* hash function */
     NULL,                       /* key dup */
@@ -583,6 +592,7 @@ dictType externalStringType = {
 
 /* Dict for case-insensitive search using sds objects with a zmalloc
  * allocated object as the value. */
+/**使用带有 zmalloc 分配对象作为值的 sds 对象进行不区分大小写搜索的字典。*/
 dictType sdsHashDictType = {
     dictSdsCaseHash,            /* hash function */
     NULL,                       /* key dup */
@@ -604,6 +614,7 @@ int htNeedsResize(dict *dict) {
 
 /* If the percentage of used slots in the HT reaches HASHTABLE_MIN_FILL
  * we resize the hash table to save memory */
+/**如果 HT 中已用插槽的百分比达到 HASHTABLE_MIN_FILL 我们调整哈希表的大小以节省内存*/
 void tryResizeHashTables(int dbid) {
     if (htNeedsResize(server.db[dbid].dict))
         dictResize(server.db[dbid].dict);
@@ -618,16 +629,20 @@ void tryResizeHashTables(int dbid) {
  *
  * The function returns 1 if some rehashing was performed, otherwise 0
  * is returned. */
+/**当我们从哈希表中写入读取时，我们的哈希表实现会逐步执行重新哈希。
+ * 仍然如果服务器空闲，哈希表会长时间使用两个表。
+ * 因此，我们尝试在每次调用此函数时使用 1 毫秒的 CPU 时间来执行一些重新散列。
+ * 如果执行了一些重新散列，则该函数返回 1，否则返回 0。*/
 int incrementallyRehash(int dbid) {
     /* Keys dictionary */
     if (dictIsRehashing(server.db[dbid].dict)) {
         dictRehashMilliseconds(server.db[dbid].dict,1);
-        return 1; /* already used our millisecond for this loop... */
+        return 1; /* already used our millisecond for this loop... 已经在这个循环中使用了我们的毫秒......*/
     }
     /* Expires */
     if (dictIsRehashing(server.db[dbid].expires)) {
         dictRehashMilliseconds(server.db[dbid].expires,1);
-        return 1; /* already used our millisecond for this loop... */
+        return 1; /* already used our millisecond for this loop... 已经在这个循环中使用了我们的毫秒......*/
     }
     return 0;
 }
@@ -638,6 +653,9 @@ int incrementallyRehash(int dbid) {
  * memory pages are copied). The goal of this function is to update the ability
  * for dict.c to resize the hash tables accordingly to the fact we have an
  * active fork child running. */
+/**一旦某种类型的后台进程终止，就会调用此函数，因为我们希望避免在有子进程时调整哈希表的大小，
+ * 以便更好地使用写时复制（否则当发生调整大小时，会复制大量内存页面）。
+ * 这个函数的目标是更新 dict.c 的能力，以根据我们有一个活动的 fork 子运行的事实来调整哈希表的大小。*/
 void updateDictResizePolicy(void) {
     if (!hasActiveChildProcess())
         dictEnableResize();
@@ -657,6 +675,7 @@ const char *strChildType(int type) {
 
 /* Return true if there are active children processes doing RDB saving,
  * AOF rewriting, or some side process spawned by a loaded module. */
+/**如果有活动的子进程正在执行 RDB 保存、AOF 重写或由加载的模块产生的某些副进程，则返回 true。*/
 int hasActiveChildProcess() {
     return server.child_pid != -1;
 }
@@ -678,17 +697,20 @@ void resetChildState() {
 }
 
 /* Return if child type is mutually exclusive with other fork children */
+/**如果子类型与其他 fork 子类型互斥，则返回*/
 int isMutuallyExclusiveChildType(int type) {
     return type == CHILD_TYPE_RDB || type == CHILD_TYPE_AOF || type == CHILD_TYPE_MODULE;
 }
 
 /* Returns true when we're inside a long command that yielded to the event loop. */
+/**当我们在一个屈服于事件循环的长命令中时返回 true。*/
 int isInsideYieldingLongCommand() {
     return scriptIsTimedout() || server.busy_module_yield_flags;
 }
 
 /* Return true if this instance has persistence completely turned off:
  * both RDB and AOF are disabled. */
+/**如果此实例完全关闭持久性，则返回 true：RDB 和 AOF 都被禁用。*/
 int allPersistenceDisabled(void) {
     return server.saveparamslen == 0 && server.aof_state == AOF_OFF;
 }
@@ -696,6 +718,7 @@ int allPersistenceDisabled(void) {
 /* ======================= Cron: called every 100 ms ======================== */
 
 /* Add a sample to the operations per second array of samples. */
+/**将样本添加到每秒操作的样本数组中。*/
 void trackInstantaneousMetric(int metric, long long current_reading) {
     long long now = mstime();
     long long t = now - server.inst_metric[metric].last_sample_time;
@@ -714,6 +737,7 @@ void trackInstantaneousMetric(int metric, long long current_reading) {
 }
 
 /* Return the mean of all the samples. */
+/**返回所有样本的平均值。*/
 long long getInstantaneousMetric(int metric) {
     int j;
     long long sum = 0;
@@ -727,16 +751,21 @@ long long getInstantaneousMetric(int metric) {
  * free space not used, this function reclaims space if needed.
  *
  * The function always returns 0 as it never terminates the client. */
+/**客户端查询缓冲区是一个 sds.c 字符串，可以以大量未使用的可用空间结尾，此函数在需要时回收空间。
+ * 该函数始终返回 0，因为它从不终止客户端。*/
 int clientsCronResizeQueryBuffer(client *c) {
     size_t querybuf_size = sdsalloc(c->querybuf);
     time_t idletime = server.unixtime - c->lastinteraction;
 
     /* Only resize the query buffer if the buffer is actually wasting at least a
      * few kbytes */
+    /**仅当缓冲区实际上浪费了至少几 kbytes 时才调整查询缓冲区的大小*/
     if (sdsavail(c->querybuf) > 1024*4) {
         /* There are two conditions to resize the query buffer: */
+        /**调整查询缓冲区的大小有两个条件：*/
         if (idletime > 2) {
             /* 1) Query is idle for a long time. */
+            /**1）查询长时间空闲。*/
             c->querybuf = sdsRemoveFreeSpace(c->querybuf);
         } else if (querybuf_size > PROTO_RESIZE_THRESHOLD && querybuf_size/2 > c->querybuf_peak) {
             /* 2) Query buffer is too big for latest peak and is larger than
@@ -744,6 +773,9 @@ int clientsCronResizeQueryBuffer(client *c) {
              *    not below the recent peak and current c->querybuf (which will
              *    be soon get used). If we're in the middle of a bulk then make
              *    sure not to resize to less than the bulk length. */
+            /**2) 查询缓冲区对于最新峰值来说太大并且大于调整大小阈值。
+             * 修剪多余的空间，但只能达到一个限制，不低于最近的峰值和当前的 c->querybuf（很快就会被使用）。
+             * 如果我们处于散装的中间，请确保不要将大小调整为小于散装长度。*/
             size_t resize = sdslen(c->querybuf);
             if (resize < c->querybuf_peak) resize = c->querybuf_peak;
             if (c->bulklen != -1 && resize < (size_t)c->bulklen) resize = c->bulklen;
@@ -753,9 +785,11 @@ int clientsCronResizeQueryBuffer(client *c) {
 
     /* Reset the peak again to capture the peak memory usage in the next
      * cycle. */
+    /**再次重置峰值以捕获下一个周期的峰值内存使用量。*/
     c->querybuf_peak = sdslen(c->querybuf);
     /* We reset to either the current used, or currently processed bulk size,
      * which ever is bigger. */
+    /**我们重置为当前使用的或当前处理的批量大小，以较大者为准。*/
     if (c->bulklen != -1 && (size_t)c->bulklen > c->querybuf_peak)
         c->querybuf_peak = c->bulklen;
     return 0;
@@ -768,6 +802,12 @@ int clientsCronResizeQueryBuffer(client *c) {
  * in case the last observed peak size of the buffer is less than half the buffer size - we shrink by half.
  * The buffer peak will be reset back to the buffer position every server.reply_buffer_peak_reset_time milliseconds
  * The function always returns 0 as it never terminates the client. */
+/**可以调整客户端输出缓冲区以更好地满足内存要求。
+ * 逻辑是：如果缓冲区的最后观察到的峰值大小等于缓冲区大小
+ *  - 我们将大小加倍以防缓冲区的最后观察到的峰值大小小于缓冲区大小的一半
+ *  - 我们缩小一半。
+ *  缓冲区峰值将在每个 server.reply_buffer_peak_reset_time 毫秒重置回缓冲区位置 该函数始终返回 0，
+ *  因为它永远不会终止客户端。*/
 int clientsCronResizeOutputBuffer(client *c, mstime_t now_ms) {
 
     size_t new_buffer_size = 0;
@@ -776,6 +816,7 @@ int clientsCronResizeOutputBuffer(client *c, mstime_t now_ms) {
     const size_t buffer_target_expand_size = c->buf_usable_size*2;
 
     /* in case the resizing is disabled return immediately */
+    //如果禁用调整大小，则立即返回
     if(!server.reply_buffer_resizing_enabled)
         return 0;
 
@@ -794,6 +835,7 @@ int clientsCronResizeOutputBuffer(client *c, mstime_t now_ms) {
     /* reset the peak value each server.reply_buffer_peak_reset_time seconds. in case the client will be idle
      * it will start to shrink.
      */
+    /**重置每个 server.reply_buffer_peak_reset_time 秒的峰值。如果客户端空闲，它将开始缩小。*/
     if (server.reply_buffer_peak_reset_time >=0 &&
         now_ms - c->buf_peak_last_reset_time >= server.reply_buffer_peak_reset_time)
     {
@@ -822,6 +864,12 @@ int clientsCronResizeOutputBuffer(client *c, mstime_t now_ms) {
  *
  * When we want to know what was recently the peak memory usage, we just scan
  * such few slots searching for the maximum value. */
+/**此功能用于跟踪最近几秒钟内使用最大内存量的客户端。
+ * 通过这种方式，我们可以在 INFO 输出（客户端部分）中提供此类信息，而无需对所有客户端进行 O(N) 扫描。
+ * 这就是它的工作原理。我们有一个 CLIENTS_PEAK_MEM_USAGE_SLOTS 插槽数组，
+ * 我们跟踪每个插槽中我们看到的最大客户端输出和输入缓冲区。
+ * 每个槽对应于最近的秒之一，因为数组是通过执行 UNIXTIME % CLIENTS_PEAK_MEM_USAGE_SLOTS 来索引的。
+ * 当我们想知道最近的内存使用峰值是多少时，我们只需扫描这么几个槽以寻找最大值。*/
 #define CLIENTS_PEAK_MEM_USAGE_SLOTS 8
 size_t ClientsPeakMemInput[CLIENTS_PEAK_MEM_USAGE_SLOTS] = {0};
 size_t ClientsPeakMemOutput[CLIENTS_PEAK_MEM_USAGE_SLOTS] = {0};
@@ -832,10 +880,11 @@ int clientsCronTrackExpansiveClients(client *c, int time_idx) {
     size_t out_usage = getClientOutputBufferMemoryUsage(c);
 
     /* Track the biggest values observed so far in this slot. */
+    /**跟踪迄今为止在此插槽中观察到的最大值。*/
     if (in_usage > ClientsPeakMemInput[time_idx]) ClientsPeakMemInput[time_idx] = in_usage;
     if (out_usage > ClientsPeakMemOutput[time_idx]) ClientsPeakMemOutput[time_idx] = out_usage;
 
-    return 0; /* This function never terminates the client. */
+    return 0; /* This function never terminates the client. 此函数永远不会终止客户端。*/
 }
 
 /* All normal clients are placed in one of the "mem usage buckets" according
@@ -845,6 +894,10 @@ int clientsCronTrackExpansiveClients(client *c, int time_idx) {
  * client's memory usage doubles it's moved up to the next bucket, if it's
  * halved we move it down a bucket.
  * For more details see CLIENT_MEM_USAGE_BUCKETS documentation in server.h. */
+/**根据他们当前使用的内存量，所有普通客户端都被放置在“内存使用桶”之一中。
+ * 我们使用此函数根据给定的内存使用值找到合适的存储桶。该算法只是简单地执行 log2(mem) 来获取存储桶。
+ * 这意味着，例如，如果客户端的内存使用量翻了一番，它将向上移动到下一个存储桶，如果它减半，我们将其移到下一个存储桶。
+ * 有关更多详细信息，请参阅 server.h 中的 CLIENT_MEM_USAGE_BUCKETS 文档。*/
 static inline clientMemUsageBucket *getMemUsageBucket(size_t mem) {
     int size_in_bits = 8*(int)sizeof(mem);
     int clz = mem > 0 ? __builtin_clzl(mem) : size_in_bits;
@@ -868,6 +921,11 @@ static inline clientMemUsageBucket *getMemUsageBucket(size_t mem) {
  * together clients consuming about the same amount of memory and can quickly
  * free them in case we reach maxmemory-clients (client eviction).
  */
+/**当某些东西改变了他们的缓冲区时，这在显式客户端上调用，因此我们可以实时跟踪客户端的内存并强制客户端的最大内存，
+ * 也可以从 clientsCron 调用。我们从 cron 调用它，因此我们更新了非 CLIENT_TYPE_NORMALPUBSUB 客户端的统计信息，
+ * 以防配置更改需要我们驱逐非活动客户端。这也将客户端添加到正确的内存使用桶中。
+ * 每个存储桶包含所有具有大致相同内存量的客户端。通过这种方式，我们将消耗大约相同内存量的客户端组合在一起，
+ * 并且可以在达到 maxmemory-clients（客户端驱逐）的情况下快速释放它们。*/
 int updateClientMemUsage(client *c) {
     serverAssert(io_threads_op == IO_THREADS_OP_IDLE);
     size_t mem = getClientMemoryUsage(c, NULL);
@@ -875,6 +933,7 @@ int updateClientMemUsage(client *c) {
 
     /* Remove the old value of the memory used by the client from the old
      * category, and add it back. */
+    /**从旧类别中删除客户端使用的内存的旧值，然后将其添加回来。*/
     if (type != c->last_memory_type) {
         server.stat_clients_type_memory[c->last_memory_type] -= c->last_memory_usage;
         server.stat_clients_type_memory[type] += mem;
@@ -888,10 +947,12 @@ int updateClientMemUsage(client *c) {
             !(c->flags & CLIENT_NO_EVICT);
 
     /* Update the client in the mem usage buckets */
+    /**更新内存使用桶中的客户端*/
     if (c->mem_usage_bucket) {
         c->mem_usage_bucket->mem_usage_sum -= c->last_memory_usage;
         /* If this client can't be evicted then remove it from the mem usage
          * buckets */
+        /**如果无法驱逐此客户端，则将其从内存使用存储桶中删除*/
         if (!allow_eviction) {
             listDelNode(c->mem_usage_bucket->clients, c->mem_usage_bucket_node);
             c->mem_usage_bucket = NULL;
@@ -912,6 +973,7 @@ int updateClientMemUsage(client *c) {
     }
 
     /* Remember what we added, to remove it next time. */
+    //记住我们添加的内容，下次删除它。
     c->last_memory_usage = mem;
 
     return 0;
@@ -919,6 +981,7 @@ int updateClientMemUsage(client *c) {
 
 /* Return the max samples in the memory usage of clients tracked by
  * the function clientsCronTrackExpansiveClients(). */
+//返回由函数 clientsCronTrackExpansiveClients() 跟踪的客户端内存使用的最大样本。
 void getExpansiveClientsInfo(size_t *in_usage, size_t *out_usage) {
     size_t i = 0, o = 0;
     for (int j = 0; j < CLIENTS_PEAK_MEM_USAGE_SLOTS; j++) {
@@ -944,12 +1007,21 @@ void getExpansiveClientsInfo(size_t *in_usage, size_t *out_usage) {
  * default server.hz value is 10, so sometimes here we need to process thousands
  * of clients per second, turning this function into a source of latency.
  */
+/**此函数由 serverCron() 调用，用于在客户端上执行对持续执行很重要的操作。
+ * 例如，我们使用此函数在超时后断开客户端连接，包括在某些阻塞命令中被阻塞且超时时间不为零的客户端。
+ * 该函数会努力每秒处理所有客户端，即使这不能得到严格保证，因为在延迟事件（如慢速命令）的情况下，
+ * 可能会以低于 server.hz 的实际频率调用 serverCron()。
+ * 这个函数和它调用的函数要非常快是非常重要的：
+ *   有时 Redis 有上百个连接的客户端，默认的 server.hz 值为 10，所以有时我们需要处理数千个客户端其次，
+ *   将此功能变成延迟的来源。*/
 #define CLIENTS_CRON_MIN_ITERATIONS 5
 void clientsCron(void) {
     /* Try to process at least numclients/server.hz of clients
      * per call. Since normally (if there are no big latency events) this
      * function is called server.hz times per second, in the average case we
      * process all the clients in 1 second. */
+    /**尝试每次调用至少处理 numclientsserver.hz 的客户端。
+     * 因为通常（如果没有大的延迟事件）这个函数每秒调用 server.hz 次，在平均情况下，我们在 1 秒内处理所有客户端。*/
     int numclients = listLength(server.clients);
     int iterations = numclients/server.hz;
     mstime_t now = mstime();
@@ -957,6 +1029,8 @@ void clientsCron(void) {
     /* Process at least a few clients while we are at it, even if we need
      * to process less than CLIENTS_CRON_MIN_ITERATIONS to meet our contract
      * of processing each client once per second. */
+    /**在我们处理的时候至少处理几个客户端，即使我们需要处理
+     * 少于 CLIENTS_CRON_MIN_ITERATIONS 来满足我们每秒处理每个客户端一次的合同。*/
     if (iterations < CLIENTS_CRON_MIN_ITERATIONS)
         iterations = (numclients < CLIENTS_CRON_MIN_ITERATIONS) ?
                      numclients : CLIENTS_CRON_MIN_ITERATIONS;
@@ -974,6 +1048,11 @@ void clientsCron(void) {
      * than CLIENTS_PEAK_MEM_USAGE_SLOTS seconds: however this is not a problem
      * since here we want just to track if "recently" there were very expansive
      * clients from the POV of memory usage. */
+    /**总是将下一个样本归零，这样当我们切换到那一秒时，我们只会记录在那一秒中更大的样本，而不考虑此类槽的历史。
+     * 注意：如果由于某种原因没有以正常频率调用 serverCron()，我们的索引可能会跳转到任何随机位置，
+     * 例如因为调用某些慢速命令需要多秒钟才能执行。在这种情况下，
+     * 我们的数组可能最终包含可能早于 CLIENTS_PEAK_MEM_USAGE_SLOTS 秒的数据：
+     *   但这不是问题，因为在这里我们只想跟踪“最近”是否有来自内存使用 POV 的非常广泛的客户端。*/
     int zeroidx = (curr_peak_mem_usage_slot+1) % CLIENTS_PEAK_MEM_USAGE_SLOTS;
     ClientsPeakMemInput[zeroidx] = 0;
     ClientsPeakMemOutput[zeroidx] = 0;
@@ -986,12 +1065,14 @@ void clientsCron(void) {
         /* Rotate the list, take the current head, process.
          * This way if the client must be removed from the list it's the
          * first element and we don't incur into O(N) computation. */
+        /**旋转列表，取当前头，处理。这样，如果客户端必须从列表中删除，它是第一个元素，我们不会进行 O(N) 计算。*/
         listRotateTailToHead(server.clients);
         head = listFirst(server.clients);
         c = listNodeValue(head);
         /* The following functions do different service checks on the client.
          * The protocol is that they return non-zero if the client was
          * terminated. */
+        /**以下函数在客户端上执行不同的服务检查。协议是如果客户端被终止，它们返回非零值。*/
         if (clientsCronHandleTimeout(c,now)) continue;
         if (clientsCronResizeQueryBuffer(c)) continue;
         if (clientsCronResizeOutputBuffer(c,now)) continue;
@@ -1003,6 +1084,9 @@ void clientsCron(void) {
          * computation incrementally and track the (not instantaneous but updated
          * to the second) total memory used by clients using clientsCron() in
          * a more incremental way (depending on server.hz). */
+        /**在 getMemoryOverheadData() 中迭代所有客户端太慢，进而会使 INFO 命令太慢。
+         * 因此，我们以增量方式执行此计算，并使用 clientsCron() 以更增量的方式（取决于 server.hz）跟踪
+         * 客户端使用的（不是瞬时的，而是更新到秒的）总内存。*/
         if (updateClientMemUsage(c)) continue;
         if (closeClientOnOutputBufferLimitReached(c, 0)) continue;
     }
@@ -1011,9 +1095,11 @@ void clientsCron(void) {
 /* This function handles 'background' operations we are required to do
  * incrementally in Redis databases, such as active key expiring, resizing,
  * rehashing. */
+/**此函数处理我们需要在 Redis 数据库中增量执行的“后台”操作，例如活动密钥过期、调整大小、重新散列。*/
 void databasesCron(void) {
     /* Expire keys by random sampling. Not required for slaves
      * as master will synthesize DELs for us. */
+    /**通过随机抽样使密钥过期。 slave 不需要，因为 master 会为我们合成 DEL。*/
     if (server.active_expire_enabled) {
         if (iAmMaster()) {
             activeExpireCycle(ACTIVE_EXPIRE_CYCLE_SLOW);
@@ -1022,16 +1108,19 @@ void databasesCron(void) {
         }
     }
 
-    /* Defrag keys gradually. */
+    /* Defrag keys gradually. 逐渐对键进行碎片整理。*/
     activeDefragCycle();
 
     /* Perform hash tables rehashing if needed, but only if there are no
      * other processes saving the DB on disk. Otherwise rehashing is bad
      * as will cause a lot of copy-on-write of memory pages. */
+    /**如果需要，执行哈希表重新哈希，但前提是没有其他进程将数据库保存在磁盘上。
+     * 否则，重新散列是不好的，因为会导致大量内存页面的写时复制。*/
     if (!hasActiveChildProcess()) {
         /* We use global counters so if we stop the computation at a given
          * DB we'll be able to start from the successive in the next
          * cron loop iteration. */
+        /**我们使用全局计数器，因此如果我们在给定的数据库处停止计算，我们将能够在下一个 cron 循环迭代中从连续的开始。*/
         static unsigned int resize_db = 0;
         static unsigned int rehash_db = 0;
         int dbs_per_call = CRON_DBS_PER_CALL;
@@ -1053,9 +1142,11 @@ void databasesCron(void) {
                 if (work_done) {
                     /* If the function did some work, stop here, we'll do
                      * more at the next cron loop. */
+                    /**如果该函数做了一些工作，请停在这里，我们将在下一个 cron 循环中做更多的事情。*/
                     break;
                 } else {
                     /* If this db didn't need rehash, we'll try the next one. */
+                    /**如果这个 db 不需要 rehash，我们将尝试下一个。*/
                     rehash_db++;
                     rehash_db %= server.dbnum;
                 }
@@ -1075,6 +1166,9 @@ static inline void updateCachedTimeWithUs(int update_daylight_info, const long l
      * context is safe since we will never fork() while here, in the main
      * thread. The logging function will call a thread safe version of
      * localtime that has no locks. */
+    /**要获取有关夏令时的信息，我们需要调用 localtime_r 并缓存结果。
+     * 但是在这种情况下调用 localtime_r 是安全的，因为我们永远不会在主线程中 fork() 。
+     * 日志记录函数将调用没有锁的本地时间线程安全版本。*/
     if (update_daylight_info) {
         struct tm tm;
         time_t ut = server.unixtime;
@@ -1093,6 +1187,11 @@ static inline void updateCachedTimeWithUs(int update_daylight_info, const long l
  * info or not using the 'update_daylight_info' argument. Normally we update
  * such info only when calling this function from serverCron() but not when
  * calling it from call(). */
+/**我们在全局状态下获取unix时间的缓存值，因为随着虚拟内存和老化，每次对象访问时都会将当前时间存储在对象中，并且不需要准确性。
+ *
+ * 访问全局变量比调用 time(NULL) 快得多。这个函数应该很快，因为它在 call() 中的每个命令执行时被调用，
+ * 因此可以决定是否更新夏令时信息或不使用 'update_daylight_info' 参数。
+ * 通常我们仅在从 serverCron() 调用此函数时更新此类信息，而不是在从 call() 调用它时更新此类信息。*/
 void updateCachedTime(int update_daylight_info) {
     const long long us = ustime();
     updateCachedTimeWithUs(update_daylight_info, us);
@@ -1112,6 +1211,8 @@ void checkChildrenDone(void) {
          * must make sure not to flag lastbgsave_status, etc incorrectly.
          * We could directly terminate the child process via SIGUSR1
          * without handling it */
+        /**sigKillChildHandler 捕获信号并调用 exit()，但我们必须确保不要错误地标记 lastbgsave_status 等。
+         * 我们可以通过 SIGUSR1 直接终止子进程而不需要处理它*/
         if (exitcode == SERVER_CHILD_NOERROR_RETVAL) {
             bysignal = SIGUSR1;
             exitcode = 1;
@@ -1144,14 +1245,16 @@ void checkChildrenDone(void) {
             }
         }
 
-        /* start any pending forks immediately. */
+        /* start any pending forks immediately. 立即启动任何待处理的分叉。*/
         replicationStartPendingFork();
     }
 }
 
 /* Called from serverCron and cronUpdateMemoryStats to update cached memory metrics. */
+/**从 serverCron 和 cronUpdateMemoryStats 调用以更新缓存的内存指标。*/
 void cronUpdateMemoryStats() {
     /* Record the max memory used since the server was started. */
+    /**记录服务器启动后使用的最大内存。*/
     if (zmalloc_used_memory() > server.stat_peak_memory)
         server.stat_peak_memory = zmalloc_used_memory();
 
@@ -1159,21 +1262,28 @@ void cronUpdateMemoryStats() {
         /* Sample the RSS and other metrics here since this is a relatively slow call.
          * We must sample the zmalloc_used at the same time we take the rss, otherwise
          * the frag ratio calculate may be off (ratio of two samples at different times) */
+        /**在此处对 RSS 和其他指标进行采样，因为这是一个相对较慢的调用。
+         * 我们必须在取 rss 的同时对 zmalloc_used 进行采样，否则 frag ratio 计算可能会关闭（两个样本在不同时间的比率）*/
         server.cron_malloc_stats.process_rss = zmalloc_get_rss();
         server.cron_malloc_stats.zmalloc_used = zmalloc_used_memory();
         /* Sampling the allocator info can be slow too.
          * The fragmentation ratio it'll show is potentially more accurate
          * it excludes other RSS pages such as: shared libraries, LUA and other non-zmalloc
          * allocations, and allocator reserved pages that can be pursed (all not actual frag) */
+        /**对分配器信息进行采样也可能很慢。它将显示的碎片率可能更准确，它排除了其他 RSS 页面，例如：
+         *   共享库、LUA 和其他非 zmalloc 分配，以及可以占用的分配器保留页面（所有这些都不是实际碎片）*/
         zmalloc_get_allocator_info(&server.cron_malloc_stats.allocator_allocated,
                                    &server.cron_malloc_stats.allocator_active,
                                    &server.cron_malloc_stats.allocator_resident);
         /* in case the allocator isn't providing these stats, fake them so that
          * fragmentation info still shows some (inaccurate metrics) */
+        /**如果分配器没有提供这些统计信息，请伪造它们，以便碎片信息仍然显示一些（不准确的指标）*/
         if (!server.cron_malloc_stats.allocator_resident) {
             /* LUA memory isn't part of zmalloc_used, but it is part of the process RSS,
              * so we must deduct it in order to be able to calculate correct
              * "allocator fragmentation" ratio */
+            /**LUA 内存不是 zmalloc_used 的一部分，但它是进程 RSS 的一部分，
+             * 所以我们必须扣除它才能计算正确的“分配器碎片”比率*/
             size_t lua_memory = evalMemory();
             server.cron_malloc_stats.allocator_resident = server.cron_malloc_stats.process_rss - lua_memory;
         }
@@ -1202,6 +1312,17 @@ void cronUpdateMemoryStats() {
  * so in order to throttle execution of things we want to do less frequently
  * a macro is used: run_with_period(milliseconds) { .... }
  */
+/**这是我们的定时器中断，每秒调用 server.hz 次。这是我们做一些需要异步完成的事情的地方。
+ * 例如：
+ *   - 活动的过期密钥收集（它也在查找时以惰性方式执行）。
+ *   - 软件看门狗。 - 更新一些统计数据。
+ *   - DBs 哈希表的增量重新散列。
+ *   - 触发 BGSAVE AOF 重写，并处理终止的孩子。
+ *   - 不同类型的客户端超时。
+ *   - 复制重新连接。
+ *   - 更多...
+ * 这里直接调用的所有内容都将每秒调用 server.hz 次，因此为了限制我们想要减少执行频率的事情的执行，
+ * 使用了宏：run_with_period(milliseconds) { .... }*/
 
 int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
     int j;
@@ -1211,6 +1332,7 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
 
     /* Software watchdog: deliver the SIGALRM that will reach the signal
      * handler if we don't return here fast enough. */
+    /**软件看门狗：如果我们没有足够快地返回这里，则传递将到达信号处理程序的 SIGALRM。*/
     if (server.watchdog_period) watchdogScheduleSignal(server.watchdog_period);
 
     /* Update the time cache. */
@@ -1219,6 +1341,7 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
     server.hz = server.config_hz;
     /* Adapt the server.hz value to the number of configured clients. If we have
      * many clients, we want to call serverCron() with an higher frequency. */
+    /**使 server.hz 值适应已配置客户端的数量。如果我们有很多客户端，我们希望以更高的频率调用 serverCron()。*/
     if (server.dynamic_hz) {
         while (listLength(server.clients) / server.hz >
                MAX_CLIENTS_PER_CLOCK_TICK)
@@ -1232,6 +1355,7 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
     }
 
     /* for debug purposes: skip actual cron work if pause_cron is on */
+    /**出于调试目的：如果 pause_cron 开启，则跳过实际的 cron 工作*/
     if (server.pause_cron) return 1000/server.hz;
 
     run_with_period(100) {
@@ -1264,6 +1388,10 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
      *
      * Note that you can change the resolution altering the
      * LRU_CLOCK_RESOLUTION define. */
+    /**对于 LRU 信息，每个对象只有 LRU_BITS 位。所以我们使用（最终包装的）LRU 时钟。
+     * 请注意，即使计数器换行也不是什么大问题，一切仍然有效，但某些对象对 Redis 来说会显得更年轻。
+     * 然而，要发生这种情况，在计数器包裹所需的所有时间内都不应该触摸给定的对象，这是不太可能的。
+     * 请注意，您可以更改 LRU_CLOCK_RESOLUTION 定义的分辨率。*/
     unsigned int lruclock = getLRUClock();
     atomicSet(server.lruclock,lruclock);
 
@@ -1271,6 +1399,7 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
 
     /* We received a SIGTERM or SIGINT, shutting down here in a safe way, as it is
      * not ok doing so inside the signal handler. */
+    /**我们收到了 SIGTERM 或 SIGINT，以安全的方式在此处关闭，因为在信号处理程序中这样做是不合适的。*/
     if (server.shutdown_asap && !isShutdownInitiated()) {
         int shutdownFlags = SHUTDOWN_NOFLAGS;
         if (server.last_sig_received == SIGINT && server.shutdown_on_sigint)
@@ -1283,10 +1412,11 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
         if (server.mstime >= server.shutdown_mstime || isReadyToShutdown()) {
             if (finishShutdown() == C_OK) exit(0);
             /* Shutdown failed. Continue running. An error has been logged. */
+            /**关机失败。继续运行。已记录错误。*/
         }
     }
 
-    /* Show some info about non-empty databases */
+    /* Show some info about non-empty databases 显示一些关于非空数据库的信息*/
     if (server.verbosity <= LL_VERBOSE) {
         run_with_period(5000) {
             for (j = 0; j < server.dbnum; j++) {
@@ -1303,6 +1433,7 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
     }
 
     /* Show information about connected clients */
+    //显示有关已连接客户端的信息
     if (!server.sentinel_mode) {
         run_with_period(5000) {
             serverLog(LL_DEBUG,
@@ -1314,13 +1445,16 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
     }
 
     /* We need to do a few operations on clients asynchronously. */
+    /**我们需要对客户端异步执行一些操作。*/
     clientsCron();
 
     /* Handle background operations on Redis databases. */
+    /**处理 Redis 数据库的后台操作。*/
     databasesCron();
 
     /* Start a scheduled AOF rewrite if this was requested by the user while
      * a BGSAVE was in progress. */
+    /**如果在 BGSAVE 正在进行时用户请求，则启动计划的 AOF 重写。*/
     if (!hasActiveChildProcess() &&
         server.aof_rewrite_scheduled &&
         !aofRewriteLimited())
@@ -1329,6 +1463,7 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
     }
 
     /* Check if a background saving or AOF rewrite in progress terminated. */
+    /**检查正在进行的后台保存或 AOF 重写是否终止。*/
     if (hasActiveChildProcess() || ldbPendingChildren())
     {
         run_with_period(1000) receiveChildInfo();
@@ -1336,6 +1471,7 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
     } else {
         /* If there is not a background saving/rewrite in progress check if
          * we have to save/rewrite now. */
+        /**如果没有正在进行的后台保存重写，请检查我们现在是否必须保存重写。*/
         for (j = 0; j < server.saveparamslen; j++) {
             struct saveparam *sp = server.saveparams+j;
 
@@ -1343,6 +1479,8 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
              * the given amount of seconds, and if the latest bgsave was
              * successful or if, in case of an error, at least
              * CONFIG_BGSAVE_RETRY_DELAY seconds already elapsed. */
+            /**如果我们达到了给定的更改量、给定的秒数，并且如果最新的 bgsave 成功，或者如果发生错误，
+             * 至少 CONFIG_BGSAVE_RETRY_DELAY 秒已经过去，则保存。*/
             if (server.dirty >= sp->changes &&
                 server.unixtime-server.lastsave > sp->seconds &&
                 (server.unixtime-server.lastbgsave_try >
@@ -1358,7 +1496,7 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
             }
         }
 
-        /* Trigger an AOF rewrite if needed. */
+        /* Trigger an AOF rewrite if needed. 如果需要，触发 AOF 重写。*/
         if (server.aof_state == AOF_ON &&
             !hasActiveChildProcess() &&
             server.aof_rewrite_perc &&
@@ -1375,11 +1513,13 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
     }
     /* Just for the sake of defensive programming, to avoid forgetting to
      * call this function when needed. */
+    /**只是为了防御性编程，避免在需要的时候忘记调用这个函数。*/
     updateDictResizePolicy();
 
 
     /* AOF postponed flush: Try at every cron cycle if the slow fsync
      * completed. */
+    /**AOF 延迟刷新：如果慢速 fsync 完成，则在每个 cron 周期尝试。*/
     if ((server.aof_state == AOF_ON || server.aof_state == AOF_WAIT_REWRITE) &&
         server.aof_flush_postponed_start)
     {
@@ -1390,6 +1530,8 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
      * clear the AOF error in case of success to make the DB writable again,
      * however to try every second is enough in case of 'hz' is set to
      * a higher frequency. */
+    /**AOF 写入错误：在这种情况下，我们还有一个缓冲区要刷新，并在成功的情况下清除 AOF 错误以使 DB 再次可写，
+     * 但是在“hz”设置为更高频率的情况下每秒尝试一次就足够了.*/
     run_with_period(1000) {
         if ((server.aof_state == AOF_ON || server.aof_state == AOF_WAIT_REWRITE) &&
             server.aof_last_write_status == C_ERR) 
@@ -1399,6 +1541,7 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
     }
 
     /* Clear the paused clients state if needed. */
+    //如果需要，清除暂停的客户端状态。
     checkClientPauseTimeoutAndReturnIfPaused();
 
     /* Replication cron function -- used to reconnect to master,
@@ -1406,32 +1549,39 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
      * 
      * If Redis is trying to failover then run the replication cron faster so
      * progress on the handshake happens more quickly. */
+    /**复制 cron 功能——用于重新连接到 master、检测传输失败、启动后台 RDB 传输等。
+     * 如果 Redis 尝试进行故障转移，则更快地运行复制 cron，以便更快地进行握手。*/
     if (server.failover_state != NO_FAILOVER) {
         run_with_period(100) replicationCron();
     } else {
         run_with_period(1000) replicationCron();
     }
 
-    /* Run the Redis Cluster cron. */
+    /* Run the Redis Cluster cron. 运行 Redis 集群 cron。*/
     run_with_period(100) {
         if (server.cluster_enabled) clusterCron();
     }
 
     /* Run the Sentinel timer if we are in sentinel mode. */
+    //如果我们处于哨兵模式，请运行哨兵计时器。
     if (server.sentinel_mode) sentinelTimer();
 
     /* Cleanup expired MIGRATE cached sockets. */
+    //清理过期的 MIGRATE 缓存套接字。
     run_with_period(1000) {
         migrateCloseTimedoutSockets();
     }
 
     /* Stop the I/O threads if we don't have enough pending work. */
+    //如果我们没有足够的待处理工作，请停止 IO 线程。
     stopThreadedIOIfNeeded();
 
     /* Resize tracking keys table if needed. This is also done at every
      * command execution, but we want to be sure that if the last command
      * executed changes the value via CONFIG SET, the server will perform
      * the operation even if completely idle. */
+    /**如果需要，调整跟踪键表的大小。这也是在每次命令执行时完成的，
+     * 但是我们要确保如果执行的最后一个命令通过 CONFIG SET 更改了值，即使完全空闲，服务器也会执行该操作。*/
     if (server.tracking_clients) trackingLimitUsedSlots();
 
     /* Start a scheduled BGSAVE if the corresponding flag is set. This is
@@ -1441,6 +1591,9 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
      * Note: this code must be after the replicationCron() call above so
      * make sure when refactoring this file to keep this order. This is useful
      * because we want to give priority to RDB savings for replication. */
+    /**如果设置了相应的标志，则启动计划的 BGSAVE。当我们因为正在进行 AOF 重写而被迫推迟 BGSAVE 时，这很有用。
+     * 注意：此代码必须在上面的 replicationCron() 调用之后，因此请确保在重构此文件时保持此顺序。
+     * 这很有用，因为我们希望优先考虑 RDB 节省以进行复制。*/
     if (!hasActiveChildProcess() &&
         server.rdb_bgsave_scheduled &&
         (server.unixtime-server.lastbgsave_try > CONFIG_BGSAVE_RETRY_DELAY ||
@@ -1456,7 +1609,7 @@ int serverCron(struct aeEventLoop *eventLoop, long long id, void *clientData) {
         if (moduleCount()) modulesCron();
     }
 
-    /* Fire the cron loop modules event. */
+    /* Fire the cron loop modules event. 触发 cron 循环模块事件。*/
     RedisModuleCronLoopV1 ei = {REDISMODULE_CRON_LOOP_VERSION,server.hz};
     moduleFireServerEvent(REDISMODULE_EVENT_CRON_LOOP,
                           0,
@@ -1485,17 +1638,24 @@ void blockingOperationEnds() {
  * It attempts to do its duties at a similar rate as the configured server.hz,
  * and updates cronloops variable so that similarly to serverCron, the
  * run_with_period can be used. */
+/**此函数在 RDB 或 AOF 加载期间以及在阻塞脚本期间填充 serverCron 的角色。
+ * 它尝试以与配置的 server.hz 相似的速率完成其职责，并更新 cronloops 变量，以便与 serverCron 类似，
+ * 可以使用 run_with_period。*/
 void whileBlockedCron() {
     /* Here we may want to perform some cron jobs (normally done server.hz times
      * per second). */
 
     /* Since this function depends on a call to blockingOperationStarts, let's
      * make sure it was done. */
+    /**在这里，我们可能想要执行一些 cron 作业（通常每秒执行 server.hz 次）。
+     * 由于此函数依赖于对 blockingOperationStarts 的调用，因此让我们确保它已完成。*/
     serverAssert(server.blocked_last_cron);
 
     /* In case we where called too soon, leave right away. This way one time
      * jobs after the loop below don't need an if. and we don't bother to start
      * latency monitor if this function is called too often. */
+    /**万一我们叫得太早了，马上离开。这样，在下面的循环之后的一次工作不需要 if。
+     * 如果这个函数被调用得太频繁，我们也不会费心去启动延迟监视器。*/
     if (server.blocked_last_cron >= server.mstime)
         return;
 
@@ -1507,22 +1667,28 @@ void whileBlockedCron() {
      * on the fact that it is performed every 10 ms or so. For instance, if
      * activeDefragCycle needs to utilize 25% cpu, it will utilize 2.5ms, so we
      * need to call it multiple times. */
+    /**在某些情况下，我们可能会以很大的间隔被调用，因此我们可能需要在这里做额外的工作。
+     * 这是因为 serverCron 中的某些功能依赖于它每 10 毫秒左右执行一次的事实。
+     * 例如，如果 activeDefragCycle 需要使用 25% cpu，它将使用 2.5ms，因此我们需要多次调用它。*/
     long hz_ms = 1000/server.hz;
     while (server.blocked_last_cron < server.mstime) {
 
-        /* Defrag keys gradually. */
+        /* Defrag keys gradually. 逐渐对键进行碎片整理。*/
         activeDefragCycle();
 
         server.blocked_last_cron += hz_ms;
 
         /* Increment cronloop so that run_with_period works. */
+        //增加 cronloop 以便 run_with_period 工作。
         server.cronloops++;
     }
 
     /* Other cron jobs do not need to be done in a loop. No need to check
      * server.blocked_last_cron since we have an early exit at the top. */
+    /**其他 cron 作业不需要循环完成。无需检查 server.blocked_last_cron 因为我们在顶部有一个提前退出。*/
 
     /* Update memory stats during loading (excluding blocked scripts) */
+    //在加载期间更新内存统计信息（不包括被阻止的脚本）
     if (server.loading) cronUpdateMemoryStats();
 
     latencyEndMonitor(latency);
@@ -1530,6 +1696,7 @@ void whileBlockedCron() {
 
     /* We received a SIGTERM during loading, shutting down here in a safe way,
      * as it isn't ok doing so inside the signal handler. */
+    /**我们在加载过程中收到了 SIGTERM，以安全的方式在此处关闭，因为在信号处理程序中这样做是不合适的。*/
     if (server.shutdown_asap && server.loading) {
         if (prepareForShutdown(SHUTDOWN_NOSAVE) == C_OK) exit(0);
         serverLog(LL_WARNING,"SIGTERM received but errors trying to shut down the server, check the logs for more information");
@@ -1562,6 +1729,12 @@ extern int ProcessingEventsWhileBlocked;
  *
  * The most important is freeClientsInAsyncFreeQueue but we also
  * call some other low-risk functions. */
+/**每次 Redis 进入事件驱动库的主循环时都会调用此函数，也就是说，在为准备好的文件描述符休眠之前。
+ * 注意：这个函数（当前）是从两个函数调用的：
+ *   1. aeMain - 主服务器循环
+ *   2. processEventsWhileBlocked - 在 RDBAOF 加载期间处理客户端
+ * 如果它是从 processEventsWhileBlocked 调用的，我们不想执行所有操作（例如，我们不想让密钥过期），
+ * 但我们确实需要执行一些操作。最重要的是 freeClientsInAsyncFreeQueue 但我们也调用了其他一些低风险的函数。*/
 void beforeSleep(struct aeEventLoop *eventLoop) {
     UNUSED(eventLoop);
 
@@ -1574,6 +1747,9 @@ void beforeSleep(struct aeEventLoop *eventLoop) {
      * case we keep track of the number of events we are processing, since
      * processEventsWhileBlocked() wants to stop ASAP if there are no longer
      * events to handle. */
+    /**如果我们从 processEventsWhileBlocked() 重新进入事件循环，只需调用重要函数的子集。
+     * 请注意，在这种情况下，我们会跟踪正在处理的事件数量，因为 processEventsWhileBlocked() 如果不再需要处理事件，
+     * 则希望尽快停止。*/
     if (ProcessingEventsWhileBlocked) {
         uint64_t processed = 0;
         processed += handleClientsWithPendingReadsUsingThreads();
@@ -1587,35 +1763,45 @@ void beforeSleep(struct aeEventLoop *eventLoop) {
     }
 
     /* Handle precise timeouts of blocked clients. */
+    //处理被阻止客户端的精确超时。
     handleBlockedClientsTimeout();
 
     /* We should handle pending reads clients ASAP after event loop. */
+    //我们应该在事件循环之后尽快处理挂起的读取客户端。
     handleClientsWithPendingReadsUsingThreads();
 
     /* Handle TLS pending data. (must be done before flushAppendOnlyFile) */
+    //处理 TLS 待处理数据。 （必须在 flushAppendOnlyFile 之前完成）
     tlsProcessPendingData();
 
     /* If tls still has pending unread data don't sleep at all. */
+    //如果 tls 仍有待处理的未读数据，则根本不要休眠。
     aeSetDontWait(server.el, tlsHasPendingData());
 
     /* Call the Redis Cluster before sleep function. Note that this function
      * may change the state of Redis Cluster (from ok to fail or vice versa),
      * so it's a good idea to call it before serving the unblocked clients
      * later in this function. */
+    /**在 sleep 函数之前调用 Redis Cluster。
+     * 请注意，此函数可能会更改 Redis 集群的状态（从 ok 变为失败，反之亦然），
+     * 因此最好在稍后在此函数中为未阻塞的客户端提供服务之前调用它。*/
     if (server.cluster_enabled) clusterBeforeSleep();
 
     /* Run a fast expire cycle (the called function will return
      * ASAP if a fast cycle is not needed). */
+    /**运行快速过期循环（如果不需要快速循环，被调用函数将尽快返回）。*/
     if (server.active_expire_enabled && server.masterhost == NULL)
         activeExpireCycle(ACTIVE_EXPIRE_CYCLE_FAST);
 
     /* Unblock all the clients blocked for synchronous replication
      * in WAIT. */
+    /**在 WAIT 中取消阻止所有为同步复制而阻止的客户端。*/
     if (listLength(server.clients_waiting_acks))
         processClientsWaitingReplicas();
 
     /* Check if there are clients unblocked by modules that implement
      * blocking commands. */
+    /**检查是否有客户端被实现阻塞命令的模块解除阻塞。*/
     if (moduleCount()) {
         moduleFireServerEvent(REDISMODULE_EVENT_EVENTLOOP,
                               REDISMODULE_SUBEVENT_EVENTLOOP_BEFORE_SLEEP,
@@ -1624,6 +1810,7 @@ void beforeSleep(struct aeEventLoop *eventLoop) {
     }
 
     /* Try to process pending commands for clients that were just unblocked. */
+    /**尝试为刚刚解锁的客户端处理挂起的命令。*/
     if (listLength(server.unblocked_clients))
         processUnblockedClients();
 
@@ -1636,6 +1823,11 @@ void beforeSleep(struct aeEventLoop *eventLoop) {
      * We also don't send the ACKs while clients are paused, since it can
      * increment the replication backlog, they'll be sent after the pause
      * if we are still the master. */
+    /**如果在上一次事件循环迭代期间至少有一个客户端被阻塞，则向所有从属发送 ACK 请求。
+     * 请注意，我们在 processUnblockedClients() 之后执行此操作，
+     * 因此如果有多个流水线 WAIT 并且刚刚未阻塞的 WAIT 再次被阻塞，
+     * 我们不必在没有其他事件循环事件的情况下等待服务器 cron 周期。参见 6623。
+     * 我们也不会在客户端暂停时发送 ACK，因为它可以增加复制积压，如果我们仍然是主服务器，它们将在暂停后发送。*/
     if (server.get_ack_from_slaves && !checkClientPauseTimeoutAndReturnIfPaused()) {
         sendGetackToReplicas();
         server.get_ack_from_slaves = 0;
@@ -1644,15 +1836,18 @@ void beforeSleep(struct aeEventLoop *eventLoop) {
     /* We may have received updates from clients about their current offset. NOTE:
      * this can't be done where the ACK is received since failover will disconnect 
      * our clients. */
+    /**我们可能已经收到客户关于他们当前偏移量的更新。注意：这不能在收到 ACK 的地方完成，因为故障转移会断开我们的客户端。*/
     updateFailoverStatus();
 
     /* Since we rely on current_client to send scheduled invalidation messages
      * we have to flush them after each command, so when we get here, the list
      * must be empty. */
+    /**由于我们依赖 current_client 发送预定的失效消息，我们必须在每个命令之后刷新它们，所以当我们到达这里时，列表必须是空的。*/
     serverAssert(listLength(server.tracking_pending_keys) == 0);
 
     /* Send the invalidation messages to clients participating to the
      * client side caching protocol in broadcasting (BCAST) mode. */
+    /**以广播 (BCAST) 模式将失效消息发送给参与客户端缓存协议的客户端。*/
     trackingBroadcastInvalidationMessages();
 
     /* Try to process blocked clients every once in while.
@@ -1662,45 +1857,54 @@ void beforeSleep(struct aeEventLoop *eventLoop) {
      *
      * must be done before flushAppendOnlyFile, in case of appendfsync=always,
      * since the unblocked clients may write data. */
+    /**尝试每隔一段时间处理一次被阻止的客户端。示例：模块从计时器回调中
+     * 调用 RM_SignalKeyAsReady（因此我们根本不访问 processCommand()）。
+     * 必须在 flushAppendOnlyFile 之前完成，在 appendfsync=always 的情况下，因为未阻塞的客户端可能会写入数据。*/
     handleClientsBlockedOnKeys();
 
     /* Write the AOF buffer on disk,
      * must be done before handleClientsWithPendingWritesUsingThreads,
      * in case of appendfsync=always. */
+    /**将 AOF 缓冲区写入磁盘，必须在 handleClientsWithPendingWritesUsingThreads 之前完成，以防 appendfsync=always。*/
     if (server.aof_state == AOF_ON || server.aof_state == AOF_WAIT_REWRITE)
         flushAppendOnlyFile(0);
 
-    /* Handle writes with pending output buffers. */
+    /* Handle writes with pending output buffers. 使用挂起的输出缓冲区处理写入。*/
     handleClientsWithPendingWritesUsingThreads();
 
-    /* Close clients that need to be closed asynchronous */
+    /* Close clients that need to be closed asynchronous 关闭需要异步关闭的客户端*/
     freeClientsInAsyncFreeQueue();
 
     /* Incrementally trim replication backlog, 10 times the normal speed is
      * to free replication backlog as much as possible. */
+    /**增量修剪复制积压，正常速度的10倍是尽可能释放复制积压。*/
     if (server.repl_backlog)
         incrementalTrimReplicationBacklog(10*REPL_BACKLOG_TRIM_BLOCKS_PER_CALL);
 
     /* Disconnect some clients if they are consuming too much memory. */
+    /**如果某些客户端消耗太多内存，请断开它们的连接。*/
     evictClients();
 
     /* Before we are going to sleep, let the threads access the dataset by
      * releasing the GIL. Redis main thread will not touch anything at this
      * time. */
+    /**在我们睡觉之前，让线程通过释放 GIL 来访问数据集。 Redis 主线程此时不会接触任何东西。*/
     if (moduleCount()) moduleReleaseGIL();
 
-    /* Do NOT add anything below moduleReleaseGIL !!! */
+    /* Do NOT add anything below moduleReleaseGIL !!! 不要在 moduleReleaseGIL 下面添加任何东西！！！*/
 }
 
 /* This function is called immediately after the event loop multiplexing
  * API returned, and the control is going to soon return to Redis by invoking
  * the different events callbacks. */
+/**该函数在事件循环多路复用API返回后立即调用，控件将通过调用不同的事件回调很快返回到Redis。*/
 void afterSleep(struct aeEventLoop *eventLoop) {
     UNUSED(eventLoop);
 
-    /* Do NOT add anything above moduleAcquireGIL !!! */
+    /* Do NOT add anything above moduleAcquireGIL !!! 不要在 moduleAcquireGIL 上面添加任何东西！！！*/
 
     /* Acquire the modules GIL so that their threads won't touch anything. */
+    /**获取模块 GIL 以便它们的线程不会接触任何东西。*/
     if (!ProcessingEventsWhileBlocked) {
         if (moduleCount()) {
             mstime_t latency;
@@ -1734,7 +1938,7 @@ void createSharedObjects(void) {
     shared.space = createObject(OBJ_STRING,sdsnew(" "));
     shared.plus = createObject(OBJ_STRING,sdsnew("+"));
 
-    /* Shared command error responses */
+    /* Shared command error responses 共享命令错误响应*/
     shared.wrongtypeerr = createObject(OBJ_STRING,sdsnew(
         "-WRONGTYPE Operation against a key holding the wrong kind of value\r\n"));
     shared.err = createObject(OBJ_STRING,sdsnew("-ERR\r\n"));
@@ -1773,7 +1977,7 @@ void createSharedObjects(void) {
     shared.busykeyerr = createObject(OBJ_STRING,sdsnew(
         "-BUSYKEY Target key name already exists.\r\n"));
 
-    /* The shared NULL depends on the protocol version. */
+    /* The shared NULL depends on the protocol version. 共享的 NULL 取决于协议版本。*/
     shared.null[0] = NULL;
     shared.null[1] = NULL;
     shared.null[2] = createObject(OBJ_STRING,sdsnew("$-1\r\n"));
@@ -1880,6 +2084,8 @@ void createSharedObjects(void) {
      * actually used for their value but as a special object meaning
      * respectively the minimum possible string and the maximum possible
      * string in string comparisons for the ZRANGEBYLEX command. */
+    /**以下两个共享对象 minstring 和 maxstring 实际上并没有用于它们的值，
+     * 而是作为一个特殊对象，分别表示 ZRANGEBYLEX 命令的字符串比较中的最小可能字符串和最大可能字符串。*/
     shared.minstring = sdsnew("minstring");
     shared.maxstring = sdsnew("maxstring");
 }
@@ -1897,8 +2103,9 @@ void initServerConfig(void) {
     server.hz = CONFIG_DEFAULT_HZ; /* Initialize it ASAP, even if it may get
                                       updated later after loading the config.
                                       This value may be used before the server
-                                      is initialized. */
-    server.timezone = getTimeZone(); /* Initialized by tzset(). */
+                                      is initialized.
+                                      尽快初始化它，即使它可能会在加载配置后更新。该值可以在服务器初始化之前使用。*/
+    server.timezone = getTimeZone(); /* Initialized by tzset(). 由 tzset() 初始化。*/
     server.configfile = NULL;
     server.executable = NULL;
     server.arch_bits = (sizeof(long) == 8) ? 64 : 32;
@@ -1925,7 +2132,7 @@ void initServerConfig(void) {
     server.aof_lastbgrewrite_status = C_OK;
     server.aof_delayed_fsync = 0;
     server.aof_fd = -1;
-    server.aof_selected_db = -1; /* Make sure the first time will not match */
+    server.aof_selected_db = -1; /* Make sure the first time will not match 确保第一次不匹配*/
     server.aof_flush_postponed_start = 0;
     server.aof_last_incr_size = 0;
     server.active_defrag_running = 0;
@@ -1952,11 +2159,11 @@ void initServerConfig(void) {
     atomicSet(server.lruclock,lruclock);
     resetServerSaveParams();
 
-    appendServerSaveParams(60*60,1);  /* save after 1 hour and 1 change */
+    appendServerSaveParams(60*60,1);  /* save after 1 hour and 1 change 在 1 小时和 1 次更改后保存*/
     appendServerSaveParams(300,100);  /* save after 5 minutes and 100 changes */
     appendServerSaveParams(60,10000); /* save after 1 minute and 10000 changes */
 
-    /* Replication related */
+    /* Replication related 复制相关*/
     server.masterhost = NULL;
     server.masterport = 6379;
     server.master = NULL;
@@ -1967,10 +2174,10 @@ void initServerConfig(void) {
     server.repl_transfer_fd = -1;
     server.repl_transfer_s = NULL;
     server.repl_syncio_timeout = CONFIG_REPL_SYNCIO_TIMEOUT;
-    server.repl_down_since = 0; /* Never connected, repl is down since EVER. */
+    server.repl_down_since = 0; /* Never connected, repl is down since EVER.从未连接过，repl 从 EVER 开始就关闭了。 */
     server.master_repl_offset = 0;
 
-    /* Replication partial resync backlog */
+    /* Replication partial resync backlog 复制部分重新同步积压*/
     server.repl_backlog = NULL;
     server.repl_no_slaves_since = time(NULL);
 
@@ -1989,7 +2196,7 @@ void initServerConfig(void) {
     for (j = 0; j < CONFIG_OOM_COUNT; j++)
         server.oom_score_adj_values[j] = configOOMScoreAdjValuesDefaults[j];
 
-    /* Double constants initialization */
+    /* Double constants initialization  双常量初始化*/
     R_Zero = 0.0;
     R_PosInf = 1.0/R_Zero;
     R_NegInf = -1.0/R_Zero;
@@ -1998,6 +2205,8 @@ void initServerConfig(void) {
     /* Command table -- we initialize it here as it is part of the
      * initial configuration, since command names may be changed via
      * redis.conf using the rename-command directive. */
+    /**命令表——我们在这里对其进行初始化，因为它是初始配置的一部分，
+     * 因为命令名称可以通过 redis.conf 使用 rename-command 指令进行更改。*/
     server.commands = dictCreate(&commandTableDictType);
     server.orig_commands = dictCreate(&commandTableDictType);
     populateCommandTable();
@@ -2023,11 +2232,20 @@ extern char **environ;
  *
  * On success the function does not return, because the process turns into
  * a different process. On error C_ERR is returned. */
+/**重新启动服务器，使用相同的参数和配置文件执行启动此实例的相同可执行文件。
+ *
+ * @return 该函数旨在直接调用 execve() 以便新的服务器实例将保留前一个的 PID。
+ * 标志列表，可以按位或一起，改变这个函数的行为：
+ *   RESTART_SERVER_NONE 没有标志。
+ *   RESTART_SERVER_GRACEFULLY 在重新启动之前正确关闭。
+ *   RESTART_SERVER_CONFIG_REWRITE 在重新启动之前重写配置文件。
+ * 成功时，该函数不会返回，因为该过程会变成不同的过程。出错时返回 C_ERR。*/
 int restartServer(int flags, mstime_t delay) {
     int j;
 
     /* Check if we still have accesses to the executable that started this
      * server instance. */
+    /**检查我们是否仍然可以访问启动此服务器实例的可执行文件。*/
     if (access(server.executable,X_OK) == -1) {
         serverLog(LL_WARNING,"Can't restart: this process has no "
                              "permissions to execute %s", server.executable);
@@ -2045,6 +2263,7 @@ int restartServer(int flags, mstime_t delay) {
     }
 
     /* Perform a proper shutdown. We don't wait for lagging replicas though. */
+    /**执行适当的关机。不过，我们不会等待滞后的副本。*/
     if (flags & RESTART_SERVER_GRACEFULLY &&
         prepareForShutdown(SHUTDOWN_NOW) != C_OK)
     {
@@ -2054,22 +2273,26 @@ int restartServer(int flags, mstime_t delay) {
 
     /* Close all file descriptors, with the exception of stdin, stdout, stderr
      * which are useful if we restart a Redis server which is not daemonized. */
+    /**关闭所有文件描述符，除了 stdin、stdout、stderr 之外，如果我们重新启动没有守护进程的 Redis 服务器，它们会很有用。*/
     for (j = 3; j < (int)server.maxclients + 1024; j++) {
         /* Test the descriptor validity before closing it, otherwise
          * Valgrind issues a warning on close(). */
+        /**在关闭之前测试描述符的有效性，否则 Valgrind 会在 close() 上发出警告。*/
         if (fcntl(j,F_GETFD) != -1) close(j);
     }
 
     /* Execute the server with the original command line. */
+    /**使用原始命令行执行服务器。*/
     if (delay) usleep(delay*1000);
     zfree(server.exec_argv[0]);
     server.exec_argv[0] = zstrdup(server.executable);
     execve(server.executable,server.exec_argv,environ);
 
     /* If an error occurred here, there is nothing we can do, but exit. */
+    /**如果这里发生错误，我们无能为力，只能退出。*/
     _exit(1);
 
-    return C_ERR; /* Never reached. */
+    return C_ERR; /* Never reached. 从未达到。*/
 }
 
 /* This function will configure the current process's oom_score_adj according
@@ -2079,6 +2302,8 @@ int restartServer(int flags, mstime_t delay) {
  * A process_class value of -1 implies OOM_CONFIG_MASTER or OOM_CONFIG_REPLICA,
  * depending on current role.
  */
+/**该函数会根据用户指定的配置配置当前进程的oom_score_adj。这目前仅在 Linux 上实现。
+ * process_class 值为 -1 意味着 OOM_CONFIG_MASTER 或 OOM_CONFIG_REPLICA，具体取决于当前角色。*/
 int setOOMScoreAdj(int process_class) {
     if (process_class == -1)
         process_class = (server.masterhost ? CONFIG_OOM_REPLICA : CONFIG_OOM_MASTER);
@@ -2092,6 +2317,11 @@ int setOOMScoreAdj(int process_class) {
      * when another configuration parameter was invalid and causes a rollback after
      * applying a new oom-score) we can return to the oom-score value from before our
      * adjustments. */
+    /**以下静态数据用于指示 Redis 已更改进程的 oom 分数。
+     * 并保存原始乐谱，以便我们以后可以在需要时恢复它。
+     * 我们需要这个，所以当我们禁用 oom-score-adj 时
+     * （也在配置回滚期间，当另一个配置参数无效并在应用新的 oom-score 后导致回滚）时，
+     * 我们可以返回到调整之前的 oom-score 值。*/
     static int oom_score_adjusted_by_redis = 0;
     static int oom_score_adj_base = 0;
 
@@ -2103,6 +2333,7 @@ int setOOMScoreAdj(int process_class) {
         if (!oom_score_adjusted_by_redis) {
             oom_score_adjusted_by_redis = 1;
             /* Backup base value before enabling Redis control over oom score */
+            /**在启用 Redis 控制 oom 分数之前备份基值*/
             fd = open("/proc/self/oom_score_adj", O_RDONLY);
             if (fd < 0 || read(fd, buf, sizeof(buf)) < 0) {
                 serverLog(LL_WARNING, "Unable to read oom_score_adj: %s", strerror(errno));
@@ -2151,6 +2382,9 @@ int setOOMScoreAdj(int process_class) {
  * If it will not be possible to set the limit accordingly to the configured
  * max number of clients, the function will do the reverse setting
  * server.maxclients to the value that we can actually handle. */
+/**此函数将尝试根据配置的最大客户端数来提高打开文件的最大数量。
+ * 它还保留了一些文件描述符（CONFIG_MIN_RESERVED_FDS），用于持久性、侦听套接字、日志文件等的额外操作。
+ * 如果无法根据配置的最大客户端数设置限制，则该函数会将 server.maxclients 反向设置为我们实际可以处理的值。*/
 void adjustOpenFilesLimit(void) {
     rlim_t maxfiles = server.maxclients+CONFIG_MIN_RESERVED_FDS;
     struct rlimit limit;
@@ -2164,12 +2398,14 @@ void adjustOpenFilesLimit(void) {
 
         /* Set the max number of files if the current limit is not enough
          * for our needs. */
+        /**如果当前限制不足以满足我们的需要，请设置最大文件数。*/
         if (oldlimit < maxfiles) {
             rlim_t bestlimit;
             int setrlimit_error = 0;
 
             /* Try to set the file limit to match 'maxfiles' or at least
              * to the higher value supported less than maxfiles. */
+            /**尝试将文件限制设置为匹配 'maxfiles' 或至少设置为小于 maxfiles 所支持的更高值。*/
             bestlimit = maxfiles;
             while(bestlimit > oldlimit) {
                 rlim_t decr_step = 16;
@@ -2181,6 +2417,7 @@ void adjustOpenFilesLimit(void) {
 
                 /* We failed to set file limit to 'bestlimit'. Try with a
                  * smaller limit decrementing by a few FDs per iteration. */
+                /**我们未能将文件限制设置为“bestlimit”。尝试使用较小的限制，每次迭代减少几个 FD。*/
                 if (bestlimit < decr_step) {
                     bestlimit = oldlimit;
                     break;
@@ -2190,6 +2427,7 @@ void adjustOpenFilesLimit(void) {
 
             /* Assume that the limit we get initially is still valid if
              * our last try was even lower. */
+            /**假设如果我们最后一次尝试更低，我们最初获得的限制仍然有效。*/
             if (bestlimit < oldlimit) bestlimit = oldlimit;
 
             if (bestlimit < maxfiles) {
@@ -2198,6 +2436,7 @@ void adjustOpenFilesLimit(void) {
                 /* maxclients is unsigned so may overflow: in order
                  * to check if maxclients is now logically less than 1
                  * we test indirectly via bestlimit. */
+                /**maxclients 是无符号的，因此可能会溢出：为了检查 maxclients 现在是否在逻辑上小于 1，我们通过 bestlimit 间接测试。*/
                 if (bestlimit <= CONFIG_MIN_RESERVED_FDS) {
                     serverLog(LL_WARNING,"Your current 'ulimit -n' "
                         "of %llu is not enough for the server to start. "
@@ -2231,6 +2470,7 @@ void adjustOpenFilesLimit(void) {
 
 /* Check that server.tcp_backlog can be actually enforced in Linux according
  * to the value of /proc/sys/net/core/somaxconn, or warn about it. */
+/**根据 procsysnetcoresomaxconn 的值检查 server.tcp_backlog 是否可以在 Linux 中实际强制执行，或者警告它。*/
 void checkTcpBacklogSettings(void) {
 #if defined(HAVE_PROC_SOMAXCONN)
     FILE *fp = fopen("/proc/sys/net/core/somaxconn","r");
@@ -2290,6 +2530,7 @@ void closeSocketListeners(socketFds *sfd) {
 
 /* Create an event handler for accepting new connections in TCP or TLS domain sockets.
  * This works atomically for all socket fds */
+/**创建一个事件处理程序以接受 TCP 或 TLS 域套接字中的新连接。这适用于所有套接字 fd*/
 int createSocketAcceptHandler(socketFds *sfd, aeFileProc *accept_handler) {
     int j;
 
@@ -2321,11 +2562,18 @@ int createSocketAcceptHandler(socketFds *sfd, aeFileProc *accept_handler) {
  * impossible to bind, or no bind addresses were specified in the server
  * configuration but the function is not able to bind * for at least
  * one of the IPv4 or IPv6 protocols. */
+/**初始化一组文件描述符以侦听绑定在 Redis 服务器配置中指定的地址的指定“端口”。
+ * 监听文件描述符存储在整数数组“fds”中，它们的数量设置在“count”中。
+ * 要绑定的地址在全局 server.bindaddr 数组中指定，它们的编号是 server.bindaddr_count。
+ * 如果服务器配置不包含要绑定的特定地址，则此函数将尝试为 IPv4 和 IPv6 协议绑定（所有地址）。
+ * 成功时，函数返回 C_OK。出错时，函数返回 C_ERR。要使函数出错，至少无法绑定 server.bindaddr 地址之一，
+ * 或者在服务器配置中未指定绑定地址，但函数无法绑定 IPv4 或 IPv6 协议中的至少一个.*/
 int listenToPort(int port, socketFds *sfd) {
     int j;
     char **bindaddr = server.bindaddr;
 
     /* If we have no bind address, we don't listen on a TCP socket */
+    /**如果我们没有绑定地址，我们就不会监听 TCP 套接字*/
     if (server.bindaddr_count == 0) return C_OK;
 
     for (j = 0; j < server.bindaddr_count; j++) {
@@ -2352,6 +2600,7 @@ int listenToPort(int port, socketFds *sfd) {
                 continue;
 
             /* Rollback successful listens before exiting */
+            /**退出前回滚成功监听*/
             closeSocketListeners(sfd);
             return C_ERR;
         }
@@ -2366,6 +2615,9 @@ int listenToPort(int port, socketFds *sfd) {
 /* Resets the stats that we expose via INFO or other means that we want
  * to reset via CONFIG RESETSTAT. The function is also used in order to
  * initialize these fields in initServer() at server startup. */
+/**重置我们通过 INFO 或我们希望通过 CONFIG RESETSTAT 重置的其他方式公开的统计信息。
+ *
+ * @return 该函数还用于在服务器启动时初始化 initServer() 中的这些字段。*/
 void resetServerStats(void) {
     int j;
 
@@ -2425,6 +2677,8 @@ void resetServerStats(void) {
 /* Make the thread killable at any time, so that kill threads functions
  * can work reliably (default cancelability type is PTHREAD_CANCEL_DEFERRED).
  * Needed for pthread_cancel used by the fast memory test used by the crash report. */
+/**使线程随时可终止，以便终止线程函数能够可靠地工作（默认可取消类型为 PTHREAD_CANCEL_DEFERRED）。
+ * 崩溃报告使用的快速内存测试使用的 pthread_cancel 需要。*/
 void makeThreadKillable(void) {
     pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL);
     pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
@@ -2444,6 +2698,7 @@ void initServer(void) {
     }
 
     /* Initialization after setting defaults from the config system. */
+    /**从配置系统设置默认值后初始化。*/
     server.aof_state = server.aof_enabled ? AOF_ON : AOF_OFF;
     server.hz = server.config_hz;
     server.pid = getpid();
@@ -2462,7 +2717,7 @@ void initServer(void) {
     server.clients_pending_read = listCreate();
     server.clients_timeout_table = raxNew();
     server.replication_allowed = 1;
-    server.slaveseldb = -1; /* Force to emit the first SELECT command. */
+    server.slaveseldb = -1; /* Force to emit the first SELECT command. 强制发出第一个 SELECT 命令。*/
     server.unblocked_clients = listCreate();
     server.ready_keys = listCreate();
     server.tracking_pending_keys = listCreate();
@@ -2508,22 +2763,26 @@ void initServer(void) {
     server.db = zmalloc(sizeof(redisDb)*server.dbnum);
 
     /* Open the TCP listening socket for the user commands. */
+    /**为用户命令打开 TCP 侦听套接字。*/
     if (server.port != 0 &&
         listenToPort(server.port,&server.ipfd) == C_ERR) {
         /* Note: the following log text is matched by the test suite. */
+        /**注意：以下日志文本由测试套件匹配。*/
         serverLog(LL_WARNING, "Failed listening on port %u (TCP), aborting.", server.port);
         exit(1);
     }
     if (server.tls_port != 0 &&
         listenToPort(server.tls_port,&server.tlsfd) == C_ERR) {
         /* Note: the following log text is matched by the test suite. */
+        /**注意：以下日志文本由测试套件匹配。*/
         serverLog(LL_WARNING, "Failed listening on port %u (TLS), aborting.", server.tls_port);
         exit(1);
     }
 
     /* Open the listening Unix domain socket. */
+    /**打开侦听的 Unix 域套接字。*/
     if (server.unixsocket != NULL) {
-        unlink(server.unixsocket); /* don't care if this fails */
+        unlink(server.unixsocket); /* don't care if this fails 不在乎这是否失败*/
         server.sofd = anetUnixServer(server.neterr,server.unixsocket,
             (mode_t)server.unixsocketperm, server.tcp_backlog);
         if (server.sofd == ANET_ERR) {
@@ -2535,12 +2794,14 @@ void initServer(void) {
     }
 
     /* Abort if there are no listening sockets at all. */
+    /**如果根本没有侦听套接字，则中止。*/
     if (server.ipfd.count == 0 && server.tlsfd.count == 0 && server.sofd < 0) {
         serverLog(LL_WARNING, "Configured to not listen anywhere, exiting.");
         exit(1);
     }
 
     /* Create the Redis databases, and initialize other internal state. */
+    /**创建 Redis 数据库，并初始化其他内部状态。*/
     for (j = 0; j < server.dbnum; j++) {
         server.db[j].dict = dictCreate(&dbDictType);
         server.db[j].expires = dictCreate(&dbExpiresDictType);
@@ -2551,7 +2812,7 @@ void initServer(void) {
         server.db[j].id = j;
         server.db[j].avg_ttl = 0;
         server.db[j].defrag_later = listCreate();
-        server.db[j].slots_to_keys = NULL; /* Set by clusterInit later on if necessary. */
+        server.db[j].slots_to_keys = NULL; /* Set by clusterInit later on if necessary. 如有必要，稍后由 clusterInit 设置。*/
         listSetFreeMethod(server.db[j].defrag_later,(void (*)(void*))sdsfree);
     }
     evictionPoolAlloc(); /* Initialize the LRU keys pool. */

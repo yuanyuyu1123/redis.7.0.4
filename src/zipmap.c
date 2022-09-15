@@ -10,6 +10,10 @@
  * Given that many times Redis Hashes are used to represent objects composed
  * of few fields, this is a very big win in terms of used memory.
  *
+ * String -> String 为大小优化的映射数据结构。该文件实现了一个将字符串映射到其他字符串的数据结构，
+ * 该结构实现了一个 O(n) 查找数据结构，旨在提高内存效率。 Redis Hash 类型将此数据结构用于由少量元素组成的哈希，
+ * 一旦达到给定数量的元素，就会切换到哈希表。
+ * 鉴于 Redis 哈希多次用于表示由少数字段组成的对象，这在已用内存方面是一个非常大的胜利。
  * --------------------------------------------------------------------------
  *
  * Copyright (c) 2009-2010, Salvatore Sanfilippo <antirez at gmail dot com>

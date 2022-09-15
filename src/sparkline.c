@@ -2,6 +2,7 @@
  * This code is modified from http://github.com/antirez/aspark and adapted
  * in order to return SDS strings instead of outputting directly to
  * the terminal.
+ * 这段代码是从 http:github.comantirezaspark 修改而来的，为了返回 SDS 字符串而不是直接输出到终端。
  *
  * ---------------------------------------------------------------------------
  *
@@ -36,6 +37,7 @@
 
 /* This is the charset used to display the graphs, but multiple rows are used
  * to increase the resolution. */
+//这是用于显示图形的字符集，但使用多行来提高分辨率。
 static char charset[] = "_-`";
 static char charset_fill[] = "_o#";
 static int charset_len = sizeof(charset)-1;
@@ -44,6 +46,7 @@ static int label_margin_top = 1;
 /* ----------------------------------------------------------------------------
  * Sequences are arrays of samples we use to represent data to turn
  * into sparklines. This is the API in order to generate a sparkline:
+ * 序列是我们用来表示数据以转换为迷你图的样本数组。这是用于生成迷你图的 API：
  *
  * struct sequence *seq = createSparklineSequence();
  * sparklineSequenceAddSample(seq, 10, NULL);
@@ -61,7 +64,7 @@ struct sequence *createSparklineSequence(void) {
     return seq;
 }
 
-/* Add a new sample into a sequence. */
+/* Add a new sample into a sequence. 将新样品添加到序列中。*/
 void sparklineSequenceAddSample(struct sequence *seq, double value, char *label) {
     label = (label == NULL || label[0] == '\0') ? NULL : zstrdup(label);
     if (seq->length == 0) {
@@ -77,7 +80,7 @@ void sparklineSequenceAddSample(struct sequence *seq, double value, char *label)
     if (label) seq->labels++;
 }
 
-/* Free a sequence. */
+/* Free a sequence. 释放一个序列。*/
 void freeSparklineSequence(struct sequence *seq) {
     int j;
 
@@ -94,6 +97,7 @@ void freeSparklineSequence(struct sequence *seq) {
 /* Render part of a sequence, so that render_sequence() call call this function
  * with different parts in order to create the full output without overflowing
  * the current terminal columns. */
+//渲染序列的一部分，以便 render_sequence() 调用以不同的部分调用此函数，以便创建完整输出而不会溢出当前终端列。
 sds sparklineRenderRange(sds output, struct sequence *seq, int rows, int offset, int len, int flags) {
     int j;
     double relmax = seq->max - seq->min;
@@ -125,6 +129,7 @@ sds sparklineRenderRange(sds output, struct sequence *seq, int rows, int offset,
 
             if (row < rows) {
                 /* Print the character needed to create the sparkline */
+                //打印创建迷你图所需的字符
                 int charidx = step-((rows-row-1)*charset_len);
                 loop = 1;
                 if (charidx >= 0 && charidx < charset_len) {
@@ -162,6 +167,7 @@ sds sparklineRenderRange(sds output, struct sequence *seq, int rows, int offset,
 }
 
 /* Turn a sequence into its ASCII representation */
+//将序列转换为其 ASCII 表示
 sds sparklineRender(sds output, struct sequence *seq, int columns, int rows, int flags) {
     int j;
 

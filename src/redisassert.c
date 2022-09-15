@@ -3,7 +3,8 @@
  * 
  * This file is shared by those modules that try to print some logs about stack trace 
  * but don't have their own implementations of functions in redisassert.h.
- *
+ *redisassert.c -- 实现默认的 _serverAssert 和 _serverPanic，它们只是将堆栈跟踪打印到标准错误流。
+ * 该文件由那些尝试打印有关堆栈跟踪的日志但在 redisassert.h 中没有自己的函数实现的模块共享。
  * ----------------------------------------------------------------------------
  *
  * Copyright (c) 2021, Andy Pan <panjf2000@gmail.com> and Redis Labs
