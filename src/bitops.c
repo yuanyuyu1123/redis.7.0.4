@@ -37,10 +37,8 @@
 /* Count number of bits set in the binary array pointed by 's' and long
  * 'count' bytes. The implementation of this function is required to
  * work with an input string length up to 512 MB or more (server.proto_max_bulk_len) */
-/**
- * 计数 's' 和长 'count' 字节指向的二进制数组中设置的位数。
- * 此函数的实现需要使用长度为 512 MB 或更多的输入字符串 (server.proto_max_bulk_len)
- * */
+/**计数 's' 和长 'count' 字节指向的二进制数组中设置的位数。
+ * 此函数的实现需要使用长度为 512 MB 或更多的输入字符串 (server.proto_max_bulk_len)*/
 long long redisPopcount(void *s, long count) {
     long long bits = 0;
     unsigned char *p = s;
@@ -104,11 +102,9 @@ long long redisPopcount(void *s, long count) {
  * no zero bit is found, it returns count*8 assuming the string is zero
  * padded on the right. However if 'bit' is 1 it is possible that there is
  * not a single set bit in the bitmap. In this special case -1 is returned. */
-/**
- * 返回位图中从 's' 和长 'count' 字节开始设置为 1（如果 'bit' 为 1）或 0（如果 'bit' 为 0）的第一个位的位置。
+/**返回位图中从 's' 和长 'count' 字节开始设置为 1（如果 'bit' 为 1）或 0（如果 'bit' 为 0）的第一个位的位置。
  * 如果 'bit' 为 0，则该函数保证返回值 >= 0，因为如果没有找到零位，它会返回 count8 假设字符串在右侧填充为零。
- * 但是，如果“位”为 1，则位图中可能没有单个设置位。在这种特殊情况下，返回 -1。
- * */
+ * 但是，如果“位”为 1，则位图中可能没有单个设置位。在这种特殊情况下，返回 -1。*/
 long long redisBitpos(void *s, unsigned long count, int bit) {
     unsigned long *l;
     unsigned char *c;
@@ -166,11 +162,10 @@ long long redisBitpos(void *s, unsigned long count, int bit) {
      *
      * Note that the loading is designed to work even when the bytes left
      * (count) are less than a full word. We pad it with zero on the right. */
-    /**
-     * 将字节加载到“字”中，考虑到第一个字节是最重要的（我们基本上认为它是用大端写的，
+    /**将字节加载到“字”中，考虑到第一个字节是最重要的（我们基本上认为它是用大端写的，
      * 因为我们将字符串视为从左到右的一组位，第一位在零位。
-     * 请注意，即使剩下的字节（计数）小于一个完整的字，加载也可以正常工作。我们在右边用零填充它。
-     * */
+     *
+     * 请注意，即使剩下的字节（计数）小于一个完整的字，加载也可以正常工作。我们在右边用零填充它。*/
     c = (unsigned char*)l;
     for (j = 0; j < sizeof(*l); j++) {
         word <<= 8;
@@ -186,20 +181,16 @@ long long redisBitpos(void *s, unsigned long count, int bit) {
      * return -1 to signal that there is not a single "1" in the whole
      * string. This can't happen when we are looking for "0" as we assume
      * that the right of the string is zero padded. */
-    /**
-     * 特殊情况：如果字符串中的位全为零并且我们正在寻找 1，则返回 -1 表示整个字符串中没有单个“1”。
-     * 这在我们寻找“0”时不会发生，因为我们假设字符串的右边是零填充的。
-     * */
+    /**特殊情况：如果字符串中的位全为零并且我们正在寻找 1，则返回 -1 表示整个字符串中没有单个“1”。
+     * 这在我们寻找“0”时不会发生，因为我们假设字符串的右边是零填充的。*/
     if (bit == 1 && word == 0) return -1;
 
     /* Last word left, scan bit by bit. The first thing we need is to
      * have a single "1" set in the most significant position in an
      * unsigned long. We don't know the size of the long so we use a
      * simple trick. */
-    /**
-     * 剩下最后一个字，逐位扫描。我们需要的第一件事是在无符号长整数的最重要位置设置一个“1”。
-     * 我们不知道长的大小，所以我们使用一个简单的技巧。
-     * */
+    /** 剩下最后一个字，逐位扫描。我们需要的第一件事是在无符号长整数的最重要位置设置一个“1”。
+     * 我们不知道长的大小，所以我们使用一个简单的技巧。*/
     one = ULONG_MAX; /* All bits set to 1.*/
     one >>= 1;       /* All bits set to 1 but the MSB. 除 MSB 外，所有位都设置为 1。*/
     one = ~one;      /* All bits set to 0 but the MSB. 除 MSB 外，所有位都设置为 0。*/
@@ -383,10 +374,8 @@ int checkSignedBitfieldOverflow(int64_t value, int64_t incr, uint64_t bits, int 
      * only after checking 'value' range, so when we use it no overflow
      * happens. 'uint64_t' cast is there just to prevent undefined behavior on
      * overflow */
-    /**
-     * 请注意，maxincr 和 minincr 可能会溢出，但我们仅在检查“值”范围后才使用这些值，因此当我们使用它时不会发生溢出。
-     * 'uint64_t' cast 只是为了防止溢出时的未定义行为
-     * */
+    /** 请注意，maxincr 和 minincr 可能会溢出，但我们仅在检查“值”范围后才使用这些值，因此当我们使用它时不会发生溢出。
+     * 'uint64_t' cast 只是为了防止溢出时的未定义行为*/
     int64_t maxincr = (uint64_t)max-value;
     int64_t minincr = min-value;
 
@@ -470,12 +459,10 @@ void printBits(unsigned char *p, unsigned long count) {
  * If the 'hash' argument is true, and 'bits is positive, then the command
  * will also parse bit offsets prefixed by "#". In such a case the offset
  * is multiplied by 'bits'. This is useful for the BITFIELD command. */
-/**
- * GETBIT SETBIT 使用的这个帮助函数解析位偏移参数，确保在它为负数
+/**GETBIT SETBIT 使用的这个帮助函数解析位偏移参数，确保在它为负数
  * 或超出字符串值的 Redis 512 MB 限制或更多 (server.proto_max_bulk_len) 时返回错误。
  * 如果 'hash' 参数为真，并且 'bits 为正数，则该命令还将解析以“”为前缀的位偏移量。
- * 在这种情况下，偏移量乘以“位”。这对于 BITFIELD 命令很有用。
- * */
+ * 在这种情况下，偏移量乘以“位”。这对于 BITFIELD 命令很有用。*/
 int getBitOffsetFromArgument(client *c, robj *o, uint64_t *offset, int hash, int bits) {
     long long loffset;
     char *err = "bit offset is not an integer or out of range";
@@ -512,11 +499,9 @@ int getBitOffsetFromArgument(client *c, robj *o, uint64_t *offset, int hash, int
  * to return unsigned integer values greater than INT64_MAX.
  *
  * On error C_ERR is returned and an error is sent to the client. */
-/**
- * BITFIELD 的这个辅助函数以 <sign><bits> 的形式解析位域类型，其中符号是 'u' 或 'i' 表示无符号和有符号，
+/**BITFIELD 的这个辅助函数以 <sign><bits> 的形式解析位域类型，其中符号是 'u' 或 'i' 表示无符号和有符号，
  * 位是 1 到 64 之间的值。但是 64 位无符号整数是由于 Redis 协议当前限制返回大于 INT64_MAX 的无符号整数值，因此报告为错误。
- * 出错时返回 C_ERR 并将错误发送到客户端。
- * */
+ * 出错时返回 C_ERR 并将错误发送到客户端。*/
 int getBitfieldTypeFromArgument(client *c, robj *o, int *sign, int *bits) {
     char *p = o->ptr;
     char *err = "Invalid bitfield type. Use something like i16 u8. Note that u64 is not supported but i64 is.";
@@ -548,10 +533,8 @@ int getBitfieldTypeFromArgument(client *c, robj *o, int *sign, int *bits) {
  * so that the 'maxbit' bit can be addressed. The object is finally
  * returned. Otherwise if the key holds a wrong type NULL is returned and
  * an error is sent to the client. */
-/**
- * 这是需要将位写入字符串对象的命令实现的辅助函数。该命令创建或用零填充字符串，以便可以寻址“maxbit”位。对象最终被返回。
- * 否则，如果密钥持有错误的类型，则返回 NULL 并向客户端发送错误。
- * */
+/**这是需要将位写入字符串对象的命令实现的辅助函数。该命令创建或用零填充字符串，以便可以寻址“maxbit”位。对象最终被返回。
+ * 否则，如果密钥持有错误的类型，则返回 NULL 并向客户端发送错误。*/
 robj *lookupStringForBitCommand(client *c, uint64_t maxbit, int *dirty) {
     size_t byte = maxbit >> 3;
     robj *o = lookupKeyWrite(c->db,c->argv[1]);

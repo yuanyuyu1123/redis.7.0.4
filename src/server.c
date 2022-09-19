@@ -2815,7 +2815,7 @@ void initServer(void) {
         server.db[j].slots_to_keys = NULL; /* Set by clusterInit later on if necessary. 如有必要，稍后由 clusterInit 设置。*/
         listSetFreeMethod(server.db[j].defrag_later,(void (*)(void*))sdsfree);
     }
-    evictionPoolAlloc(); /* Initialize the LRU keys pool. */
+    evictionPoolAlloc(); /* Initialize the LRU keys pool. 初始化 LRU 密钥池。*/
     server.pubsub_channels = dictCreate(&keylistDictType);
     server.pubsub_patterns = dictCreate(&keylistDictType);
     server.pubsubshard_channels = dictCreate(&keylistDictType);
@@ -2840,8 +2840,8 @@ void initServer(void) {
     server.child_info_pipe[1] = -1;
     server.child_info_nread = 0;
     server.aof_buf = sdsempty();
-    server.lastsave = time(NULL); /* At startup we consider the DB saved. */
-    server.lastbgsave_try = 0;    /* At startup we never tried to BGSAVE. */
+    server.lastsave = time(NULL); /* At startup we consider the DB saved. 在启动时，我们认为数据库已保存。*/
+    server.lastbgsave_try = 0;    /* At startup we never tried to BGSAVE. 在启动时，我们从未尝试过 BGSAVE。*/
     server.rdb_save_time_last = -1;
     server.rdb_save_time_start = -1;
     server.rdb_last_load_keys_expired = 0;
@@ -2849,6 +2849,7 @@ void initServer(void) {
     server.dirty = 0;
     resetServerStats();
     /* A few stats we don't want to reset: server startup time, and peak mem. */
+    /**一些我们不想重置的统计数据：服务器启动时间和峰值内存。*/
     server.stat_starttime = time(NULL);
     server.stat_peak_memory = 0;
     server.stat_current_cow_peak = 0;
@@ -2877,6 +2878,7 @@ void initServer(void) {
     /* Create the timer callback, this is our way to process many background
      * operations incrementally, like clients timeout, eviction of unaccessed
      * expired keys and so forth. */
+    /**创建计时器回调，这是我们增量处理许多后台操作的方式，例如客户端超时、未访问的过期键的驱逐等。*/
     if (aeCreateTimeEvent(server.el, 1, serverCron, NULL, NULL) == AE_ERR) {
         serverPanic("Can't create event loop timers.");
         exit(1);
@@ -2884,6 +2886,7 @@ void initServer(void) {
 
     /* Create an event handler for accepting new connections in TCP and Unix
      * domain sockets. */
+    /**创建一个事件处理程序以接受 TCP 和 Unix 域套接字中的新连接。*/
     if (createSocketAcceptHandler(&server.ipfd, acceptTcpHandler) != C_OK) {
         serverPanic("Unrecoverable error creating TCP socket accept handler.");
     }
@@ -2896,6 +2899,7 @@ void initServer(void) {
 
     /* Register a readable event for the pipe used to awake the event loop
      * from module threads. */
+    /**为用于从模块线程唤醒事件循环的管道注册一个可读事件。*/
     if (aeCreateFileEvent(server.el, server.module_pipe[0], AE_READABLE,
         modulePipeReadable,NULL) == AE_ERR) {
             serverPanic(
@@ -2904,6 +2908,7 @@ void initServer(void) {
 
     /* Register before and after sleep handlers (note this needs to be done
      * before loading persistence since it is used by processEventsWhileBlocked. */
+    /**在睡眠处理程序之前和之后注册（注意这需要在加载持久性之前完成，因为它被 processEventsWhileBlocked 使用。*/
     aeSetBeforeSleepProc(server.el,beforeSleep);
     aeSetAfterSleepProc(server.el,afterSleep);
 
@@ -2911,6 +2916,9 @@ void initServer(void) {
      * no explicit limit in the user provided configuration we set a limit
      * at 3 GB using maxmemory with 'noeviction' policy'. This avoids
      * useless crashes of the Redis instance for out of memory. */
+    /**32 位实例被限制为 4GB 的地址空间，因此如果用户提供的配置中没有明确的限制，
+     * 我们使用带有“noeviction”策略的 maxmemory 将限制设置为 3GB。
+     * 这避免了 Redis 实例因内存不足而导致的无用崩溃。*/
     if (server.arch_bits == 32 && server.maxmemory == 0) {
         serverLog(LL_WARNING,"Warning: 32 bit instance detected but no memory limit set. Setting 3 GB maxmemory limit with 'noeviction' policy now.");
         server.maxmemory = 3072LL*(1024*1024); /* 3 GB */
@@ -2924,6 +2932,7 @@ void initServer(void) {
     latencyMonitorInit();
 
     /* Initialize ACL default password if it exists */
+    /**初始化 ACL 默认密码（如果存在）*/
     ACLUpdateDefaultUserPassword(server.requirepass);
 
     applyWatchdogPeriod();
@@ -2933,6 +2942,8 @@ void initServer(void) {
  * are loaded).
  * Specifically, creation of threads due to a race bug in ld.so, in which
  * Thread Local Storage initialization collides with dlopen call.
+ * 服务器初始化中的一些步骤需要最后完成（在加载模块之后）。
+ * 具体来说，由于 ld.so 中的竞争错误而创建线程，其中线程本地存储初始化与 dlopen 调用发生冲突。
  * see: https://sourceware.org/bugzilla/show_bug.cgi?id=19329 */
 void InitServerLast() {
     bioInit();
@@ -2971,16 +2982,32 @@ void InitServerLast() {
  * because anyway the legacy (first,last,step) spec is to be deprecated
  * and one should use the new key specs scheme.
  */
+/**此函数的目的是尝试“粘合”连续的范围键规范，以构建 COMMAND 命令使用的遗留（第一、最后、步骤）规范。
+ * 到目前为止，最常见的情况只是一个范围规范（例如 SET），但一些命令的范围被分成两个或多个范围，
+ * 以便为不同的键提供不同的标志（例如 SMOVE，第一个键是“RW ACCESS DELETE”，第二个键是“RW INSERT”）。
+ * 此外，为参数中可能包含键名的命令设置 CMD_MOVABLE_KEYS 标志，但旧版范围规范并未涵盖所有这些。
+ * 此功能使用非常基本的启发式方法并且是“尽力而为”：
+ *   1. 仅考虑仅具有“范围”规范的命令。
+ *   2. 只考虑 keystep 为 1 的范围规格。
+ *   3. range specs 的顺序必须是升序的（即 spec[i] 的 lastkey == spec[i+1] 的 firstkey-1）。
+ * 在以下情况下，此函数将在所有原生 Redis 命令上成功，并且可能在模块命令上失败，
+ * 即使它只有“范围”规范实际上可以“粘合”，在以下情况下：
+ *   1. “范围”规范的顺序不是升序（例如，索引 2 处的键的规范是在索引 1 处的键规范之前添加的）。
+ *   2.“范围”规格的关键步长>1。
+ * 如果此功能失败，则意味着 COMMAND 使用的旧版（第一、最后、步骤）规范将显示 0,0,0。
+ * 这不是一个可怕的情况，因为无论如何旧的（第一，最后，步骤）规范将被弃用，并且应该使用新的关键规范方案。*/
 void populateCommandLegacyRangeSpec(struct redisCommand *c) {
     memset(&c->legacy_range_key_spec, 0, sizeof(c->legacy_range_key_spec));
 
     /* Set the movablekeys flag if we have a GETKEYS flag for modules.
      * Note that for native redis commands, we always have keyspecs,
      * with enough information to rely on for movablekeys. */
+    /**如果我们有模块的 GETKEYS 标志，则设置可移动键标志。
+     * 请注意，对于本机 redis 命令，我们总是有 keyspecs，有足够的信息可以依赖于可移动键。*/
     if (c->flags & CMD_MODULE_GETKEYS)
         c->flags |= CMD_MOVABLE_KEYS;
 
-    /* no key-specs, no keys, exit. */
+    /* no key-specs, no keys, exit. 没有密钥规格，没有密钥，退出。*/
     if (c->key_specs_num == 0) {
         return;
     }
@@ -2989,9 +3016,10 @@ void populateCommandLegacyRangeSpec(struct redisCommand *c) {
         c->key_specs[0].begin_search_type == KSPEC_BS_INDEX &&
         c->key_specs[0].find_keys_type == KSPEC_FK_RANGE)
     {
-        /* Quick win, exactly one range spec. */
+        /* Quick win, exactly one range spec. 快速获胜，恰好是一个范围规格。*/
         c->legacy_range_key_spec = c->key_specs[0];
         /* If it has the incomplete flag, set the movablekeys flag on the command. */
+        /**如果它有不完整的标志，请在命令上设置可移动键标志。*/
         if (c->key_specs[0].flags & CMD_KEY_INCOMPLETE)
             c->flags |= CMD_MOVABLE_KEYS;
         return;
@@ -3004,6 +3032,7 @@ void populateCommandLegacyRangeSpec(struct redisCommand *c) {
             c->key_specs[i].find_keys_type != KSPEC_FK_RANGE)
         {
             /* Found an incompatible (non range) spec, skip it, and set the movablekeys flag. */
+            /**找到一个不兼容的（非范围）规范，跳过它，并设置可移动键标志。*/
             c->flags |= CMD_MOVABLE_KEYS;
             continue;
         }
@@ -3012,25 +3041,30 @@ void populateCommandLegacyRangeSpec(struct redisCommand *c) {
         {
             /* Found a range spec that's not plain (step of 1) or not consecutive to the previous one.
              * Skip it, and we set the movablekeys flag. */
+            /**找到了一个范围规范，该规范不简单（步长为 1）或与前一个不连续。跳过它，我们设置可移动键标志。*/
             c->flags |= CMD_MOVABLE_KEYS;
             continue;
         }
         if (c->key_specs[i].flags & CMD_KEY_INCOMPLETE) {
             /* The spec we're using is incomplete, we can use it, but we also have to set the movablekeys flag. */
+            /**我们使用的规范是不完整的，我们可以使用它，但我们还必须设置可移动键标志。*/
             c->flags |= CMD_MOVABLE_KEYS;
         }
         firstkey = min(firstkey, c->key_specs[i].bs.index.pos);
         /* Get the absolute index for lastkey (in the "range" spec, lastkey is relative to firstkey) */
+        /**获取 lastkey 的绝对索引（在“range”规范中，lastkey 是相对于 firstkey）*/
         int lastkey_abs_index = c->key_specs[i].fk.range.lastkey;
         if (lastkey_abs_index >= 0)
             lastkey_abs_index += c->key_specs[i].bs.index.pos;
         /* For lastkey we use unsigned comparison to handle negative values correctly */
+        /**对于 lastkey，我们使用无符号比较来正确处理负值*/
         lastkey = max((unsigned)lastkey, (unsigned)lastkey_abs_index);
         prev_lastkey = lastkey;
     }
 
     if (firstkey == INT_MAX) {
         /* Couldn't find range specs, the legacy range spec will remain empty, and we set the movablekeys flag. */
+        /**找不到范围规范，旧的范围规范将保持为空，我们设置了可移动键标志。*/
         c->flags |= CMD_MOVABLE_KEYS;
         return;
     }
@@ -3041,7 +3075,9 @@ void populateCommandLegacyRangeSpec(struct redisCommand *c) {
     c->legacy_range_key_spec.begin_search_type = KSPEC_BS_INDEX;
     c->legacy_range_key_spec.bs.index.pos = firstkey;
     c->legacy_range_key_spec.find_keys_type = KSPEC_FK_RANGE;
-    c->legacy_range_key_spec.fk.range.lastkey = lastkey < 0 ? lastkey : (lastkey-firstkey); /* in the "range" spec, lastkey is relative to firstkey */
+    c->legacy_range_key_spec.fk.range.lastkey =
+            lastkey < 0 ? lastkey : (lastkey-firstkey); /* in the "range" spec, lastkey is relative to firstkey
+                                                           在“范围”规范中，lastkey 是相对于 firstkey*/
     c->legacy_range_key_spec.fk.range.keystep = 1;
     c->legacy_range_key_spec.fk.range.limit = 0;
 }
@@ -3054,18 +3090,20 @@ void commandAddSubcommand(struct redisCommand *parent, struct redisCommand *subc
     if (!parent->subcommands_dict)
         parent->subcommands_dict = dictCreate(&commandTableDictType);
 
-    subcommand->parent = parent; /* Assign the parent command */
-    subcommand->id = ACLGetCommandID(subcommand->fullname); /* Assign the ID used for ACL. */
+    subcommand->parent = parent; /* Assign the parent command 分配父命令*/
+    subcommand->id = ACLGetCommandID(subcommand->fullname); /* Assign the ID used for ACL. 分配用于 ACL 的 ID。*/
 
     serverAssert(dictAdd(parent->subcommands_dict, sdsnew(declared_name), subcommand) == DICT_OK);
 }
 
 /* Set implicit ACl categories (see comment above the definition of
  * struct redisCommand). */
+/**设置隐式 ACl 类别（见 struct redisCommand 定义上面的注释）。*/
 void setImplicitACLCategories(struct redisCommand *c) {
     if (c->flags & CMD_WRITE)
         c->acl_categories |= ACL_CATEGORY_WRITE;
     /* Exclude scripting commands from the RO category. */
+    /**从 RO 类别中排除脚本命令。*/
     if (c->flags & CMD_READONLY && !(c->acl_categories & ACL_CATEGORY_SCRIPTING))
         c->acl_categories |= ACL_CATEGORY_READ;
     if (c->flags & CMD_ADMIN)
@@ -3078,12 +3116,14 @@ void setImplicitACLCategories(struct redisCommand *c) {
         c->acl_categories |= ACL_CATEGORY_BLOCKING;
 
     /* If it's not @fast is @slow in this binary world. */
+    /**如果不是@fast，则在这个二进制世界中是@slow。*/
     if (!(c->acl_categories & ACL_CATEGORY_FAST))
         c->acl_categories |= ACL_CATEGORY_SLOW;
 }
 
 /* Recursively populate the args structure (setting num_args to the number of
  * subargs) and return the number of args. */
+/**递归填充 args 结构（将 num_args 设置为 subargs 的数量）并返回 args 的数量。*/
 int populateArgsStructure(struct redisCommandArg *args) {
     if (!args)
         return 0;
@@ -3101,26 +3141,33 @@ int populateArgsStructure(struct redisCommandArg *args) {
  *
  * On success, the function return C_OK. Otherwise C_ERR is returned and we won't
  * add this command in the commands dict. */
+/**递归填充命令结构。成功时，函数返回 C_OK。否则返回 C_ERR，我们不会在命令字典中添加此命令。*/
 int populateCommandStructure(struct redisCommand *c) {
     /* If the command marks with CMD_SENTINEL, it exists in sentinel. */
+    /**如果该命令带有 CMD_SENTINEL 标记，则它存在于哨兵中。*/
     if (!(c->flags & CMD_SENTINEL) && server.sentinel_mode)
         return C_ERR;
 
     /* If the command marks with CMD_ONLY_SENTINEL, it only exists in sentinel. */
+    /**如果该命令带有 CMD_ONLY_SENTINEL 标记，则它只存在于哨兵中。*/
     if (c->flags & CMD_ONLY_SENTINEL && !server.sentinel_mode)
         return C_ERR;
 
     /* Translate the command string flags description into an actual
      * set of flags. */
+    /**将命令字符串标志描述转换为一组实际的标志。*/
     setImplicitACLCategories(c);
 
     /* Redis commands don't need more args than STATIC_KEY_SPECS_NUM (Number of keys
      * specs can be greater than STATIC_KEY_SPECS_NUM only for module commands) */
+    /**Redis 命令不需要比 STATIC_KEY_SPECS_NUM 更多的参数
+     * （仅对于模块命令，键规范的数量可以大于 STATIC_KEY_SPECS_NUM）*/
     c->key_specs = c->key_specs_static;
     c->key_specs_max = STATIC_KEY_SPECS_NUM;
 
     /* We start with an unallocated histogram and only allocate memory when a command
      * has been issued for the first time */
+    /**我们从未分配的直方图开始，仅在第一次发出命令时分配内存*/
     c->latency_histogram = NULL;
 
     for (int i = 0; i < STATIC_KEY_SPECS_NUM; i++) {
@@ -3130,6 +3177,7 @@ int populateCommandStructure(struct redisCommand *c) {
     }
 
     /* Count things so we don't have to use deferred reply in COMMAND reply. */
+    /**计算事情，这样我们就不必在命令回复中使用延迟回复。*/
     while (c->history && c->history[c->num_history].since)
         c->num_history++;
     while (c->tips && c->tips[c->num_tips])
@@ -3137,9 +3185,10 @@ int populateCommandStructure(struct redisCommand *c) {
     c->num_args = populateArgsStructure(c->args);
 
     /* Handle the legacy range spec and the "movablekeys" flag (must be done after populating all key specs). */
+    /**处理遗留范围规范和“movablekeys”标志（必须在填充所有关键规范后完成）。*/
     populateCommandLegacyRangeSpec(c);
 
-    /* Assign the ID used for ACL. */
+    /* Assign the ID used for ACL. 分配用于 ACL 的 ID。*/
     c->id = ACLGetCommandID(c->fullname);
 
     /* Handle subcommands */
@@ -3162,6 +3211,7 @@ extern struct redisCommand redisCommandTable[];
 
 /* Populates the Redis Command Table dict from the static table in commands.c
  * which is auto generated from the json files in the commands folder. */
+/**从 commands.c 中的静态表填充 Redis 命令表字典，该静态表是从命令文件夹中的 json 文件自动生成的。*/
 void populateCommandTable(void) {
     int j;
     struct redisCommand *c;
@@ -3180,6 +3230,7 @@ void populateCommandTable(void) {
         retval1 = dictAdd(server.commands, sdsdup(c->fullname), c);
         /* Populate an additional dictionary that will be unaffected
          * by rename-command statements in redis.conf. */
+        /**填充一个不受 redis.conf 中 rename-command 语句影响的附加字典。*/
         retval2 = dictAdd(server.orig_commands, sdsdup(c->fullname), c);
         serverAssert(retval1 == DICT_OK && retval2 == DICT_OK);
     }
@@ -3256,7 +3307,7 @@ void redisOpArrayFree(redisOpArray *oa) {
     redisOpArrayInit(oa);
 }
 
-/* ====================== Commands lookup and execution ===================== */
+/* ====================== Commands lookup and execution 命令查找和执行===================== */
 
 int isContainerCommandBySds(sds s) {
     struct redisCommand *base_cmd = dictFetchValue(server.commands, s);
@@ -3276,6 +3327,9 @@ struct redisCommand *lookupSubcommand(struct redisCommand *container, sds sub_na
  * name (e.g. in COMMAND INFO) rather than to find the command
  * a user requested to execute (in processCommand).
  */
+/**通过 argv 和 argc 查找命令 如果 `strict` 不为 0，
+ * 我们希望 argc 准确（即 argc==2 用于子命令，argc==1 用于顶级命令）每次都应使用 `strict`我们想查找
+ * 命令名称（例如在 COMMAND INFO 中）而不是查找用户请求执行的命令（在 processCommand 中）。*/
 struct redisCommand *lookupCommandLogic(dict *commands, robj **argv, int argc, int strict) {
     struct redisCommand *base_cmd = dictFetchValue(commands, argv[0]->ptr);
     int has_subcommands = base_cmd && base_cmd->subcommands_dict;
@@ -3283,11 +3337,13 @@ struct redisCommand *lookupCommandLogic(dict *commands, robj **argv, int argc, i
         if (strict && argc != 1)
             return NULL;
         /* Note: It is possible that base_cmd->proc==NULL (e.g. CONFIG) */
+        /**注意：base_cmd->proc==NULL 是可能的（例如 CONFIG）*/
         return base_cmd;
     } else { /* argc > 1 && has_subcommands */
         if (strict && argc != 2)
             return NULL;
         /* Note: Currently we support just one level of subcommands */
+        /**注意：目前我们只支持一级子命令*/
         return lookupSubcommand(base_cmd, argv[1]->ptr);
     }
 }
@@ -3303,6 +3359,7 @@ struct redisCommand *lookupCommandBySdsLogic(dict *commands, sds s) {
         return NULL;
     if (argc > 2) {
         /* Currently we support just one level of subcommands */
+        /**目前我们只支持一级子命令*/
         sdsfreesplitres(strings,argc);
         return NULL;
     }
@@ -3343,6 +3400,8 @@ struct redisCommand *lookupCommandByCString(const char *s) {
  * This is used by functions rewriting the argument vector such as
  * rewriteClientCommandVector() in order to set client->cmd pointer
  * correctly even if the command was renamed. */
+/**在当前表中查找命令，如果未找到，还检查包含不受 redis.conf rename-command 语句影响的原始命令名称的原始表。
+ * 这由重写参数向量的函数使用，例如 rewriteClientCommandVector() 以便正确设置 client->cmd 指针，即使命令被重命名。*/
 struct redisCommand *lookupCommandOrOriginal(robj **argv ,int argc) {
     struct redisCommand *cmd = lookupCommandLogic(server.commands, argv, argc, 0);
 
@@ -3351,6 +3410,7 @@ struct redisCommand *lookupCommandOrOriginal(robj **argv ,int argc) {
 }
 
 /* Commands arriving from the master client or AOF client, should never be rejected. */
+/**来自主客户端或 AOF 客户端的命令永远不应被拒绝。*/
 int mustObeyClient(client *c) {
     return c->id == CLIENT_ID_AOF || c->flags & CLIENT_MASTER;
 }
@@ -3383,12 +3443,20 @@ static int shouldPropagate(int target) {
  *
  * The API for propagating commands is alsoPropagate().
  */
+/**将指定的命令（在指定的数据库 id 的上下文中）传播到 AOF 和 Slaves。
+ * flags 是以下之间的异或：
+ *   + PROPAGATE_NONE（根本不传播命令）
+ *   + PROPAGATE_AOF（如果启用，则传播到 AOF 文件中）
+ *   + PROPAGATE_REPL（传播到复制链接）
+ * 这是一个内部低级函数，不应调用！
+ * 用于传播命令的 API 也是 Propagate()。*/
 static void propagateNow(int dbid, robj **argv, int argc, int target) {
     if (!shouldPropagate(target))
         return;
 
     /* This needs to be unreachable since the dataset should be fixed during 
      * client pause, otherwise data may be lost during a failover. */
+    /**这需要是不可访问的，因为数据集应该在客户端暂停期间修复，否则数据可能在故障转移期间丢失。*/
     serverAssert(!(areClientsPaused() && !server.client_pause_in_transaction));
 
     if (server.aof_state != AOF_OFF && target & PROPAGATE_AOF)
@@ -3408,6 +3476,10 @@ static void propagateNow(int dbid, robj **argv, int argc, int target) {
  * so it is up to the caller to release the passed argv (but it is usually
  * stack allocated).  The function automatically increments ref count of
  * passed objects, so the caller does not need to. */
+/**在当前命令传播到 AOF 复制之后，在命令内部使用来安排其他命令的传播。
+ * dbid 是命令应该传播到的数据库 ID。传播命令的参数作为 len 'argc' 的 redis 对象指针数组传递，使用 'argv' 向量。
+ * 该函数不引用传递的'argv'向量，因此由调用者释放传递的argv（但它通常是堆栈分配的）。
+ * 该函数自动增加传递对象的引用计数，因此调用者不需要。*/
 void alsoPropagate(int dbid, robj **argv, int argc, int target) {
     robj **argvcopy;
     int j;
@@ -3426,6 +3498,7 @@ void alsoPropagate(int dbid, robj **argv, int argc, int target) {
 /* It is possible to call the function forceCommandPropagation() inside a
  * Redis command implementation in order to to force the propagation of a
  * specific command execution into AOF / Replication. */
+/**可以在 Redis 命令实现中调用函数 forceCommandPropagation() 以强制将特定命令执行传播到 AOF 复制中。*/
 void forceCommandPropagation(client *c, int flags) {
     serverAssert(c->cmd->flags & (CMD_WRITE | CMD_MAY_REPLICATE));
     if (flags & PROPAGATE_REPL) c->flags |= CLIENT_FORCE_REPL;
@@ -3435,6 +3508,7 @@ void forceCommandPropagation(client *c, int flags) {
 /* Avoid that the executed command is propagated at all. This way we
  * are free to just propagate what we want using the alsoPropagate()
  * API. */
+/**避免执行的命令被传播。这样我们就可以自由地使用alsoPropagate() API 传播我们想要的东西。*/
 void preventCommandPropagation(client *c) {
     c->flags |= CLIENT_PREVENT_PROP;
 }
@@ -3450,13 +3524,16 @@ void preventCommandReplication(client *c) {
 }
 
 /* Log the last command a client executed into the slowlog. */
+/**将客户端执行的最后一个命令记录到慢日志中。*/
 void slowlogPushCurrentCommand(client *c, struct redisCommand *cmd, ustime_t duration) {
     /* Some commands may contain sensitive data that should not be available in the slowlog. */
+    /**某些命令可能包含不应在慢日志中可用的敏感数据。*/
     if (cmd->flags & CMD_SKIP_SLOWLOG)
         return;
 
     /* If command argument vector was rewritten, use the original
      * arguments. */
+    /**如果命令参数向量被重写，请使用原始参数。*/
     robj **argv = c->original_argv ? c->original_argv : c->argv;
     int argc = c->original_argv ? c->original_argc : c->argc;
     slowlogPushEntryIfNeeded(c,argv,argc,duration);
@@ -3465,6 +3542,7 @@ void slowlogPushCurrentCommand(client *c, struct redisCommand *cmd, ustime_t dur
 /* This function is called in order to update the total command histogram duration.
  * The latency unit is nano-seconds.
  * If needed it will allocate the histogram memory and trim the duration to the upper/lower tracking limits*/
+/**调用此函数是为了更新总命令直方图持续时间。延迟单位是纳秒。如果需要，它将分配直方图内存并将持续时间修剪到跟踪上限下限*/
 void updateCommandLatencyHistogram(struct hdr_histogram **latency_histogram, int64_t duration_hist){
     if (duration_hist < LATENCY_HISTOGRAM_MIN_VALUE)
         duration_hist=LATENCY_HISTOGRAM_MIN_VALUE;
@@ -3478,6 +3556,8 @@ void updateCommandLatencyHistogram(struct hdr_histogram **latency_histogram, int
 /* Handle the alsoPropagate() API to handle commands that want to propagate
  * multiple separated commands. Note that alsoPropagate() is not affected
  * by CLIENT_PREVENT_PROP flag. */
+/**处理alsoPropagate() API 以处理想要传播多个分离命令的命令。
+ * 请注意，alsoPropagate() 不受 CLIENT_PREVENT_PROP 标志的影响。*/
 void propagatePendingCommands() {
     if (server.also_propagate.numops == 0)
         return;
@@ -3492,9 +3572,12 @@ void propagatePendingCommands() {
      *
      * And if the array contains only one command, no need to
      * wrap it, since the single command is atomic. */
+    /**将命令包装在 server.also_propagate 数组中，但如果我们已经在 MULTI 上下文中，则不要包装它，以防嵌套的 MULTIEXEC。
+     * 如果数组只包含一个命令，则无需包装它，因为单个命令是原子的。*/
     if (server.also_propagate.numops > 1 && !server.propagate_no_multi) {
         /* We use the first command-to-propagate to set the dbid for MULTI,
          * so that the SELECT will be propagated beforehand */
+        /**我们使用第一个命令传播来设置 MULTI 的 dbid，以便预先传播 SELECT*/
         int multi_dbid = server.also_propagate.ops[0].dbid;
         propagateNow(multi_dbid,&shared.multi,1,PROPAGATE_AOF|PROPAGATE_REPL);
         multi_emitted = 1;
@@ -3508,6 +3591,7 @@ void propagatePendingCommands() {
 
     if (multi_emitted) {
         /* We take the dbid from last command so that propagateNow() won't inject another SELECT */
+        /**我们从最后一个命令中获取 dbid，这样propagateNow() 就不会注入另一个 SELECT*/
         int exec_dbid = server.also_propagate.ops[server.also_propagate.numops-1].dbid;
         propagateNow(exec_dbid,&shared.exec,1,PROPAGATE_AOF|PROPAGATE_REPL);
     }
@@ -3524,6 +3608,12 @@ void propagatePendingCommands() {
  * twice, its possible to pass a NULL cmd value to indicate that the error was counted elsewhere.
  *
  * The function returns true if stats was updated and false if not. */
+/**增加命令失败计数器（rejected_calls 或 failed_calls）。使用 flags 参数决定增加哪个计数器，选项有：
+ *   ERROR_COMMAND_REJECTED - 更新拒绝调用
+ *   ERROR_COMMAND_FAILED - 更新失败调用
+ * 该函数还重置 prev_err_count 以确保我们不会两次计算相同的错误，
+ * 它可以传递一个 NULL cmd 值表示该错误已在其他地方计算。
+ * 如果统计信息已更新，则该函数返回 true，否则返回 false。*/
 int incrCommandStatsOnError(struct redisCommand *cmd, int flags) {
     /* hold the prev error count captured on the last command execution */
     static long long prev_err_count = 0;
@@ -3580,6 +3670,26 @@ int incrCommandStatsOnError(struct redisCommand *cmd, int flags) {
  * preventCommandReplication(client *c);
  *
  */
+/**call() 是 Redis 执行命令的核心。
+ * 可以传递以下标志：
+ *   CMD_CALL_NONE 无标志。
+ *   CMD_CALL_SLOWLOG 检查命令速度并在需要时登录慢日志。
+ *   CMD_CALL_STATS 填充命令统计信息。
+ *   CMD_CALL_PROPAGATE_AOF 如果 AOF 修改了数据集或客户端标志强制传播，则将命令附加到 AOF。
+ *   CMD_CALL_PROPAGATE_REPL 如果它修改了数据集或客户端标志强制传播，则向从属发送命令。
+ *   CMD_CALL_PROPAGATE PROPAGATE_AOF|PROPAGATE_REPL 的别名。
+ *   CMD_CALL_FULL SLOWLOG|STATS|PROPAGATE 的别名。
+ * 确切的传播行为取决于客户端标志。具体来说：
+ *   1. 如果设置了客户端标志 CLIENT_FORCE_AOF 或 CLIENT_FORCE_REPL 并假设在
+ *      调用标志中设置了相应的 CMD_CALL_PROPAGATE_AOFREPL，那么即使数据集不受命令影响，也会传播命令。
+ *   2. 如果设置了客户端标志 CLIENT_PREVENT_REPL_PROP 或 CLIENT_PREVENT_AOF_PROP，即使命令修改了数据集，
+ *       也不会执行到 AOF 或从属设备的传播。
+ * 请注意，无论客户端标志如何，如果 CMD_CALL_PROPAGATE_AOF 或 CMD_CALL_PROPAGATE_REPL 未设置，
+ * 则分别不会发生 AOF 或从属传播。客户端标志通过使用以下 API 的给定命令的实现来修改：
+ *   forceCommandPropagation(client c, int flags);
+ *   preventCommandPropagation（client *c）;
+ *   preventCommandAOF（client *c）;
+ *   preventCommandReplication(client *c);*/
 void call(client *c, int flags) {
     long long dirty;
     uint64_t client_old_flags = c->flags;
@@ -3587,6 +3697,7 @@ void call(client *c, int flags) {
 
     /* Initialization: clear the flags that must be set by the command on
      * demand, and initialize the array for additional commands propagation. */
+    /**初始化：清除必须由命令按需设置的标志，并初始化数组以进行其他命令传播。*/
     c->flags &= ~(CLIENT_FORCE_AOF|CLIENT_FORCE_REPL|CLIENT_PREVENT_PROP);
 
     /* Redis core is in charge of propagation when the first entry point
@@ -3598,6 +3709,11 @@ void call(client *c, int flags) {
      *
      * Because call() is re-entrant we have to cache and restore
      * server.core_propagates. */
+    /**当 call() 的第一个入口点是 processCommand() 时，Redis 核心负责传播。
+     * 在没有 processCommand 作为入口点的情况下到达 call() 的唯一其他选择是，
+     * 如果模块在 call() 上下文之外（例如，在计时器中）触发 RM_Call。
+     * 在这种情况下，模块负责传播。
+     * 因为 call() 是可重入的，我们必须缓存和恢复 server.core_propagates。*/
     int prev_core_propagates = server.core_propagates;
     if (!server.core_propagates && !(flags & CMD_CALL_FROM_MODULE))
         server.core_propagates = 1;
@@ -3610,6 +3726,7 @@ void call(client *c, int flags) {
 
     /* Update cache time, in case we have nested calls we want to
      * update only on the first call*/
+    /**更新缓存时间，如果我们有嵌套调用，我们只想在第一次调用时更新*/
     if (server.fixed_time_expire++ == 0) {
         updateCachedTimeWithUs(0,call_timer);
     }
@@ -3623,7 +3740,10 @@ void call(client *c, int flags) {
     server.in_nested_call--;
 
     /* In order to avoid performance implication due to querying the clock using a system call 3 times,
-     * we use a monotonic clock, when we are sure its cost is very low, and fall back to non-monotonic call otherwise. */
+     * we use a monotonic clock, when we are sure its cost is very low,
+     * and fall back to non-monotonic call otherwise. */
+    /**为了避免由于使用系统调用 3 次查询时钟而影响性能，我们使用单调时钟，
+     * 当我们确定它的成本非常低时，否则回退到非单调调用。*/
     ustime_t duration;
     if (monotonicGetType() == MONOTONIC_CLOCK_HW)
         duration = getMonotonicUs() - monotonic_start;
@@ -3635,17 +3755,22 @@ void call(client *c, int flags) {
     if (dirty < 0) dirty = 0;
 
     /* Update failed command calls if required. */
+    /**如果需要，更新失败的命令调用。*/
 
     if (!incrCommandStatsOnError(real_cmd, ERROR_COMMAND_FAILED) && c->deferred_reply_errors) {
         /* When call is used from a module client, error stats, and total_error_replies
          * isn't updated since these errors, if handled by the module, are internal,
          * and not reflected to users. however, the commandstats does show these calls
          * (made by RM_Call), so it should log if they failed or succeeded. */
+        /**当从模块客户端使用调用时，错误统计信息和 total_error_replies 不会更新，
+         * 因为这些错误（如果由模块处理）是内部的，不会反映给用户。
+         * 但是，commandstats 确实显示了这些调用（由 RM_Call 进行），因此它应该记录它们是否失败或成功。*/
         real_cmd->failed_calls++;
     }
 
     /* After executing command, we will close the client after writing entire
      * reply if it is set 'CLIENT_CLOSE_AFTER_COMMAND' flag. */
+    /**执行命令后，如果设置了'CLIENT_CLOSE_AFTER_COMMAND'标志，我们将在写完整个回复后关闭客户端。*/
     if (c->flags & CLIENT_CLOSE_AFTER_COMMAND) {
         c->flags &= ~CLIENT_CLOSE_AFTER_COMMAND;
         c->flags |= CLIENT_CLOSE_AFTER_REPLY;
@@ -3653,12 +3778,14 @@ void call(client *c, int flags) {
 
     /* When EVAL is called loading the AOF we don't want commands called
      * from Lua to go into the slowlog or to populate statistics. */
+    /**当调用 EVAL 加载 AOF 时，我们不希望从 Lua 调用的命令进入慢日志或填充统计信息。*/
     if (server.loading && c->flags & CLIENT_SCRIPT)
         flags &= ~(CMD_CALL_SLOWLOG | CMD_CALL_STATS);
 
     /* If the caller is Lua, we want to force the EVAL caller to propagate
      * the script if the command flag or client flag are forcing the
      * propagation. */
+    /**如果调用者是 Lua，如果命令标志或客户端标志强制传播，我们希望强制 EVAL 调用者传播脚本。*/
     if (c->flags & CLIENT_SCRIPT && server.script_caller) {
         if (c->flags & CLIENT_FORCE_REPL)
             server.script_caller->flags |= CLIENT_FORCE_REPL;
@@ -3669,10 +3796,13 @@ void call(client *c, int flags) {
     /* Note: the code below uses the real command that was executed
      * c->cmd and c->lastcmd may be different, in case of MULTI-EXEC or
      * re-written commands such as EXPIRE, GEOADD, etc. */
+    /**注意：下面的代码使用实际执行的命令 c->cmd 和 c->lastcmd 可能不同，
+     * 以防 MULTI-EXEC 或重写命令，如 EXPIRE、GEOADD 等。*/
 
     /* Record the latency this command induced on the main thread.
      * unless instructed by the caller not to log. (happens when processing
      * a MULTI-EXEC from inside an AOF). */
+    /**记录此命令在主线程上引起的延迟。除非来电者指示不要登录。 （在从 AOF 内部处理 MULTI-EXEC 时发生）。*/
     if (flags & CMD_CALL_SLOWLOG) {
         char *latency_event = (real_cmd->flags & CMD_FAST) ?
                                "fast-command" : "command";
@@ -3681,11 +3811,13 @@ void call(client *c, int flags) {
 
     /* Log the command into the Slow log if needed.
      * If the client is blocked we will handle slowlog when it is unblocked. */
+    /**如果需要，将命令记录到慢速日志中。如果客户端被阻塞，我们将在它被解除阻塞时处理慢日志。*/
     if ((flags & CMD_CALL_SLOWLOG) && !(c->flags & CLIENT_BLOCKED))
         slowlogPushCurrentCommand(c, real_cmd, duration);
 
     /* Send the command to clients in MONITOR mode if applicable.
      * Administrative commands are considered too dangerous to be shown. */
+    /**如果适用，以 MONITOR 模式将命令发送给客户端。管理命令被认为太危险而无法显示。*/
     if (!(c->cmd->flags & (CMD_SKIP_MONITOR|CMD_ADMIN))) {
         robj **argv = c->original_argv ? c->original_argv : c->argv;
         int argc = c->original_argv ? c->original_argc : c->argc;
@@ -3694,14 +3826,17 @@ void call(client *c, int flags) {
 
     /* Clear the original argv.
      * If the client is blocked we will handle slowlog when it is unblocked. */
+    /**清除原始 argv。如果客户端被阻塞，我们将在它被解除阻塞时处理慢日志。*/
     if (!(c->flags & CLIENT_BLOCKED))
         freeClientOriginalArgv(c);
 
     /* populate the per-command statistics that we show in INFO commandstats. */
+    /**填充我们在 INFO commandstats 中显示的每个命令的统计信息。*/
     if (flags & CMD_CALL_STATS) {
         real_cmd->microseconds += duration;
         real_cmd->calls++;
         /* If the client is blocked we will handle latency stats when it is unblocked. */
+        /**如果客户端被阻止，我们将在它被解除阻止时处理延迟统计信息。*/
         if (server.latency_tracking_enabled && !(c->flags & CLIENT_BLOCKED))
             updateCommandLatencyHistogram(&(real_cmd->latency_histogram), duration*1000);
     }
@@ -3710,6 +3845,8 @@ void call(client *c, int flags) {
      * We never propagate EXEC explicitly, it will be implicitly
      * propagated if needed (see propagatePendingCommands).
      * Also, module commands take care of themselves */
+    /**将命令传播到 AOF 和复制链接。我们从不显式传播 EXEC，如果需要，
+     * 它将被隐式传播（请参阅propagatePendingCommands）。此外，模块命令会自行处理*/
     if (flags & CMD_CALL_PROPAGATE &&
         (c->flags & CLIENT_PREVENT_PROP) != CLIENT_PREVENT_PROP &&
         c->cmd->proc != execCommand &&
@@ -3719,16 +3856,20 @@ void call(client *c, int flags) {
 
         /* Check if the command operated changes in the data set. If so
          * set for replication / AOF propagation. */
+        /**检查命令操作的数据集是否发生变化。如果这样设置为复制 AOF 传播。*/
         if (dirty) propagate_flags |= (PROPAGATE_AOF|PROPAGATE_REPL);
 
         /* If the client forced AOF / replication of the command, set
          * the flags regardless of the command effects on the data set. */
+        /**如果客户端强制执行命令的 AOF 复制，请设置标志，而不考虑命令对数据集的影响。*/
         if (c->flags & CLIENT_FORCE_REPL) propagate_flags |= PROPAGATE_REPL;
         if (c->flags & CLIENT_FORCE_AOF) propagate_flags |= PROPAGATE_AOF;
 
         /* However prevent AOF / replication propagation if the command
          * implementation called preventCommandPropagation() or similar,
          * or if we don't have the call() flags to do so. */
+        /**但是，如果命令实现调用了 preventCommandPropagation() 或类似的，
+         * 或者我们没有 call() 标志来执行此操作，则阻止 AOF 复制传播。*/
         if (c->flags & CLIENT_PREVENT_REPL_PROP ||
             !(flags & CMD_CALL_PROPAGATE_REPL))
                 propagate_flags &= ~PROPAGATE_REPL;
@@ -3738,12 +3879,14 @@ void call(client *c, int flags) {
 
         /* Call alsoPropagate() only if at least one of AOF / replication
          * propagation is needed. */
+        /**仅当至少需要一个 AOF 复制传播时才调用alsoPropagate()。*/
         if (propagate_flags != PROPAGATE_NONE)
             alsoPropagate(c->db->id,c->argv,c->argc,propagate_flags);
     }
 
     /* Restore the old replication flags, since call() can be executed
      * recursively. */
+    /**恢复旧的复制标志，因为 call() 可以递归执行。*/
     c->flags &= ~(CLIENT_FORCE_AOF|CLIENT_FORCE_REPL|CLIENT_PREVENT_PROP);
     c->flags |= client_old_flags &
         (CLIENT_FORCE_AOF|CLIENT_FORCE_REPL|CLIENT_PREVENT_PROP);
@@ -3752,6 +3895,8 @@ void call(client *c, int flags) {
      * make sure to remember the keys it fetched via this command. Scripting
      * works a bit differently, where if the scripts executes any read command, it
      * remembers all of the declared keys from the script. */
+    /**如果客户端为客户端缓存启用了密钥跟踪，请确保记住它通过此命令获取的密钥。
+     * 脚本的工作方式略有不同，如果脚本执行任何读取命令，它会记住脚本中所有声明的键。*/
     if ((c->cmd->flags & CMD_READONLY) && (c->cmd->proc != evalRoCommand)
         && (c->cmd->proc != evalShaRoCommand) && (c->cmd->proc != fcallroCommand))
     {
@@ -3769,15 +3914,18 @@ void call(client *c, int flags) {
 
     /* Record peak memory after each command and before the eviction that runs
      * before the next command. */
+    /**在每个命令之后和在下一个命令之前运行的驱逐之前记录峰值内存。*/
     size_t zmalloc_used = zmalloc_used_memory();
     if (zmalloc_used > server.stat_peak_memory)
         server.stat_peak_memory = zmalloc_used;
 
     /* Do some maintenance job and cleanup */
+    /**做一些维护工作和清理工作*/
     afterCommand(c);
 
     /* Client pause takes effect after a transaction has finished. This needs
      * to be located after everything is propagated. */
+    /**客户端暂停在事务完成后生效。这需要在传播完所有内容之后定位。*/
     if (!server.in_exec && server.client_pause_in_transaction) {
         server.client_pause_in_transaction = 0;
     }
@@ -3790,6 +3938,8 @@ void call(client *c, int flags) {
  * If there's a transaction is flags it as dirty, and if the command is EXEC,
  * it aborts the transaction.
  * Note: 'reply' is expected to end with \r\n */
+/**当由于各种执行前检查而需要拒绝准备执行的命令时使用。它将适当的错误返回给客户端。
+ * 如果有事务将其标记为脏，并且如果命令为 EXEC，则中止事务。注意：“回复”应以 \r\n 结尾*/
 void rejectCommand(client *c, robj *reply) {
     flagTransaction(c);
     if (c->cmd) c->cmd->rejected_calls++;
@@ -3797,6 +3947,7 @@ void rejectCommand(client *c, robj *reply) {
         execCommandAbort(c, reply->ptr);
     } else {
         /* using addReplyError* rather than addReply so that the error can be logged. */
+        /**使用 addReplyError 而不是 addReply 以便记录错误。*/
         addReplyErrorObject(c, reply);
     }
 }
@@ -3808,7 +3959,7 @@ void rejectCommandSds(client *c, sds s) {
         execCommandAbort(c, s);
         sdsfree(s);
     } else {
-        /* The following frees 's'. */
+        /* The following frees 's'.   以下释放's'。*/
         addReplyErrorSds(c, s);
     }
 }
@@ -3820,27 +3971,33 @@ void rejectCommandFormat(client *c, const char *fmt, ...) {
     va_end(ap);
     /* Make sure there are no newlines in the string, otherwise invalid protocol
      * is emitted (The args come from the user, they may contain any character). */
+    /**确保字符串中没有换行符，否则会发出无效的协议（参数来自用户，它们可能包含任何字符）。*/
     sdsmapchars(s, "\r\n", "  ",  2);
     rejectCommandSds(c, s);
 }
 
 /* This is called after a command in call, we can do some maintenance job in it. */
+/**这是在调用命令之后调用的，我们可以在其中做一些维护工作。*/
 void afterCommand(client *c) {
     UNUSED(c);
     if (!server.in_nested_call) {
         /* If we are at the top-most call() we can propagate what we accumulated.
          * Should be done before trackingHandlePendingKeyInvalidations so that we
          * reply to client before invalidating cache (makes more sense) */
+        /**如果我们在最顶层 call() 我们可以传播我们积累的东西。
+         * 应该在 trackingHandlePendingKeyInvalidations 之前完成，以便我们在缓存无效之前回复客户端（更有意义）*/
         if (server.core_propagates)
             propagatePendingCommands();
         /* Flush pending invalidation messages only when we are not in nested call.
          * So the messages are not interleaved with transaction response. */
+        /**仅当我们不在嵌套调用中时才刷新待处理的无效消息。因此消息不会与事务响应交错。*/
         trackingHandlePendingKeyInvalidations();
     }
 }
 
 /* Check if c->cmd exists, fills `err` with details in case it doesn't.
  * Return 1 if exists. */
+/**检查 c->cmd 是否存在，如果不存在，则在 `err` 中填写详细信息。如果存在则返回 1。*/
 int commandCheckExistence(client *c, sds *err) {
     if (c->cmd)
         return 1;
@@ -3849,6 +4006,7 @@ int commandCheckExistence(client *c, sds *err) {
     if (isContainerCommandBySds(c->argv[0]->ptr)) {
         /* If we can't find the command but argv[0] by itself is a command
          * it means we're dealing with an invalid subcommand. Print Help. */
+        /**如果我们找不到命令但 argv[0] 本身就是一个命令，这意味着我们正在处理一个无效的子命令。打印帮助。*/
         sds cmd = sdsnew((char *)c->argv[0]->ptr);
         sdstoupper(cmd);
         *err = sdsnew(NULL);
@@ -3867,12 +4025,14 @@ int commandCheckExistence(client *c, sds *err) {
     }
     /* Make sure there are no newlines in the string, otherwise invalid protocol
      * is emitted (The args come from the user, they may contain any character). */
+    /**确保字符串中没有换行符，否则会发出无效的协议（参数来自用户，它们可能包含任何字符）。*/
     sdsmapchars(*err, "\r\n", "  ",  2);
     return 0;
 }
 
 /* Check if c->argc is valid for c->cmd, fills `err` with details in case it isn't.
  * Return 1 if valid. */
+/**检查 c->argc 是否对 c->cmd 有效，如果不是，则在 `err` 中填写详细信息。如果有效则返回 1。*/
 int commandCheckArity(client *c, sds *err) {
     if ((c->cmd->arity > 0 && c->cmd->arity != c->argc) ||
         (c->argc < -c->cmd->arity))
@@ -3895,12 +4055,19 @@ int commandCheckArity(client *c, sds *err) {
  * If C_OK is returned the client is still alive and valid and
  * other operations can be performed by the caller. Otherwise
  * if C_ERR is returned the client was destroyed (i.e. after QUIT). */
+/**如果调用此函数，我们已经读取了整个命令，参数位于客户端 argvargc 字段中。
+ *
+ * @return processCommand() 执行命令或准备服务器以从客户端进行批量读取。
+ * 如果返回 C_OK，则客户端仍然活着且有效，调用者可以执行其他操作。
+ * 否则，如果返回 C_ERR，则客户端被销毁（即在 QUIT 之后）。*/
 int processCommand(client *c) {
     if (!scriptIsTimedout()) {
         /* Both EXEC and scripts call call() directly so there should be
          * no way in_exec or scriptIsRunning() is 1.
          * That is unless lua_timedout, in which case client may run
          * some commands. */
+        /**EXEC 和脚本都直接调用 call()，所以 in_exec 或 scriptIsRunning() 不可能是 1。
+         * 除非 lua_timedout，在这种情况下客户端可能会运行一些命令。*/
         serverAssert(!server.in_exec);
         serverAssert(!scriptIsRunning());
     }
@@ -3908,6 +4075,7 @@ int processCommand(client *c) {
     moduleCallCommandFilters(c);
 
     /* Handle possible security attacks. */
+    /**处理可能的安全攻击。*/
     if (!strcasecmp(c->argv[0]->ptr,"host:") || !strcasecmp(c->argv[0]->ptr,"post")) {
         securityWarningCommand(c);
         return C_ERR;
@@ -3915,6 +4083,7 @@ int processCommand(client *c) {
 
     /* If we're inside a module blocked context yielding that wants to avoid
      * processing clients, postpone the command. */
+    /**如果我们在一个模块阻塞的上下文中，想要避免处理客户端，请推迟命令。*/
     if (server.busy_module_yield_flags != BUSY_MODULE_YIELD_NONE &&
         !(server.busy_module_yield_flags & BUSY_MODULE_YIELD_CLIENTS))
     {
@@ -3925,6 +4094,7 @@ int processCommand(client *c) {
 
     /* Now lookup the command and check ASAP about trivial error conditions
      * such as wrong arity, bad command name and so forth. */
+    /**现在查找命令并尽快检查琐碎的错误情况，例如错误的数量、错误的命令名称等。*/
     c->cmd = c->lastcmd = c->realcmd = lookupCommand(c->argv,c->argc);
     sds err;
     if (!commandCheckExistence(c, &err)) {
@@ -3937,6 +4107,7 @@ int processCommand(client *c) {
     }
 
     /* Check if the command is marked as protected and the relevant configuration allows it */
+    /**检查命令是否被标记为受保护并且相关配置是否允许*/
     if (c->cmd->flags & CMD_PROTECTED) {
         if ((c->cmd->proc == debugCommand && !allowProtectedAction(server.enable_debug_cmd, c)) ||
             (c->cmd->proc == moduleCommand && !allowProtectedAction(server.enable_module_cmd, c)))
@@ -3954,6 +4125,8 @@ int processCommand(client *c) {
     /* If we're executing a script, try to extract a set of command flags from
      * it, in case it declared them. Note this is just an attempt, we don't yet
      * know the script command is well formed.*/
+    /**如果我们正在执行一个脚本，请尝试从中提取一组命令标志，以防它声明它们。
+     * 请注意，这只是一种尝试，我们还不知道脚本命令的格式是否正确。*/
     uint64_t cmd_flags = c->cmd->flags;
     if (c->cmd->proc == evalCommand || c->cmd->proc == evalShaCommand ||
         c->cmd->proc == evalRoCommand || c->cmd->proc == evalShaRoCommand ||
@@ -3984,6 +4157,7 @@ int processCommand(client *c) {
     if (authRequired(c)) {
         /* AUTH and HELLO and no auth commands are valid even in
          * non-authenticated state. */
+        /**AUTH 和 HELLO 以及 no auth 命令即使在非身份验证状态下也是有效的。*/
         if (!(c->cmd->flags & CMD_NO_AUTH)) {
             rejectCommand(c,shared.noautherr);
             return C_OK;
@@ -3997,6 +4171,7 @@ int processCommand(client *c) {
 
     /* Check if the user can run this command according to the current
      * ACLs. */
+    /**检查用户是否可以根据当前的 ACL 运行该命令。*/
     int acl_errpos;
     int acl_retval = ACLCheckAllPerm(c,&acl_errpos);
     if (acl_retval != ACL_OK) {
@@ -4030,6 +4205,10 @@ int processCommand(client *c) {
      * However we don't perform the redirection if:
      * 1) The sender of this command is our master.
      * 2) The command has no key arguments. */
+    /**如果启用了集群，请在此处执行集群重定向。
+     * 但是，如果出现以下情况，我们不会执行重定向：
+     *   1) 此命令的发送者是我们的主人。
+     *   2) 该命令没有关键参数。*/
     if (server.cluster_enabled &&
         !mustObeyClient(c) &&
         !(!(c->cmd->flags&CMD_MOVABLE_KEYS) && c->cmd->key_specs_num == 0 &&
@@ -4053,9 +4232,12 @@ int processCommand(client *c) {
     /* Disconnect some clients if total clients memory is too high. We do this
      * before key eviction, after the last command was executed and consumed
      * some client output buffer memory. */
+    /**如果总客户端内存太高，请断开一些客户端。我们在键逐出之前执行此操作，
+     * 在执行最后一个命令并消耗一些客户端输出缓冲内存之后。*/
     evictClients();
     if (server.current_client == NULL) {
         /* If we evicted ourself then abort processing the command */
+        /**如果我们驱逐自己然后中止处理命令*/
         return C_ERR;
     }
 
@@ -4065,6 +4247,9 @@ int processCommand(client *c) {
      * the event loop since there is a busy Lua script running in timeout
      * condition, to avoid mixing the propagation of scripts with the
      * propagation of DELs due to eviction. */
+    /**处理 maxmemory 指令。
+     * 请注意，如果我们在这里重新进入事件循环，我们不想回收内存，
+     * 因为有一个繁忙的 Lua 脚本在超时条件下运行，以避免由于驱逐而将脚本的传播与 DEL 的传播混为一谈。*/
     if (server.maxmemory && !isInsideYieldingLongCommand()) {
         int out_of_memory = (performEvictions() == EVICT_FAIL);
 
@@ -4072,10 +4257,14 @@ int processCommand(client *c) {
          * invalidation keys. If we don't do this, we may get an invalidation
          * message after we perform operation on the key, where in fact this
          * message belongs to the old value of the key before it gets evicted.*/
+        /**performEvictions 可能会驱逐键，因此我们需要刷新挂起的跟踪失效键。
+         * 如果我们不这样做，我们可能会在对 key 执行操作后收到一条无效消息，
+         * 实际上该消息属于 key 在被驱逐之前的旧值。*/
         trackingHandlePendingKeyInvalidations();
 
         /* performEvictions may flush slave output buffers. This may result
          * in a slave, that may be the active client, to be freed. */
+        /**performEvictions 可能会刷新从属输出缓冲区。这可能会导致从机（可能是活动客户端）被释放。*/
         if (server.current_client == NULL) return C_ERR;
 
         int reject_cmd_on_oom = is_denyoom_command;
@@ -4084,6 +4273,9 @@ int processCommand(client *c) {
          * However, we never want to reject DISCARD, or even EXEC (unless it
          * contains denied commands, in which case is_denyoom_command is already
          * set. */
+        /**如果客户端在 MULTIEXEC 上下文中，排队可能会消耗无限量的内存，所以我们想停止它。
+         * 但是，我们永远不想拒绝 DISCARD，甚至 EXEC（除非它包含被拒绝的命令，
+         * 在这种情况下 is_denyoom_command 已经设置。*/
         if (c->flags & CLIENT_MULTI &&
             c->cmd->proc != execCommand &&
             c->cmd->proc != discardCommand &&
@@ -4102,16 +4294,22 @@ int processCommand(client *c) {
          * arguments might interfere. We need to save it for EXEC and module
          * calls too, since these can call EVAL, but avoid saving it during an
          * interrupted / yielding busy script / module. */
+        /**在命令开始时保存 out_of_memory 结果，否则如果我们在第一次写入脚本时
+         * 检查 OOM，lua 堆栈和参数使用的内存可能会干扰。我们也需要为 EXEC 和模块调用保存它，
+         * 因为它们可以调用 EVAL，但要避免在中断产生繁忙的脚本模块期间保存它。*/
         server.pre_command_oom_state = out_of_memory;
     }
 
     /* Make sure to use a reasonable amount of memory for client side
      * caching metadata. */
+    /**确保为客户端缓存元数据使用合理数量的内存。*/
     if (server.tracking_clients) trackingLimitUsedSlots();
 
     /* Don't accept write commands if there are problems persisting on disk
      * unless coming from our master, in which case check the replica ignore
      * disk write error config to either log or crash. */
+    /**如果磁盘上存在问题，除非来自我们的主服务器，否则不要接受写入命令，
+     * 在这种情况下，请检查副本忽略磁盘写入错误配置以记录或崩溃。*/
     int deny_write_type = writeCommandsDeniedByDiskError();
     if (deny_write_type != DISK_ERROR_TYPE_NONE &&
         (is_write_command || c->cmd->proc == pingCommand))
@@ -4131,6 +4329,7 @@ int processCommand(client *c) {
         } else {
             sds err = writeCommandsGetDiskErrorMessage(deny_write_type);
             /* remove the newline since rejectCommandSds adds it. */
+            /**删除换行符，因为 rejectCommandSds 添加了它。*/
             sdssubstr(err, 0, sdslen(err)-2);
             rejectCommandSds(c, err);
             return C_OK;
@@ -4139,6 +4338,7 @@ int processCommand(client *c) {
 
     /* Don't accept write commands if there are not enough good slaves and
      * user configured the min-slaves-to-write option. */
+    /**如果没有足够好的从站并且用户配置了 min-slaves-to-write 选项，则不要接受写入命令。*/
     if (is_write_command && !checkGoodReplicasStatus()) {
         rejectCommand(c, shared.noreplicaserr);
         return C_OK;
@@ -4146,6 +4346,7 @@ int processCommand(client *c) {
 
     /* Don't accept write commands if this is a read only slave. But
      * accept write commands if this is our master. */
+    /**如果这是一个只读从站，则不要接受写命令。但如果这是我们的主人，请接受写命令。*/
     if (server.masterhost && server.repl_slave_ro &&
         !obey_client &&
         is_write_command)
@@ -4156,6 +4357,7 @@ int processCommand(client *c) {
 
     /* Only allow a subset of commands in the context of Pub/Sub if the
      * connection is in RESP2 mode. With RESP3 there are no limits. */
+    /**如果连接处于 RESP2 模式，则仅允许 PubSub 上下文中的命令子集。 RESP3 没有限制。*/
     if ((c->flags & CLIENT_PUBSUB && c->resp == 2) &&
         c->cmd->proc != pingCommand &&
         c->cmd->proc != subscribeCommand &&
@@ -4176,6 +4378,8 @@ int processCommand(client *c) {
     /* Only allow commands with flag "t", such as INFO, REPLICAOF and so on,
      * when replica-serve-stale-data is no and we are a replica with a broken
      * link with master. */
+    /**仅当replica-serve-stale-data 为no 且我们是与master 的链接断开的副本时，
+     * 才允许带有标志“t”的命令，例如INFO、REPLICAOF 等。*/
     if (server.masterhost && server.repl_state != REPL_STATE_CONNECTED &&
         server.repl_serve_stale_data == 0 &&
         is_denystale_command)
@@ -4186,12 +4390,14 @@ int processCommand(client *c) {
 
     /* Loading DB? Return an error if the command has not the
      * CMD_LOADING flag. */
+    /**加载数据库？如果命令没有 CMD_LOADING 标志，则返回错误。*/
     if (server.loading && !server.async_loading && is_denyloading_command) {
         rejectCommand(c, shared.loadingerr);
         return C_OK;
     }
 
     /* During async-loading, block certain commands. */
+    /**在异步加载期间，阻止某些命令。*/
     if (server.async_loading && is_deny_async_loading_command) {
         rejectCommand(c,shared.loadingerr);
         return C_OK;
@@ -4204,6 +4410,9 @@ int processCommand(client *c) {
      * the MULTI plus a few initial commands refused, then the timeout
      * condition resolves, and the bottom-half of the transaction gets
      * executed, see Github PR #7022. */
+    /**当繁忙的工作正在完成时（脚本模块）只允许有限数量的命令。
+     * 请注意，我们需要允许事务命令，否则客户端发送带有流水线的事务而没有错误检查，
+     * 可能会拒绝 MULTI 加上一些初始命令，然后超时条件解决，事务的下半部分被执行，请参阅Github PR 7022。*/
     if (isInsideYieldingLongCommand() && !(c->cmd->flags & CMD_ALLOW_BUSY)) {
         if (server.busy_module_yield_flags && server.busy_module_yield_reply) {
             rejectCommandFormat(c, "-BUSY %s", server.busy_module_yield_reply);
@@ -4220,6 +4429,7 @@ int processCommand(client *c) {
     /* Prevent a replica from sending commands that access the keyspace.
      * The main objective here is to prevent abuse of client pause check
      * from which replicas are exempt. */
+    /**防止副本发送访问键空间的命令。这里的主要目标是防止滥用客户端暂停检查，副本可以免除。*/
     if ((c->flags & CLIENT_SLAVE) && (is_may_replicate_command || is_write_command || is_read_command)) {
         rejectCommandFormat(c, "Replica can't interact with the keyspace");
         return C_OK;
@@ -4227,6 +4437,7 @@ int processCommand(client *c) {
 
     /* If the server is paused, block the client until
      * the pause has ended. Replicas are never paused. */
+    /**如果服务器暂停，则阻止客户端，直到暂停结束。副本永远不会暂停。*/
     if (!(c->flags & CLIENT_SLAVE) && 
         ((server.client_pause_type == CLIENT_PAUSE_ALL) ||
         (server.client_pause_type == CLIENT_PAUSE_WRITE && is_may_replicate_command)))
@@ -4257,7 +4468,7 @@ int processCommand(client *c) {
     return C_OK;
 }
 
-/* ====================== Error lookup and execution ===================== */
+/* ====================== Error lookup and execution 错误查找和执行===================== */
 
 void incrementErrorCount(const char *fullerr, size_t namelen) {
     struct redisError *error = raxFind(server.errors,(unsigned char*)fullerr,namelen);
@@ -4273,6 +4484,7 @@ void incrementErrorCount(const char *fullerr, size_t namelen) {
 
 /* Close listening sockets. Also unlink the unix domain socket if
  * unlink_unix_socket is non-zero. */
+/**关闭监听套接字。如果 unlink_unix_socket 不为零，也取消链接 unix 域套接字。*/
 void closeListeningSockets(int unlink_unix_socket) {
     int j;
 
@@ -4311,6 +4523,16 @@ void closeListeningSockets(int unlink_unix_socket) {
  * errors are logged but ignored and C_OK is returned.
  *
  * On success, this function returns C_OK and then it's OK to call exit(0). */
+/**准备关闭服务器。标志：
+ *   - SHUTDOWN_SAVE：保存数据库转储，即使服务器配置为不保存任何转储。
+ *   - SHUTDOWN_NOSAVE：即使服务器配置为保存一个，也不保存任何数据库转储。
+ *   - SHUTDOWN_NOW：在关闭之前不要等待副本赶上。
+ *   - SHUTDOWN_FORCE：忽略在磁盘上写入 AOF 和 RDB 文件的错误，这通常会阻止关机。
+ * 除非设置了 SHUTDOWN_NOW 并且如果任何副本落后，则返回 C_ERR 并将 server.shutdown_mstime 设置为
+ * 时间戳以允许副本赶上的宽限期。这由 serverCron() 检查和处理，它会尽快完成关闭。
+ * 如果由于写入 RDB 或 AOF 文件的错误而导致关闭失败，则返回 C_ERR 并记录错误。
+ * 如果设置了标志 SHUTDOWN_FORCE，这些错误将被记录但被忽略并返回 C_OK。
+ * 成功时，此函数返回 C_OK，然后调用 exit(0) 即可。*/
 int prepareForShutdown(int flags) {
     if (isShutdownInitiated()) return C_ERR;
 
@@ -4320,6 +4542,9 @@ int prepareForShutdown(int flags) {
      * with half-read data).
      *
      * Also when in Sentinel mode clear the SAVE flag and force NOSAVE. */
+    /**当服务器在内存中加载数据集时调用 SHUTDOWN 时，我们需要确保在关闭时不会尝试
+     * 保存数据集（否则它可能会用半读数据覆盖当前数据库）。
+     * 此外，在 Sentinel 模式下，清除 SAVE 标志并强制 NOSAVE。*/
     if (server.loading || server.sentinel_mode)
         flags = (flags & ~SHUTDOWN_SAVE) | SHUTDOWN_NOSAVE;
 
@@ -4331,6 +4556,7 @@ int prepareForShutdown(int flags) {
 
     /* If we have any replicas, let them catch up the replication offset before
      * we shut down, to avoid data loss. */
+    /**如果我们有任何副本，在我们关闭之前让它们赶上复制偏移量，以避免数据丢失。*/
     if (!(flags & SHUTDOWN_NOW) &&
         server.shutdown_timeout != 0 &&
         !isReadyToShutdown())
@@ -4352,6 +4578,7 @@ static inline int isShutdownInitiated(void) {
 /* Returns 0 if there are any replicas which are lagging in replication which we
  * need to wait for before shutting down. Returns 1 if we're ready to shut
  * down now. */
+/**如果有任何副本滞后于我们需要在关闭之前等待的复制，则返回 0。如果我们现在准备关闭，则返回 1。*/
 int isReadyToShutdown(void) {
     if (listLength(server.slaves) == 0) return 1;  /* No replicas. */
 
@@ -4375,15 +4602,18 @@ static void cancelShutdown(void) {
 }
 
 /* Returns C_OK if shutdown was aborted and C_ERR if shutdown wasn't ongoing. */
+/**如果关闭已中止，则返回 C_OK；如果关闭未进行，则返回 C_ERR。*/
 int abortShutdown(void) {
     if (isShutdownInitiated()) {
         cancelShutdown();
     } else if (server.shutdown_asap) {
         /* Signal handler has requested shutdown, but it hasn't been initiated
          * yet. Just clear the flag. */
+        /**信号处理程序已请求关闭，但尚未启动。只需清除标志。*/
         server.shutdown_asap = 0;
     } else {
         /* Shutdown neither initiated nor requested. */
+        /**既未启动也未请求关闭。*/
         return C_ERR;
     }
     serverLog(LL_NOTICE, "Shutdown manually aborted.");
@@ -4393,6 +4623,7 @@ int abortShutdown(void) {
 /* The final step of the shutdown sequence. Returns C_OK if the shutdown
  * sequence was successful and it's OK to call exit(). If C_ERR is returned,
  * it's not safe to call exit(). */
+/**关机序列的最后一步。如果关闭序列成功并且可以调用 exit()，则返回 C_OK。如果返回 C_ERR，则调用 exit() 是不安全的。*/
 int finishShutdown(void) {
 
     int save = server.shutdown_flags & SHUTDOWN_SAVE;
@@ -4400,6 +4631,7 @@ int finishShutdown(void) {
     int force = server.shutdown_flags & SHUTDOWN_FORCE;
 
     /* Log a warning for each replica that is lagging. */
+    /**为每个滞后的副本记录警告。*/
     listIter replicas_iter;
     listNode *replicas_list_node;
     int num_replicas = 0, num_lagging_replicas = 0;
@@ -4427,11 +4659,13 @@ int finishShutdown(void) {
     }
 
     /* Kill all the Lua debugger forked sessions. */
+    /**杀死所有 Lua 调试器分叉会话。*/
     ldbKillForkedSessions();
 
     /* Kill the saving child if there is a background saving in progress.
        We want to avoid race conditions, for instance our saving child may
        overwrite the synchronous saving did by SHUTDOWN. */
+    /**如果正在进行后台保存，则杀死保存的孩子。我们希望避免竞争条件，例如我们的保存子可能会覆盖由 SHUTDOWN 所做的同步保存。*/
     if (server.child_type == CHILD_TYPE_RDB) {
         serverLog(LL_WARNING,"There is a child saving an .rdb. Killing it!");
         killRDBChild();
@@ -4441,10 +4675,15 @@ int finishShutdown(void) {
          * to unlink file actually) in background thread.
          * The temp rdb file fd may won't be closed when redis exits quickly,
          * but OS will close this fd when process exits. */
+        /**请注意，在 killRDBChild 中通常有 backgroundSaveDoneHandler 进行清理，
+         * 但在这种情况下将无法到达此代码，因此我们需要调用 rdbRemoveTempFile 它将在
+         * 后台线程中关闭 fd（以便实际取消链接文件）。 redis 快速退出时，临时 rdb 文件 fd 可能不会关闭，
+         * 但操作系统会在进程退出时关闭此 fd。*/
         rdbRemoveTempFile(server.child_pid, 0);
     }
 
     /* Kill module child if there is one. */
+    /**如果有一个，则杀死模块子项。*/
     if (server.child_type == CHILD_TYPE_MODULE) {
         serverLog(LL_WARNING,"There is a module fork child. Killing it!");
         TerminateModuleForkChild(server.child_pid,0);
@@ -4452,9 +4691,11 @@ int finishShutdown(void) {
 
     /* Kill the AOF saving child as the AOF we already have may be longer
      * but contains the full dataset anyway. */
+    /**杀死 AOF 保存子，因为我们已经拥有的 AOF 可能更长，但无论如何都包含完整的数据集。*/
     if (server.child_type == CHILD_TYPE_AOF) {
         /* If we have AOF enabled but haven't written the AOF yet, don't
          * shutdown or else the dataset will be lost. */
+        /**如果我们启用了 AOF 但尚未写入 AOF，请不要关闭，否则数据集将丢失。*/
         if (server.aof_state == AOF_WAIT_REWRITE) {
             if (force) {
                 serverLog(LL_WARNING, "Writing initial AOF. Exit anyway.");
@@ -4469,6 +4710,7 @@ int finishShutdown(void) {
     }
     if (server.aof_state != AOF_OFF) {
         /* Append only file: flush buffers and fsync() the AOF at exit */
+        /**仅附加文件：刷新缓冲区和 fsync() 退出时的 AOF*/
         serverLog(LL_NOTICE,"Calling fsync() on the AOF file.");
         flushAppendOnlyFile(1);
         if (redis_fsync(server.aof_fd) == -1) {
@@ -4478,11 +4720,13 @@ int finishShutdown(void) {
     }
 
     /* Create a new RDB file before exiting. */
+    /**在退出之前创建一个新的 RDB 文件。*/
     if ((server.saveparamslen > 0 && !nosave) || save) {
         serverLog(LL_NOTICE,"Saving the final RDB snapshot before exiting.");
         if (server.supervised_mode == SUPERVISED_SYSTEMD)
             redisCommunicateSystemd("STATUS=Saving the final RDB snapshot\n");
         /* Snapshotting. Perform a SYNC SAVE and exit */
+        /**快照。执行同步保存并退出*/
         rdbSaveInfo rsi, *rsiptr;
         rsiptr = rdbPopulateSaveInfo(&rsi);
         if (rdbSave(SLAVE_REQ_NONE,server.rdb_filename,rsiptr) != C_OK) {
@@ -4491,6 +4735,9 @@ int finishShutdown(void) {
              * in the next cron() Redis will be notified that the background
              * saving aborted, handling special stuff like slaves pending for
              * synchronization... */
+            /**哎呀..错误保存！我们能做的最好的就是继续运营。
+             * 请注意，如果有后台保存过程，在下一个 cron() 中，Redis 将被通知后台保存中止，处理特殊的东西，
+             * 例如等待同步的从属...*/
             if (force) {
                 serverLog(LL_WARNING,"Error trying to save the DB. Exit anyway.");
             } else {
@@ -4503,12 +4750,15 @@ int finishShutdown(void) {
     }
 
     /* Free the AOF manifest. */
+    /**释放 AOF 清单。*/
     if (server.aof_manifest) aofManifestFree(server.aof_manifest);
 
     /* Fire the shutdown modules event. */
+    /**触发关闭模块事件。*/
     moduleFireServerEvent(REDISMODULE_EVENT_SHUTDOWN,0,NULL);
 
     /* Remove the pid file if possible and needed. */
+    /**如果可能和需要，删除 pid 文件。*/
     if (server.daemonize || server.pidfile) {
         serverLog(LL_NOTICE,"Removing the pid file.");
         unlink(server.pidfile);
@@ -4516,12 +4766,15 @@ int finishShutdown(void) {
 
     /* Best effort flush of slave output buffers, so that we hopefully
      * send them pending writes. */
+    /**从输出缓冲区的最大努力刷新，以便我们希望将它们发送到挂起的写入。*/
     flushSlavesOutputBuffers();
 
     /* Close the listening sockets. Apparently this allows faster restarts. */
+    /**关闭监听套接字。显然，这允许更快的重新启动。*/
     closeListeningSockets(1);
 
     /* Unlock the cluster config file before shutdown */
+    /**关机前解锁集群配置文件*/
     if (server.cluster_enabled && server.cluster_config_file_lock_fd != -1) {
         flock(server.cluster_config_file_lock_fd, LOCK_UN|LOCK_NB);
     }
@@ -4549,6 +4802,12 @@ error:
  * DISK_ERROR_TYPE_AOF:     Don't accept writes: AOF errors.
  * DISK_ERROR_TYPE_RDB:     Don't accept writes: RDB errors.
  */
+/**有时 Redis 无法接受写入命令，因为 RDB 或 AOF 文件存在持久性错误，并且 Redis 被配置为在这种情况下停止接受写入。
+ * 如果这样的条件处于活动状态，此函数将返回，以及条件的类
+ * 函数返回值：
+ *   DISK_ERROR_TYPE_NONE：没问题，我们可以接受写入。
+ *   DISK_ERROR_TYPE_AOF：不接受写入：AOF 错误。
+ *   DISK_ERROR_TYPE_RDB：不接受写入：RDB 错误。*/
 int writeCommandsDeniedByDiskError(void) {
     if (server.stop_writes_on_bgsave_err &&
         server.saveparamslen > 0 &&
@@ -4585,8 +4844,10 @@ sds writeCommandsGetDiskErrorMessage(int error_code) {
 
 /* The PING command. It works in a different way if the client is in
  * in Pub/Sub mode. */
+/**PING 命令。如果客户端处于 Pub/Sub 模式，它会以不同的方式工作。*/
 void pingCommand(client *c) {
     /* The command takes zero or one arguments. */
+    /**该命令采用零个或一个参数。*/
     if (c->argc > 2) {
         addReplyErrorArity(c);
         return;
@@ -4616,6 +4877,7 @@ void timeCommand(client *c) {
 
     /* gettimeofday() can only fail if &tv is a bad address so we
      * don't check for errors. */
+    /**gettimeofday() 只有在 &tv 是错误地址时才会失败，因此我们不会检查错误。*/
     gettimeofday(&tv,NULL);
     addReplyArrayLen(c,2);
     addReplyBulkLongLong(c,tv.tv_sec);
@@ -4627,10 +4889,11 @@ typedef struct replyFlagNames {
     const char *name;
 } replyFlagNames;
 
-/* Helper function to output flags. */
+/* Helper function to output flags. 输出标志的辅助函数。*/
 void addReplyCommandFlags(client *c, uint64_t flags, replyFlagNames *replyFlags) {
     int count = 0, j=0;
     /* Count them so we don't have to use deferred reply. */
+    /**计算它们，这样我们就不必使用延迟回复。*/
     while (replyFlags[j].name) {
         if (flags & replyFlags[j].flag)
             count++;
@@ -4663,7 +4926,7 @@ void addReplyFlagsForCommand(client *c, struct redisCommand *cmd) {
         {CMD_ASKING,            "asking"},
         {CMD_FAST,              "fast"},
         {CMD_NO_AUTH,           "no_auth"},
-        /* {CMD_MAY_REPLICATE,     "may_replicate"},, Hidden on purpose */
+        /* {CMD_MAY_REPLICATE,     "may_replicate"},, Hidden on purpose 故意隐藏*/
         /* {CMD_SENTINEL,          "sentinel"}, Hidden on purpose */
         /* {CMD_ONLY_SENTINEL,     "only_sentinel"}, Hidden on purpose */
         {CMD_NO_MANDATORY_KEYS, "no_mandatory_keys"},
@@ -4731,6 +4994,7 @@ void addReplyCommandArgList(client *c, struct redisCommandArg *args, int num_arg
     addReplyArrayLen(c, num_args);
     for (int j = 0; j<num_args; j++) {
         /* Count our reply len so we don't have to use deferred reply. */
+        /**计算我们的回复 len，这样我们就不必使用延迟回复。*/
         long maplen = 2;
         if (args[j].key_spec_index != -1) maplen++;
         if (args[j].token) maplen++;
@@ -4917,6 +5181,7 @@ void addReplyCommandKeySpecs(client *c, struct redisCommand *cmd) {
 }
 
 /* Reply with an array of sub-command using the provided reply callback. */
+/**使用提供的回复回调回复一组子命令。*/
 void addReplyCommandSubCommands(client *c, struct redisCommand *cmd, void (*reply_function)(client*, struct redisCommand*), int use_map) {
     if (!cmd->subcommands_dict) {
         addReplySetLen(c, 0);
@@ -4938,7 +5203,7 @@ void addReplyCommandSubCommands(client *c, struct redisCommand *cmd, void (*repl
     dictReleaseIterator(di);
 }
 
-/* Must match redisCommandGroup */
+/* Must match redisCommandGroup 必须匹配 redisCommandGroup*/
 const char *COMMAND_GROUP_STR[] = {
     "generic",
     "string",
@@ -4961,6 +5226,7 @@ const char *COMMAND_GROUP_STR[] = {
 };
 
 /* Output the representation of a Redis command. Used by the COMMAND command and COMMAND INFO. */
+/**输出 Redis 命令的表示形式。由 COMMAND 命令和 COMMAND INFO 使用。*/
 void addReplyCommandInfo(client *c, struct redisCommand *cmd) {
     if (!cmd) {
         addReplyNull(c);
@@ -4989,8 +5255,10 @@ void addReplyCommandInfo(client *c, struct redisCommand *cmd) {
 }
 
 /* Output the representation of a Redis command. Used by the COMMAND DOCS. */
+/**输出 Redis 命令的表示形式。由 COMMAND DOCS 使用。*/
 void addReplyCommandDocs(client *c, struct redisCommand *cmd) {
     /* Count our reply len so we don't have to use deferred reply. */
+    /**计算我们的回复 len，这样我们就不必使用延迟回复。*/
     long maplen = 1;
     if (cmd->summary) maplen++;
     if (cmd->since) maplen++;
@@ -5014,6 +5282,7 @@ void addReplyCommandDocs(client *c, struct redisCommand *cmd) {
     }
 
     /* Always have the group, for module commands the group is always "module". */
+    /**总是有组，对于模块命令，组总是“模块”。*/
     addReplyBulkCString(c, "group");
     addReplyBulkCString(c, COMMAND_GROUP_STR[cmd->group]);
 
@@ -5266,7 +5535,7 @@ void commandInfoCommand(client *c) {
 void commandDocsCommand(client *c) {
     int i;
     if (c->argc == 2) {
-        /* Reply with an array of all commands */
+        /* Reply with an array of all commands 回复所有命令的数组*/
         dictIterator *di;
         dictEntry *de;
         addReplyMapLen(c, dictSize(server.commands));
@@ -5279,6 +5548,7 @@ void commandDocsCommand(client *c) {
         dictReleaseIterator(di);
     } else {
         /* Reply with an array of the requested commands (if we find them) */
+        /**回复一组请求的命令（如果我们找到它们）*/
         int numcmds = 0;
         void *replylen = addReplyDeferredLen(c);
         for (i = 2; i < c->argc; i++) {
@@ -5327,6 +5597,7 @@ NULL
 
 /* Convert an amount of bytes into a human readable string in the form
  * of 100B, 2G, 100M, 4K, and so forth. */
+/**将一定数量的字节转换为 100B、2G、100M、4K 等形式的人类可读字符串。*/
 void bytesToHuman(char *s, unsigned long long n) {
     double d;
 
@@ -5354,7 +5625,7 @@ void bytesToHuman(char *s, unsigned long long n) {
     }
 }
 
-/* Fill percentile distribution of latencies. */
+/* Fill percentile distribution of latencies. 填充延迟的百分位分布。*/
 sds fillPercentileDistributionLatencies(sds info, const char* histogram_name, struct hdr_histogram* histogram) {
     info = sdscatfmt(info,"latency_percentiles_usec_%s:",histogram_name);
     for (int j = 0; j < server.latency_tracking_info_percentiles_len; j++) {
@@ -5384,14 +5655,16 @@ const char *replstateToString(int replstate) {
     }
 }
 
-/* Characters we sanitize on INFO output to maintain expected format. */
+/* Characters we sanitize on INFO output to maintain expected format. 我们对 INFO 输出中的字符进行清理以保持预期的格式。*/
 static char unsafe_info_chars[] = "#:\n\r";
-static char unsafe_info_chars_substs[] = "____";   /* Must be same length as above */
+static char unsafe_info_chars_substs[] = "____";   /* Must be same length as above 必须与上述长度相同*/
 
 /* Returns a sanitized version of s that contains no unsafe info string chars.
  * If no unsafe characters are found, simply returns s. Caller needs to
  * free tmp if it is non-null on return.
  */
+/**返回不包含不安全信息字符串字符的 s 的净化版本。如果没有找到不安全字符，则简单地返回 s。
+ * 如果返回时非空，调用者需要释放 tmp。*/
 const char *getSafeInfoString(const char *s, size_t len, char **tmp) {
     *tmp = NULL;
     if (mempbrk(s, len, unsafe_info_chars,sizeof(unsafe_info_chars)-1)
@@ -5453,6 +5726,7 @@ sds genRedisInfoStringLatencyStats(sds info, dict *commands) {
 }
 
 /* Takes a null terminated sections list, and adds them to the dict. */
+/**获取一个空终止的部分列表，并将它们添加到字典中。*/
 void addInfoSectionsToDict(dict *section_dict, char **sections) {
     while (*sections) {
         sds section = sdsnew(*sections);
@@ -5463,6 +5737,7 @@ void addInfoSectionsToDict(dict *section_dict, char **sections) {
 }
 
 /* Cached copy of the default sections, as an optimization. */
+/**默认部分的缓存副本，作为优化。*/
 static dict *cached_default_info_sections = NULL;
 
 void releaseInfoSectionDict(dict *sec) {
@@ -5475,6 +5750,9 @@ void releaseInfoSectionDict(dict *sec) {
  * 'defaults' is an optional null terminated list of default sections.
  * 'out_all' and 'out_everything' are optional.
  * The resulting dictionary should be released with releaseInfoSectionDict. */
+/**创建一个具有唯一节名称的字典，供 genRedisInfoString 使用。 'argv' 和 'argc' 是 INFO 的参数列表。
+ * 'defaults' 是一个可选的以 null 结尾的默认部分列表。 “out_all”和“out_everything”是可选的。
+ * 生成的字典应该与 releaseInfoSectionDict 一起发布。*/
 dict *genInfoSectionDict(robj **argv, int argc, char **defaults, int *out_all, int *out_everything) {
     char *default_sections[] = {
         "server", "clients", "memory", "persistence", "stats", "replication",
@@ -5485,6 +5763,7 @@ dict *genInfoSectionDict(robj **argv, int argc, char **defaults, int *out_all, i
     if (argc == 0) {
         /* In this case we know the dict is not gonna be modified, so we cache
          * it as an optimization for a common case. */
+        /**在这种情况下，我们知道 dict 不会被修改，因此我们将其缓存为常见情况的优化。*/
         if (cached_default_info_sections)
             return cached_default_info_sections;
         cached_default_info_sections = dictCreate(&stringSetDictType);
@@ -5515,6 +5794,7 @@ dict *genInfoSectionDict(robj **argv, int argc, char **defaults, int *out_all, i
 /* Create the string returned by the INFO command. This is decoupled
  * by the INFO command itself as we need to report the same information
  * on memory corruption problems. */
+/**创建 INFO 命令返回的字符串。这与 INFO 命令本身分离，因为我们需要报告有关内存损坏问题的相同信息。*/
 sds genRedisInfoString(dict *section_dict, int all_sections, int everything) {
     sds info = sdsempty();
     time_t uptime = server.unixtime-server.stat_starttime;
@@ -5545,6 +5825,7 @@ sds genRedisInfoString(dict *section_dict, int all_sections, int everything) {
 
         if (call_uname) {
             /* Uname can be slow and is always the same output. Cache it. */
+            /**Uname 可能很慢，并且始终是相同的输出。缓存它。*/
             uname(&name);
             call_uname = 0;
         }
@@ -5606,7 +5887,7 @@ sds genRedisInfoString(dict *section_dict, int all_sections, int everything) {
             server.configfile ? server.configfile : "",
             server.io_threads_active);
 
-        /* Conditional properties */
+        /* Conditional properties 条件属性*/
         if (isShutdownInitiated()) {
             info = sdscatfmt(info,
                 "shutdown_in_milliseconds:%I\r\n",
@@ -5659,6 +5940,8 @@ sds genRedisInfoString(dict *section_dict, int all_sections, int everything) {
          * may happen that the instantaneous value is slightly bigger than
          * the peak value. This may confuse users, so we update the peak
          * if found smaller than the current memory usage. */
+        /**峰值内存由 serverCron() 不时更新，因此可能会发生瞬时值略大于峰值的情况。
+         * 这可能会使用户感到困惑，因此如果发现小于当前内存使用量，我们会更新峰值。*/
         if (zmalloc_used > server.stat_peak_memory)
             server.stat_peak_memory = zmalloc_used;
 
@@ -5690,7 +5973,7 @@ sds genRedisInfoString(dict *section_dict, int all_sections, int everything) {
             "allocator_resident:%zu\r\n"
             "total_system_memory:%lu\r\n"
             "total_system_memory_human:%s\r\n"
-            "used_memory_lua:%lld\r\n" /* deprecated, renamed to used_memory_vm_eval */
+            "used_memory_lua:%lld\r\n" /* deprecated, renamed to used_memory_vm_eval 已弃用，重命名为 used_memory_vm_eval*/
             "used_memory_vm_eval:%lld\r\n"
             "used_memory_lua_human:%s\r\n" /* deprecated */
             "used_memory_scripts_eval:%lld\r\n"
@@ -5766,7 +6049,9 @@ sds genRedisInfoString(dict *section_dict, int all_sections, int everything) {
             mh->total_frag,       /* This is the total RSS overhead, including
                                      fragmentation, but not just it. This field
                                      (and the next one) is named like that just
-                                     for backward compatibility. */
+                                     for backward compatibility.
+                                     这是总的 RSS 开销，包括碎片，但不仅仅是碎片。
+                                     这个字段（和下一个）被命名只是为了向后兼容。*/
             mh->total_frag_bytes,
             freeMemoryGetNotCountedMemory(),
             mh->repl_backlog,
@@ -5889,6 +6174,7 @@ sds genRedisInfoString(dict *section_dict, int all_sections, int everything) {
                 perc = ((double)server.loading_loaded_bytes / server.loading_rdb_used_mem) * 100;
                 remaining_bytes = server.loading_rdb_used_mem - server.loading_loaded_bytes;
                 /* used mem is only a (bad) estimation of the rdb file size, avoid going over 100% */
+                /**used mem 只是对 rdb 文件大小的（错误）估计，避免超过 100%*/
                 if (perc > 99.99) perc = 99.99;
                 if (remaining_bytes < 1) remaining_bytes = 1;
             }
@@ -5896,7 +6182,7 @@ sds genRedisInfoString(dict *section_dict, int all_sections, int everything) {
             elapsed = time(NULL)-server.loading_start_time;
             if (elapsed == 0) {
                 eta = 1; /* A fake 1 second figure if we don't have
-                            enough info */
+                            enough info 如果我们没有足够的信息，一个假的 1 秒数字*/
             } else {
                 eta = (elapsed*remaining_bytes)/(server.loading_loaded_bytes+1);
             }
@@ -6117,6 +6403,7 @@ sds genRedisInfoString(dict *section_dict, int all_sections, int everything) {
 
         /* If min-slaves-to-write is active, write the number of slaves
          * currently considered 'good'. */
+        /**如果 min-slaves-to-write 处于活动状态，则写入当前认为“好”的从属设备的数量。*/
         if (server.repl_min_slaves_to_write &&
             server.repl_min_slaves_max_lag) {
             info = sdscatprintf(info,
@@ -6237,6 +6524,7 @@ sds genRedisInfoString(dict *section_dict, int all_sections, int everything) {
     }
 
     /* Latency by percentile distribution per command */
+    /**每个命令按百分位分布的延迟*/
     if (all_sections || (dictFind(section_dict,"latencystats") != NULL)) {
         if (sections++) info = sdscat(info,"\r\n");
         info = sdscatprintf(info, "# Latencystats\r\n");
@@ -6274,6 +6562,7 @@ sds genRedisInfoString(dict *section_dict, int all_sections, int everything) {
     /* Get info from modules.
      * if user asked for "everything" or "modules", or a specific section
      * that's not found yet. */
+    /**从模块中获取信息。如果用户要求“一切”或“模块”，或尚未找到的特定部分。*/
     if (everything || dictFind(section_dict, "modules") != NULL || sections < (int)dictSize(section_dict)) {
 
         info = modulesCollectInfo(info,
@@ -6338,6 +6627,7 @@ int checkIgnoreWarning(const char *warning) {
 #include <sys/prctl.h>
 /* since linux-3.5, kernel supports to set the state of the "THP disable" flag
  * for the calling thread. PR_SET_THP_DISABLE is defined in linux/prctl.h */
+/**从 linux-3.5 开始，内核支持为调用线程设置“THP disable”标志的状态。 PR_SET_THP_DISABLE 在 linuxprctl.h 中定义*/
 static int THPDisable(void) {
     int ret = -EINVAL;
 
@@ -6372,9 +6662,11 @@ void linuxMemoryWarnings(void) {
 void createPidFile(void) {
     /* If pidfile requested, but no pidfile defined, use
      * default pidfile path */
+    /**如果请求了 pidfile，但未定义 pidfile，则使用默认 pidfile 路径*/
     if (!server.pidfile) server.pidfile = zstrdup(CONFIG_DEFAULT_PID_FILE);
 
     /* Try to write the pid file in a best-effort way. */
+    /**尝试以尽力而为的方式编写 pid 文件。*/
     FILE *fp = fopen(server.pidfile,"w");
     if (fp) {
         fprintf(fp,"%d\n",(int)getpid());
@@ -6391,6 +6683,7 @@ void daemonize(void) {
     /* Every output goes to /dev/null. If Redis is daemonized but
      * the 'logfile' is set to 'stdout' in the configuration file
      * it will not log at all. */
+    /**每个输出都转到 devnull。如果 Redis 是守护进程，但配置文件中的“logfile”设置为“stdout”，则它根本不会记录。*/
     if ((fd = open("/dev/null", O_RDWR, 0)) != -1) {
         dup2(fd, STDIN_FILENO);
         dup2(fd, STDOUT_FILENO);
@@ -6443,6 +6736,8 @@ void redisAsciiArt(void) {
     /* Show the ASCII logo if: log file is stdout AND stdout is a
      * tty AND syslog logging is disabled. Also show logo if the user
      * forced us to do so via redis.conf. */
+    /**在以下情况下显示 ASCII 徽标：日志文件是标准输出并且标准输出是 tty 并且 syslog 日志记录被禁用。
+     * 如果用户通过 redis.conf 强迫我们这样做，也会显示徽标。*/
     int show_logo = ((!server.syslog_enabled &&
                       server.logfile[0] == '\0' &&
                       isatty(fileno(stdout))) ||
@@ -6483,6 +6778,7 @@ int changeBindAddr(void) {
     }
 
     /* Create TCP and TLS event handlers */
+    /**创建 TCP 和 TLS 事件处理程序*/
     if (createSocketAcceptHandler(&server.ipfd, acceptTcpHandler) != C_OK) {
         serverPanic("Unrecoverable error creating TCP socket accept handler.");
     }
@@ -6501,7 +6797,7 @@ int changeListenPort(int port, socketFds *sfd, aeFileProc *accept_handler) {
     /* Close old servers */
     closeSocketListeners(sfd);
 
-    /* Just close the server if port disabled */
+    /* Just close the server if port disabled 如果端口禁用，只需关闭服务器*/
     if (port == 0) {
         if (server.set_proc_title) redisSetProcTitle(NULL);
         return C_OK;
@@ -6545,6 +6841,8 @@ static void sigShutdownHandler(int sig) {
      * If we receive the signal the second time, we interpret this as
      * the user really wanting to quit ASAP without waiting to persist
      * on disk and without waiting for lagging replicas. */
+    /**SIGINT 通常在交互式会话中通过 Ctrl+C 传递。如果我们第二次收到该信号，
+     * 我们会将其解释为用户真的想尽快退出，而不是等待在磁盘上持久化，也不需要等待滞后的副本。*/
     if (server.shutdown_asap && sig == SIGINT) {
         serverLogFromHandler(LL_WARNING, "You insist... exiting now.");
         rdbRemoveTempFile(getpid(), 1);
@@ -6563,6 +6861,7 @@ void setupSignalHandlers(void) {
 
     /* When the SA_SIGINFO flag is set in sa_flags then sa_sigaction is used.
      * Otherwise, sa_handler is used. */
+    /**如果在 sa_flags 中设置了 SA_SIGINFO 标志，则使用 sa_sigaction。否则，使用 sa_handler。*/
     sigemptyset(&act.sa_mask);
     act.sa_flags = 0;
     act.sa_handler = sigShutdownHandler;
@@ -6598,6 +6897,8 @@ void removeSignalHandlers(void) {
  * in order to track the SIGUSR1, that we send to a child in order to terminate
  * it in a clean way, without the parent detecting an error and stop
  * accepting writes because of a write error condition. */
+/**这是子进程的信号处理程序。它目前用于跟踪 SIGUSR1，我们将其发送给子节点以便以干净的方式终止它，
+ * 而父节点不会检测到错误并由于写入错误条件而停止接受写入。*/
 static void sigKillChildHandler(int sig) {
     UNUSED(sig);
     int level = server.in_fork_child == CHILD_TYPE_MODULE? LL_VERBOSE: LL_WARNING;
@@ -6610,6 +6911,7 @@ void setupChildSignalHandlers(void) {
 
     /* When the SA_SIGINFO flag is set in sa_flags then sa_sigaction is used.
      * Otherwise, sa_handler is used. */
+    /**如果在 sa_flags 中设置了 SA_SIGINFO 标志，则使用 sa_sigaction。否则，使用 sa_handler。*/
     sigemptyset(&act.sa_mask);
     act.sa_flags = 0;
     act.sa_handler = sigKillChildHandler;
@@ -6620,18 +6922,21 @@ void setupChildSignalHandlers(void) {
  * of the parent process, e.g. fd(socket or flock) etc.
  * should close the resources not used by the child process, so that if the
  * parent restarts it can bind/lock despite the child possibly still running. */
+/**fork 后，子进程会继承父进程的资源，例如fd(socket orflock) 等应该关闭子进程未使用的资源，
+ * 这样如果父进程重新启动它可以绑定锁，尽管子进程可能仍在运行。*/
 void closeChildUnusedResourceAfterFork() {
     closeListeningSockets(0);
     if (server.cluster_enabled && server.cluster_config_file_lock_fd != -1)
-        close(server.cluster_config_file_lock_fd);  /* don't care if this fails */
+        close(server.cluster_config_file_lock_fd);  /* don't care if this fails 不在乎这是否失败*/
 
     /* Clear server.pidfile, this is the parent pidfile which should not
      * be touched (or deleted) by the child (on exit / crash) */
+    /**清除 server.pidfile，这是父 pidfile，不应被子进程触摸（或删除）（退出崩溃时）*/
     zfree(server.pidfile);
     server.pidfile = NULL;
 }
 
-/* purpose is one of CHILD_TYPE_ types */
+/* purpose is one of CHILD_TYPE_ types 用途是 CHILD_TYPE_ 类型之一*/
 int redisFork(int purpose) {
     if (isMutuallyExclusiveChildType(purpose)) {
         if (hasActiveChildProcess()) {
@@ -6651,6 +6956,8 @@ int redisFork(int purpose) {
          * Setup signal handlers first because a signal could fire at any time.
          * Adjust OOM score before everything else to assist the OOM killer if
          * memory resources are low.
+         * 设置的顺序遵循一些推理：
+         *   首先设置信号处理程序，因为信号可能随时触发。如果内存资源不足，请先调整 OOM 分数以协助 OOM 杀手。
          */
         server.in_fork_child = purpose;
         setupChildSignalHandlers();
@@ -6678,6 +6985,10 @@ int redisFork(int purpose) {
          * - it isn't used for production, so it will not make the server be less efficient
          * - used for debugging, and we don't want to block it from running while other
          *   forks are running (like RDB and AOF) */
+        /**child_pid 和 child_type 仅适用于互斥的孩子。其他子类型应处理并将其 pid 存储在专用变量中。
+         * 今天，我们允许 CHILD_TYPE_LDB 与其他 fork 类型并行运行：
+         *   - 它不用于生产，因此不会降低服务器效率
+         *   - 用于调试，我们不想阻止它运行当其他分叉正在运行时（如 RDB 和 AOF）*/
         if (isMutuallyExclusiveChildType(purpose)) {
             server.child_pid = childpid;
             server.child_type = purpose;
@@ -6714,23 +7025,32 @@ void sendChildInfo(childInfoType info_type, size_t keys, char *pname) {
  * Also please note that the size may be not accurate, so in order to make this
  * solution effective, the judgement for releasing memory pages should not be
  * too strict. */
+/**尝试将页面直接释放回操作系统（绕过分配器），以减少分叉期间的 CoW。
+ * 对于小的分配，我们不能释放任何完整的页面，所以为了避免在我们已经知道
+ * 它很小的情况下从分配器 (malloc_size) 获取分配的大小，我们检查 size_hint。
+ * 如果大小未知，传递 0 的 size_hint 将导致检查分配的实际大小。
+ * 另外请注意，大小可能不准确，所以为了使这个方案有效，释放内存页的判断不要太严格。*/
 void dismissMemory(void* ptr, size_t size_hint) {
     if (ptr == NULL) return;
 
     /* madvise(MADV_DONTNEED) can not release pages if the size of memory
      * is too small, we try to release only for the memory which the size
      * is more than half of page size. */
+    /**如果内存太小，madvise(MADV_DONTNEED) 无法释放页面，我们尝试只释放超过页面大小一半的内存。*/
     if (size_hint && size_hint <= server.page_size/2) return;
 
     zmadvise_dontneed(ptr);
 }
 
 /* Dismiss big chunks of memory inside a client structure, see dismissMemory() */
+/**消除客户端结构中的大块内存，请参阅dismissMemory()*/
 void dismissClientMemory(client *c) {
     /* Dismiss client query buffer and static reply buffer. */
+    /**关闭客户端查询缓冲区和静态回复缓冲区。*/
     dismissMemory(c->buf, c->buf_usable_size);
     dismissSds(c->querybuf);
     /* Dismiss argv array only if we estimate it contains a big buffer. */
+    /**仅当我们估计它包含一个大缓冲区时才关闭 argv 数组。*/
     if (c->argc && c->argv_len_sum/c->argc >= server.page_size) {
         for (int i = 0; i < c->argc; i++) {
             dismissObject(c->argv[i], 0);
@@ -6740,6 +7060,7 @@ void dismissClientMemory(client *c) {
 
     /* Dismiss the reply array only if the average buffer size is bigger
      * than a page. */
+    /**仅当平均缓冲区大小大于一页时才关闭回复数组。*/
     if (listLength(c->reply) &&
         c->reply_bytes/listLength(c->reply) >= server.page_size)
     {
@@ -6750,6 +7071,7 @@ void dismissClientMemory(client *c) {
             clientReplyBlock *bulk = listNodeValue(ln);
             /* Default bulk size is 16k, actually it has extra data, maybe it
              * occupies 20k according to jemalloc bin size if using jemalloc. */
+            /**默认的bulk size是16k，实际上它有额外的数据，如果使用jemalloc，根据jemalloc bin size可能会占用20k。*/
             if (bulk) dismissMemory(bulk, bulk->size);
         }
     }
@@ -6759,12 +7081,17 @@ void dismissClientMemory(client *c) {
  * likely to change in the parent when there's heavy write traffic.
  * We dismiss them right away, to avoid CoW.
  * see dismissMemeory(). */
+/**在子进程中，我们不再需要一些缓冲区，当写入流量很大时，这些缓冲区可能会在父进程中发生变化。
+ * 我们立即解雇他们，以避免出现 CoW。见dismissMemeory()。*/
 void dismissMemoryInChild(void) {
     /* madvise(MADV_DONTNEED) may not work if Transparent Huge Pages is enabled. */
+    /**如果启用了透明大页面，madvise(MADV_DONTNEED) 可能不起作用。*/
     if (server.thp_enabled) return;
 
     /* Currently we use zmadvise_dontneed only when we use jemalloc with Linux.
      * so we avoid these pointless loops when they're not going to do anything. */
+    /**目前，我们仅在将 jemalloc 与 Linux 一起使用时才使用 zmadvise_dontneed。
+     * 因此，当它们不打算做任何事情时，我们会避免这些无意义的循环。*/
 #if defined(USE_JEMALLOC) && defined(__linux__)
     listIter li;
     listNode *ln;
@@ -6772,13 +7099,14 @@ void dismissMemoryInChild(void) {
     /* Dismiss replication buffer. We don't need to separately dismiss replication
      * backlog and replica' output buffer, because they just reference the global
      * replication buffer but don't cost real memory. */
+    /**关闭复制缓冲区。我们不需要单独关闭复制积压和副本的输出缓冲区，因为它们只是引用全局复制缓冲区，但不占用实际内存。*/
     listRewind(server.repl_buffer_blocks, &li);
     while((ln = listNext(&li))) {
         replBufBlock *o = listNodeValue(ln);
         dismissMemory(o, o->size);
     }
 
-    /* Dismiss all clients memory. */
+    /* Dismiss all clients memory. 关闭所有客户端内存。*/
     listRewind(server.clients, &li);
     while((ln = listNext(&li))) {
         client *c = listNodeValue(ln);
@@ -6791,6 +7119,7 @@ void memtest(size_t megabytes, int passes);
 
 /* Returns 1 if there is --sentinel among the arguments or if
  * executable name contains "redis-sentinel". */
+/**如果参数中有 --sentinel 或可执行文件名称包含“redis-sentinel”，则返回 1。*/
 int checkForSentinelMode(int argc, char **argv, char *exec_name) {
     if (strstr(exec_name,"redis-sentinel") != NULL) return 1;
 
@@ -6800,6 +7129,7 @@ int checkForSentinelMode(int argc, char **argv, char *exec_name) {
 }
 
 /* Function called at startup to load RDB or AOF file in memory. */
+/**启动时调用的函数，用于在内存中加载 RDB 或 AOF 文件。*/
 void loadDataFromDisk(void) {
     long long start = ustime();
     if (server.aof_state == AOF_ON) {
@@ -6810,11 +7140,12 @@ void loadDataFromDisk(void) {
             serverLog(LL_NOTICE, "DB loaded from append only file: %.3f seconds", (float)(ustime()-start)/1000000);
     } else {
         rdbSaveInfo rsi = RDB_SAVE_INFO_INIT;
-        errno = 0; /* Prevent a stale value from affecting error checking */
+        errno = 0; /* Prevent a stale value from affecting error checking 防止陈旧的值影响错误检查*/
         int rdb_flags = RDBFLAGS_NONE;
         if (iAmMaster()) {
             /* Master may delete expired keys when loading, we should
              * propagate expire to replication backlog. */
+            /**Master 在加载时可能会删除过期的密钥，我们应该将过期传播到复制积压。*/
             createReplicationBacklog();
             rdb_flags |= RDBFLAGS_FEED_REPL;
         }
@@ -6823,11 +7154,14 @@ void loadDataFromDisk(void) {
                 (float)(ustime()-start)/1000000);
 
             /* Restore the replication ID / offset from the RDB file. */
+            /**从 RDB 文件恢复复制 ID 偏移量。*/
             if (rsi.repl_id_is_set &&
                 rsi.repl_offset != -1 &&
                 /* Note that older implementations may save a repl_stream_db
                  * of -1 inside the RDB file in a wrong way, see more
                  * information in function rdbPopulateSaveInfo. */
+                /**请注意，较旧的实现可能会以错误的方式在 RDB 文件中保存 -1 的 repl_stream_db，
+                 * 请参阅函数 rdbPopulateSaveInfo 中的更多信息。*/
                 rsi.repl_stream_db != -1)
             {
                 if (!iAmMaster()) {
@@ -6836,15 +7170,18 @@ void loadDataFromDisk(void) {
                     /* If this is a replica, create a cached master from this
                      * information, in order to allow partial resynchronizations
                      * with masters. */
+                    /**如果这是一个副本，请根据此信息创建一个缓存的主控，以允许与主控进行部分重新同步。*/
                     replicationCacheMasterUsingMyself();
                     selectDb(server.cached_master,rsi.repl_stream_db);
                 } else {
                     /* If this is a master, we can save the replication info
                      * as secondary ID and offset, in order to allow replicas
                      * to partial resynchronizations with masters. */
+                    /**如果这是主服务器，我们可以将复制信息保存为辅助 ID 和偏移量，以允许副本与主服务器进行部分重新同步。*/
                     memcpy(server.replid2,rsi.repl_id,sizeof(server.replid));
                     server.second_replid_offset = rsi.repl_offset+1;
                     /* Rebase master_repl_offset from rsi.repl_offset. */
+                    /**从 rsi.repl_offset 重新设置 master_repl_offset。*/
                     server.master_repl_offset += rsi.repl_offset;
                     serverAssert(server.repl_backlog);
                     server.repl_backlog->offset = server.master_repl_offset -

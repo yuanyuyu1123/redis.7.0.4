@@ -256,14 +256,12 @@ void sdsclear(sds s) {
  *
  * Note: this does not change the *length* of the sds string as returned
  * by sdslen(), but only the free buffer space we have. */
-/**
- * 扩大 sds 字符串末尾的可用空间，以便调用者确定调用此函数后可以覆盖字符串末尾后的 addlen 个字节，
+/** 扩大 sds 字符串末尾的可用空间，以便调用者确定调用此函数后可以覆盖字符串末尾后的 addlen 个字节，
  * 再加上一个字节用于 nul 项。如果已经有足够的可用空间，则此函数不执行任何操作就返回，
  * 如果没有足够的可用空间，它将分配缺少的空间，
  * 甚至可能更多：当贪婪为 1 时，扩大超出需要的范围，以避免将来需要重新分配关于增量增长。
  * 当 greedy 为 0 时，放大到刚好有足够的空间供 'addlen' 使用。
- * 注意：这不会改变 sdslen() 返回的 sds 字符串的长度，而只会改变我们拥有的可用缓冲区空间。
- * */
+ * 注意：这不会改变 sdslen() 返回的 sds 字符串的长度，而只会改变我们拥有的可用缓冲区空间。*/
 sds _sdsMakeRoomFor(sds s, size_t addlen, int greedy) {
     void *sh, *newsh;
     size_t avail = sdsavail(s);

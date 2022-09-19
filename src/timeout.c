@@ -57,11 +57,9 @@ int checkBlockedClientTimeout(client *c, mstime_t now) {
  * The function gets the current time in milliseconds as argument since
  * it gets called multiple times in a loop, so calling gettimeofday() for
  * each iteration would be costly without any actual gain. */
-/**
- * 检查超时。如果客户端终止，则返回非零值。
+/**检查超时。如果客户端终止，则返回非零值。
  * 该函数获取当前时间（以毫秒为单位）作为参数，因为它在循环中被多次调用，
- * 因此每次迭代调用 gettimeofday() 代价高昂且没有任何实际收益。
- * */
+ * 因此每次迭代调用 gettimeofday() 代价高昂且没有任何实际收益。*/
 int clientsCronHandleTimeout(client *c, mstime_t now_ms) {
     time_t now = now_ms/1000;
 
@@ -101,12 +99,10 @@ int clientsCronHandleTimeout(client *c, mstime_t now_ms) {
  * Every time a client blocks with a timeout, we add the client in
  * the tree. In beforeSleep() we call handleBlockedClientsTimeout() to run
  * the tree and unblock the clients. */
-/**
- * 对于阻塞的客户端超时，我们填充 128 位密钥的基数树，其组成如下：[8 字节大端过期时间]+[8 字节客户端 ID]
+/**对于阻塞的客户端超时，我们填充 128 位密钥的基数树，其组成如下：[8 字节大端过期时间]+[8 字节客户端 ID]
  * 我们不对基数树进行任何清理：当我们运行客户端时已经达到超时，如果它们不再存在或不再被这种超时阻塞，我们就继续前进。
  * 每次客户端因超时而阻塞时，我们都会在树中添加客户端。在 beforeSleep() 中，
- * 我们调用 handleBlockedClientsTimeout() 来运行树并解除对客户端的阻塞。
- * */
+ * 我们调用 handleBlockedClientsTimeout() 来运行树并解除对客户端的阻塞。*/
 
 #define CLIENT_ST_KEYLEN 16    /* 8 bytes mstime + 8 bytes client ID. */
 
@@ -131,10 +127,8 @@ void decodeTimeoutKey(unsigned char *buf, uint64_t *toptr, client **cptr) {
 /* Add the specified client id / timeout as a key in the radix tree we use
  * to handle blocked clients timeouts. The client is not added to the list
  * if its timeout is zero (block forever). */
-/**
- * 在我们用来处理阻塞客户端超时的基数树中添加指定的客户端 ID 超时作为键。
- * 如果客户端超时为零（永远阻塞），则客户端不会添加到列表中。
- * */
+/**在我们用来处理阻塞客户端超时的基数树中添加指定的客户端 ID 超时作为键。
+ * 如果客户端超时为零（永远阻塞），则客户端不会添加到列表中。*/
 void addClientToTimeoutTable(client *c) {
     if (c->bpop.timeout == 0) return;
     uint64_t timeout = c->bpop.timeout;
@@ -187,11 +181,9 @@ void handleBlockedClientsTimeout(void) {
  * Note that if the timeout is zero (usually from the point of view of
  * commands API this means no timeout) the value stored into 'timeout'
  * is zero. */
-/**
- * 从对象中获取超时值并将其存储到“超时”中。
+/**从对象中获取超时值并将其存储到“超时”中。
  * 最终超时始终以毫秒为单位存储为超时将到期的时间，但是解析是根据“单位”执行的，可以是秒或毫秒。
- * 请注意，如果超时为零（通常从命令 API 的角度来看，这意味着没有超时），则存储在“超时”中的值为零。
- * */
+ * 请注意，如果超时为零（通常从命令 API 的角度来看，这意味着没有超时），则存储在“超时”中的值为零。*/
 int getTimeoutFromObjectOrReply(client *c, robj *object, mstime_t *timeout, int unit) {
     long long tval;
     long double ftval;

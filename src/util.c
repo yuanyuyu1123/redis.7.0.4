@@ -199,11 +199,9 @@ int stringmatchlen_fuzz_test(void) {
  * On parsing error, if *err is not NULL, it's set to 1, otherwise it's
  * set to 0. On error the function return value is 0, regardless of the
  * fact 'err' is NULL or not. */
-/**
- * 将表示内存量的字符串转换为字节数，例如 memtoull("1Gb") 将返回 1073741824 即 (102410241024)。
+/**将表示内存量的字符串转换为字节数，例如 memtoull("1Gb") 将返回 1073741824 即 (102410241024)。
  * 解析错误时，如果 err 不为 NULL，则设置为 1，否则设置为 0。
- * 错误时，函数返回值为 0，无论 'err' 是否为 NULL。
- * */
+ * 错误时，函数返回值为 0，无论 'err' 是否为 NULL。*/
 unsigned long long memtoull(const char *p, int *err) {
     const char *u;
     char buf[128];
@@ -262,8 +260,7 @@ unsigned long long memtoull(const char *p, int *err) {
 }
 
 /* Search a memory buffer for any set of bytes, like strpbrk().
- * Returns pointer to first found char or NULL.
- */
+ * Returns pointer to first found char or NULL.*/
 //在内存缓冲区中搜索任何字节集，例如 strpbrk()。返回指向第一个找到的 char 或 NULL 的指针。
 const char *mempbrk(const char *s, size_t len, const char *chars, size_t charslen) {
     for (size_t j = 0; j < len; j++) {
@@ -275,8 +272,7 @@ const char *mempbrk(const char *s, size_t len, const char *chars, size_t charsle
 }
 
 /* Modify the buffer replacing all occurrences of chars from the 'from'
- * set with the corresponding char in the 'to' set. Always returns s.
- */
+ * set with the corresponding char in the 'to' set. Always returns s.*/
 //修改缓冲区，将“from”集中所有出现的字符替换为“to”集中的相应字符。总是返回 s。
 char *memmapchars(char *s, size_t len, const char *from, const char *to, size_t setlen) {
     for (size_t j = 0; j < len; j++) {

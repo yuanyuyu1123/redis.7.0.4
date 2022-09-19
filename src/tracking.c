@@ -43,8 +43,10 @@
  * them when invalidation messages are received. */
 /**
  * 跟踪表由密钥基数树构成，每个密钥都指向客户端 ID 的基数树，用于跟踪可能在其本地客户端缓存中具有某些密钥的客户端。
+ *
  * 当客户端使用“CLIENT TRACKING on”启用跟踪时，提供给客户端的每个键都会在将键映射到客户端 ID 的表中被记住。
  * 稍后，当一个密钥被修改时，所有可能拥有该密钥本地副本的客户端都会收到一条失效消息。
+ *
  * 客户端通常会在内存中获取频繁请求的对象，并在收到无效消息时将其删除。
  * */
 rax *TrackingTable = NULL;
@@ -72,11 +74,9 @@ typedef struct bcastState {
  * table, so we'll remove the ID reference in a lazy way. Otherwise when a
  * client with many entries in the table is removed, it would cost a lot of
  * time to do the cleanup. */
-/**
- * 从客户端“c”中删除跟踪状态。注意这里对我们来说没什么可做的，如果不是在跟踪模式下减少客户端的计数器，
+/**从客户端“c”中删除跟踪状态。注意这里对我们来说没什么可做的，如果不是在跟踪模式下减少客户端的计数器，
  * 因为我们只是将客户端的ID存储在跟踪表中，所以我们将在惰性中删除ID引用方法。
- * 否则，当删除表中包含许多条目的客户端时，将花费大量时间进行清理。
- * */
+ * 否则，当删除表中包含许多条目的客户端时，将花费大量时间进行清理。*/
 void disableTracking(client *c) {
     /* If this client is in broadcasting mode, we need to unsubscribe it
      * from all the prefixes it is registered to. */
@@ -124,11 +124,9 @@ static int stringCheckPrefix(unsigned char *s1, size_t s1_len, unsigned char *s2
  * prefixes that will emit an invalidation for the same key. If no prefix 
  * collision is found, 1 is return, otherwise 0 is returned and the client 
  * has an error emitted describing the error. */
-/**
- * 检查任何提供的前缀是否相互冲突或与客户端的现有前缀冲突。
+/**检查任何提供的前缀是否相互冲突或与客户端的现有前缀冲突。
  * 冲突被定义为两个前缀，它们将为同一个键发出无效。
- * 如果没有发现前缀冲突，则返回 1，否则返回 0，并且客户端会发出描述错误的错误。
- * */
+ * 如果没有发现前缀冲突，则返回 1，否则返回 0，并且客户端会发出描述错误的错误。*/
 int checkPrefixCollisionsOrReply(client *c, robj **prefixes, size_t numprefix) {
     for (size_t i = 0; i < numprefix; i++) {
         /* Check input list has no overlap with existing prefixes. */
@@ -201,12 +199,10 @@ void enableBcastTrackingForPrefix(client *c, char *prefix, size_t plen) {
  * eventually get freed, we'll send a message to the original client to
  * inform it of the condition. Multiple clients can redirect the invalidation
  * messages to the same client ID. */
-/**
- * 启用客户端“c”的跟踪状态，并作为副作用在需要时分配跟踪表。
+/**启用客户端“c”的跟踪状态，并作为副作用在需要时分配跟踪表。
  * 如果“redirect_to”参数不为零，则此客户端的无效消息将发送到“redirect_to”参数指定的客户端 ID。
  * 请注意，如果此类客户端最终将被释放，我们将向原始客户端发送一条消息以告知其条件。
- * 多个客户端可以将失效消息重定向到相同的客户端 ID。
- * */
+ * 多个客户端可以将失效消息重定向到相同的客户端 ID。*/
 void enableTracking(client *c, uint64_t redirect_to, uint64_t options, robj **prefix, size_t numprefix) {
     if (!(c->flags & CLIENT_TRACKING)) server.tracking_clients++;
     c->flags |= CLIENT_TRACKING;
@@ -247,10 +243,8 @@ void enableTracking(client *c, uint64_t redirect_to, uint64_t options, robj **pr
  * to the keys the user fetched, so that Redis will know what are the clients
  * that should receive an invalidation message with certain groups of keys
  * are modified. */
-/**
- * 如果客户端“c”启用了密钥跟踪并且跟踪未处于 BCAST 模式，则在执行只读命令后调用此函数。
- * 它将根据用户获取的密钥填充跟踪失效表，以便 Redis 知道哪些客户端应该收到修改了某些密钥组的失效消息。
- * */
+/**如果客户端“c”启用了密钥跟踪并且跟踪未处于 BCAST 模式，则在执行只读命令后调用此函数。
+ * 它将根据用户获取的密钥填充跟踪失效表，以便 Redis 知道哪些客户端应该收到修改了某些密钥组的失效消息。*/
 void trackingRememberKeys(client *c) {
     /* Return if we are in optin/out mode and the right CACHING command
      * was/wasn't given in order to modify the default behavior. */
@@ -337,11 +331,9 @@ void sendTrackingMessage(client *c, char *keyname, size_t keylen, int proto) {
      * if redirection is active, and the connection we redirect to is
      * in Pub/Sub mode, we can support the feature with RESP 2 as well,
      * by sending Pub/Sub messages in the __redis__:invalidate channel. */
-    /**
-     * 仅为 RESP 版本 3 或更高版本的客户发送此类信息。
+    /**仅为 RESP 版本 3 或更高版本的客户发送此类信息。
      * 但是，如果重定向处于活动状态，并且我们重定向到的连接处于 PubSub 模式，
-     * 我们也可以通过在 __redis__:invalidate 通道中发送 PubSub 消息来支持 RESP 2 的功能。
-     * */
+     * 我们也可以通过在 __redis__:invalidate 通道中发送 PubSub 消息来支持 RESP 2 的功能。*/
     if (c->resp > 2) {
         addReplyPushLen(c,2);
         addReplyBulkCBuffer(c,"invalidate",10);
@@ -355,10 +347,8 @@ void sendTrackingMessage(client *c, char *keyname, size_t keylen, int proto) {
          * redirecting to another client. We can't send anything to
          * it since RESP2 does not support push messages in the same
          * connection. */
-        /**
-         * 如果在这里，客户端没有使用 RESP3，也没有重定向到另一个客户端。
-         * 我们不能向它发送任何东西，因为 RESP2 不支持在同一连接中推送消息。
-         * */
+        /**如果在这里，客户端没有使用 RESP3，也没有重定向到另一个客户端。
+         * 我们不能向它发送任何东西，因为 RESP2 不支持在同一连接中推送消息。*/
         return;
     }
 
@@ -379,11 +369,9 @@ void sendTrackingMessage(client *c, char *keyname, size_t keylen, int proto) {
  * matches one or more prefixes in the prefix table. Later when we
  * return to the event loop, we'll send invalidation messages to the
  * clients subscribed to each prefix. */
-/**
- * 当在 Redis 中修改密钥时调用此函数，如果我们至少有一个启用了 BCAST 模式的客户端。
+/**当在 Redis 中修改密钥时调用此函数，如果我们至少有一个启用了 BCAST 模式的客户端。
  * 它的目标是如果密钥与前缀表中的一个或多个前缀匹配，则将密钥设置为正确的广播状态。
- * 稍后当我们返回事件循环时，我们将向订阅每个前缀的客户端发送失效消息。
- * */
+ * 稍后当我们返回事件循环时，我们将向订阅每个前缀的客户端发送失效消息。*/
 void trackingRememberKeyToBroadcast(client *c, char *keyname, size_t keylen) {
     raxIterator ri;
     raxStart(&ri,PrefixTable);
@@ -397,10 +385,8 @@ void trackingRememberKeyToBroadcast(client *c, char *keyname, size_t keylen) {
          * tree. This way we know who was the client that did the last
          * change to the key, and can avoid sending the notification in the
          * case the client is in NOLOOP mode. */
-        /**
-         * 我们将客户端指针作为关联值插入基数树中。
-         * 这样我们就知道谁是对密钥进行最后一次更改的客户端，并且可以避免在客户端处于 NOLOOP 模式的情况下发送通知。
-         * */
+        /**我们将客户端指针作为关联值插入基数树中。
+         * 这样我们就知道谁是对密钥进行最后一次更改的客户端，并且可以避免在客户端处于 NOLOOP 模式的情况下发送通知。*/
         raxInsert(bs->keys,(unsigned char*)keyname,keylen,c,NULL);
     }
     raxStop(&ri);
@@ -425,7 +411,9 @@ void trackingRememberKeyToBroadcast(client *c, char *keyname, size_t keylen) {
 /**
  * 当 key 改变值时，从 signalModifiedKey() 或 Redis 中的其他地方调用此函数。
  * 在密钥跟踪的上下文中，我们的任务是向每个可能拥有关于此类缓存槽的密钥的客户端发送通知。
+ *
  * 请注意，如果操作是在客户端修改数据库的上下文之外执行的（例如，当我们因为过期而删除键时），“c”可能为 NULL。
+ *
  * 最后一个参数“bcast”告诉函数它是否还应该调度密钥以在 BCAST 模式下向客户端广播。
  * 这是在修改键后从 Redis 核心调用该函数的情况，但是我们也调用该函数以便在内存压力的情况下驱逐键表中的键：
  * 在这种情况下，键并没有真正改变，所以我们只想通知表中的客户端，否则会错过我们不再为他们跟踪密钥的事实。
@@ -454,10 +442,8 @@ void trackingInvalidateKey(client *c, robj *keyobj, int bcast) {
          * previously the client was not in BCAST mode. This can happen if
          * TRACKING is enabled normally, and then the client switches to
          * BCAST mode. */
-        /**
-         * 请注意，如果客户端处于 BCAST 模式，我们不想发送在客户端之前未处于 BCAST 模式的情况下挂起的无效消息。
-         * 如果 TRACKING 正常启用，然后客户端切换到 BCAST 模式，就会发生这种情况。
-         * */
+        /**请注意，如果客户端处于 BCAST 模式，我们不想发送在客户端之前未处于 BCAST 模式的情况下挂起的无效消息。
+         * 如果 TRACKING 正常启用，然后客户端切换到 BCAST 模式，就会发生这种情况。*/
         if (target == NULL ||
             !(target->flags & CLIENT_TRACKING)||
             target->flags & CLIENT_TRACKING_BCAST)
@@ -521,11 +507,9 @@ void trackingHandlePendingKeyInvalidations() {
  * in order to avoid flooding clients with many invalidation messages 
  * for all the keys they may hold.
  */
-/**
- * 当刷新一个或所有 Redis 数据库时调用此函数。
+/**当刷新一个或所有 Redis 数据库时调用此函数。
  * 缓存键不是特定于每个数据库的，而是全局的：目前我们所做的是向启用了跟踪的客户端发送一个特殊通知，
- * 发送一个 RESP NULL，这意味着“所有键”，以避免大量无效的客户端泛滥他们可能持有的所有密钥的消息。
- * */
+ * 发送一个 RESP NULL，这意味着“所有键”，以避免大量无效的客户端泛滥他们可能持有的所有密钥的消息。*/
 void freeTrackingRadixTreeCallback(void *rt) {
     raxFree(rt);
 }
@@ -572,13 +556,10 @@ void trackingInvalidateKeysOnFlush(int async) {
  * specified fill rate: if we are over, we can just evict information about
  * a random key, and send invalidation messages to clients like if the key was
  * modified. */
-/**
- * 跟踪强制 Redis 记住有关哪个客户端可能拥有某些密钥的信息。
+/**跟踪强制 Redis 记住有关哪个客户端可能拥有某些密钥的信息。
  * 在有大量读取但几乎不修改键的工作负载中，我们必须记住服务器端的信息量可能很多，键的数量完全不受限制。
  * 所以 Redis 允许用户为失效表配置最大键数。这个函数确保我们不会超过指定的填充率：
- * 如果我们超过了，我们可以驱逐关于随机密钥的信息，并向客户端发送无效消息，例如密钥是否被修改。
- *
- * */
+ * 如果我们超过了，我们可以驱逐关于随机密钥的信息，并向客户端发送无效消息，例如密钥是否被修改。*/
 void trackingLimitUsedSlots(void) {
     static unsigned int timeout_counter = 0;
     if (TrackingTable == NULL) return;
@@ -592,9 +573,7 @@ void trackingLimitUsedSlots(void) {
     /* We have to invalidate a few keys to reach the limit again. The effort
      * we do here is proportional to the number of times we entered this
      * function and found that we are still over the limit. */
-    /**
-     * 我们必须使一些键失效才能再次达到限制。我们在这里所做的努力与我们进入这个函数的次数成正比，发现我们仍然超出了限制。
-     * */
+    /**我们必须使一些键失效才能再次达到限制。我们在这里所做的努力与我们进入这个函数的次数成正比，发现我们仍然超出了限制。*/
     int effort = 100 * (timeout_counter+1);
 
     /* We just remove one key after another by using a random walk. */
@@ -629,11 +608,10 @@ void trackingLimitUsedSlots(void) {
  * to implement the NOLOOP option.
  *
  * If the resulting array would be empty, NULL is returned instead. */
-/**
- * 为包含“keys”基数树中所有键名的数组生成 Redis 协议。
+/**为包含“keys”基数树中所有键名的数组生成 Redis 协议。
  * 如果客户端不为 NULL，则列表将不包括此客户端上次修改的键，以实现 NOLOOP 选项。
- * 如果结果数组为空，则返回 NULL。
- * */
+ *
+ * 如果结果数组为空，则返回 NULL。*/
 sds trackingBuildBroadcastReply(client *c, rax *keys) {
     raxIterator ri;
     uint64_t count;
@@ -723,9 +701,7 @@ void trackingBroadcastInvalidationMessages(void) {
             /* Clean up: we can remove everything from this state, because we
              * want to only track the new keys that will be accumulated starting
              * from now. */
-            /**
-             * 清理：我们可以从这种状态中删除所有内容，因为我们只想跟踪将从现在开始累积的新密钥。
-             * */
+            /**清理：我们可以从这种状态中删除所有内容，因为我们只想跟踪将从现在开始累积的新密钥。*/
             sdsfree(proto);
         }
         raxFree(bs->keys);

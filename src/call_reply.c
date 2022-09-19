@@ -393,11 +393,9 @@ CallReply *callReplyGetArrayElement(CallReply *rep, size_t idx) {
  * The return value is borrowed from CallReply, so it must not be freed
  * explicitly or used after CallReply itself is freed.
  */
-/**
- * 返回给定索引处的回复集元素。适用于：
+/** 返回给定索引处的回复集元素。适用于：
  * - REDISMODULE_REPLY_SET
- * 返回值是从 CallReply 借来的，所以不能显式释放，也不能在 CallReply 本身释放后使用。
- * */
+ * 返回值是从 CallReply 借来的，所以不能显式释放，也不能在 CallReply 本身释放后使用。*/
 CallReply *callReplyGetSetElement(CallReply *rep, size_t idx) {
     callReplyParse(rep);
     if (rep->type != REDISMODULE_REPLY_SET) return NULL;
@@ -425,13 +423,11 @@ static int callReplyGetMapElementInternal(CallReply *rep, size_t idx, CallReply 
  * The returned values are borrowed from CallReply, so they must not be freed
  * explicitly or used after CallReply itself is freed.
  */
-/**
- * 在给定索引处检索地图回复键和值。适用于：
+/**在给定索引处检索地图回复键和值。适用于：
  * - REDISMODULE_REPLY_MAP
  * 通过key和val引用返回的key和value，如果不需要也可以为NULL。
  * 如果回复类型不匹配或 idx 超出范围，则成功返回 C_OK 或 C_ERR。
- * 返回的值是从 CallReply 借来的，因此它们不能被显式释放或在 CallReply 本身被释放后使用。
- * */
+ * 返回的值是从 CallReply 借来的，因此它们不能被显式释放或在 CallReply 本身被释放后使用。 */
 int callReplyGetMapElement(CallReply *rep, size_t idx, CallReply **key, CallReply **val) {
     return callReplyGetMapElementInternal(rep, idx, key, val, REDISMODULE_REPLY_MAP);
 }
@@ -441,10 +437,8 @@ int callReplyGetMapElement(CallReply *rep, size_t idx, CallReply **key, CallRepl
  * The returned values are borrowed from CallReply, so they must not be freed
  * explicitly or used after CallReply itself is freed.
  */
-/**
- * 返回回复属性，如果不存在则返回 NULL。适用于所有回复。
- * 返回的值是从 CallReply 借来的，因此它们不能被显式释放或在 CallReply 本身被释放后使用。
- * */
+/**返回回复属性，如果不存在则返回 NULL。适用于所有回复。
+ * 返回的值是从 CallReply 借来的，因此它们不能被显式释放或在 CallReply 本身被释放后使用。*/
 CallReply *callReplyGetAttribute(CallReply *rep) {
     return rep->attribute;
 }
@@ -461,13 +455,11 @@ CallReply *callReplyGetAttribute(CallReply *rep) {
  * The returned values are borrowed from CallReply, so they must not be freed
  * explicitly or used after CallReply itself is freed.
  */
-/**
- * 在给定索引处检索属性回复键和值。适用于：
+/**在给定索引处检索属性回复键和值。适用于：
  * - REDISMODULE_REPLY_ATTRIBUTE
  * key和 value 通过 key 和 val 引用返回，如果不需要也可以为 NULL。
  * 如果回复类型不匹配或 idx 超出范围，则成功返回 C_OK 或 C_ERR。
- * 返回的值是从 CallReply 借来的，因此它们不能被显式释放或在 CallReply 本身被释放后使用。
- * */
+ * 返回的值是从 CallReply 借来的，因此它们不能被显式释放或在 CallReply 本身被释放后使用。*/
 int callReplyGetAttributeElement(CallReply *rep, size_t idx, CallReply **key, CallReply **val) {
     return callReplyGetMapElementInternal(rep, idx, key, val, REDISMODULE_REPLY_MAP);
 }
@@ -484,12 +476,10 @@ int callReplyGetAttributeElement(CallReply *rep, size_t idx, CallReply **key, Ca
  * The returned value is not NULL terminated and its length is returned by
  * reference through len, which must not be NULL.
  */
-/**
- * 返回一个大数字回复值。适用于：
+/**返回一个大数字回复值。适用于：
  * - REDISMODULE_REPLY_BIG_NUMBER
  * 返回值是从 CallReply 借来的，所以不能显式释放，也不能在 CallReply 本身释放后使用。
- * 如 RESP3 协议规范中所述，返回值保证为大数。返回值不是以NULL结尾的，它的长度是通过len引用返回的，len不能为NULL。
- * */
+ * 如 RESP3 协议规范中所述，返回值保证为大数。返回值不是以NULL结尾的，它的长度是通过len引用返回的，len不能为NULL。*/
 const char *callReplyGetBigNumber(CallReply *rep, size_t *len) {
     callReplyParse(rep);
     if (rep->type != REDISMODULE_REPLY_BIG_NUMBER) return NULL;
@@ -511,13 +501,11 @@ const char *callReplyGetBigNumber(CallReply *rep, size_t *len) {
  * The returned value is not NULL terminated and its length is returned by
  * reference through len, which must not be NULL.
  */
-/**
- * 返回逐字字符串回复值。适用于：
+/**返回逐字字符串回复值。适用于：
  * - REDISMODULE_REPLY_VERBATIM_STRING
  * 如果格式为非NULL，则逐字回复格式也按值返回。可以给出可选的输出参数以获取逐字回复格式，或者如果不需要，可以将其设置为 NULL。
  * 返回值是从 CallReply 借来的，所以它不能被显式释放或在 CallReply 本身被释放后使用。
- * 返回值不是以NULL结尾的，它的长度是通过len引用返回的，len不能为NULL。
- * */
+ * 返回值不是以NULL结尾的，它的长度是通过len引用返回的，len不能为NULL。 */
 const char *callReplyGetVerbatim(CallReply *rep, size_t *len, const char **format){
     callReplyParse(rep);
     if (rep->type != REDISMODULE_REPLY_VERBATIM_STRING) return NULL;
@@ -531,9 +519,7 @@ const char *callReplyGetVerbatim(CallReply *rep, size_t *len, const char **forma
  * The return value is borrowed from CallReply, so it must not be freed
  * explicitly or used after CallReply itself is freed.
  */
-/**
- * 返回当前回复 blob。返回值是从 CallReply 借来的，所以它不能被显式释放或在 CallReply 本身被释放后使用。
- * */
+/**返回当前回复 blob。返回值是从 CallReply 借来的，所以它不能被显式释放或在 CallReply 本身被释放后使用。*/
 const char *callReplyGetProto(CallReply *rep, size_t *proto_len) {
     *proto_len = rep->proto_len;
     return rep->proto;
@@ -577,14 +563,12 @@ list *callReplyDeferredErrorList(CallReply *rep) {
  * DESIGNED TO HANDLE USER INPUT and using it to parse invalid replies is
  * unsafe.
  */
-/**
- * 从回复 blob 创建一个新的 CallReply 结构。该函数将拥有回复 blob，因此在将其传递给此函数后，调用者不得使用或释放它。
+/**从回复 blob 创建一个新的 CallReply 结构。该函数将拥有回复 blob，因此在将其传递给此函数后，调用者不得使用或释放它。
  * 稍后使用 freeCallReply() 释放返回的 CallReply 结构时，将释放回复 blob。
  * deferred_error_list 是存在于回复 blob 中的可选错误列表，如果给定，此函数将对其拥有所有权。
  * private_data 是可选的，以后可以使用 callReplyGetPrivateData() 访问。
  * 注意：用于解析回复和生成 CallReply 的解析器旨在处理 Redis 自身创建的有效回复。
- * 它不是为处理用户输入而设计的，使用它来解析无效回复是不安全的。
- * */
+ * 它不是为处理用户输入而设计的，使用它来解析无效回复是不安全的。*/
 CallReply *callReplyCreate(sds reply, list *deferred_error_list, void *private_data) {
     CallReply *res = zmalloc(sizeof(*res));
     res->flags = REPLY_FLAG_ROOT;

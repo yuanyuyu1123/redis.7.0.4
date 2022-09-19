@@ -37,10 +37,8 @@
  *
  * The function returns -1 if the input contains characters not mapping to
  * any class. */
-/**
- * 该文件通过 PubSub 实现键空间事件通知，并在 https:redis.iotopicsnotifications 中进行了描述。
- * 将表示通知类的字符串转换为表示异或通知类标志的整数。如果输入包含未映射到任何类的字符，则该函数返回 -1。
- * */
+/**该文件通过 Pub/Sub 实现键空间事件通知，并在 https:redis.iotopicsnotifications 中进行了描述。
+ * 将表示通知类的字符串转换为表示异或通知类标志的整数。如果输入包含未映射到任何类的字符，则该函数返回 -1。*/
 int keyspaceEventsStringToFlags(char *classes) {
     char *p = classes;
     int c, flags = 0;
@@ -72,10 +70,8 @@ int keyspaceEventsStringToFlags(char *classes) {
  * as input an integer with the xored flags and returns a string representing
  * the selected classes. The string returned is an sds string that needs to
  * be released with sdsfree(). */
-/**
- * 这个函数与上面的函数完全相反：它获取一个带有异或标志的整数作为输入，并返回一个代表所选类的字符串。
- * 返回的字符串是一个 sds 字符串，需要用 sdsfree() 释放。
- * */
+/**这个函数与上面的函数完全相反：它获取一个带有异或标志的整数作为输入，并返回一个代表所选类的字符串。
+ * 返回的字符串是一个 sds 字符串，需要用 sdsfree() 释放。*/
 sds keyspaceEventsFlagsToString(int flags) {
     sds res;
 

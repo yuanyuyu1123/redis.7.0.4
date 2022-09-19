@@ -1085,10 +1085,8 @@ typedef struct functionsLibCtx functionsLibCtx;
  * whether not to set those objects on their rightful place.
  * For example: dbarray need to be set as main database on
  *              successful loading and dropped on failure. */
-/**
- * 在 rdb 加载期间需要填充的持有对象。在加载结束时，可以决定是否不将这些对象设置在其应有的位置。例如：
- * dbarray 需要在成功加载时设置为主数据库，在失败时删除。
- * */
+/**在 rdb 加载期间需要填充的持有对象。在加载结束时，可以决定是否不将这些对象设置在其应有的位置。例如：
+ * dbarray 需要在成功加载时设置为主数据库，在失败时删除。*/
 typedef struct rdbLoadingCtx {
     redisDb* dbarray;
     functionsLibCtx* functions_lib_ctx;
@@ -1170,13 +1168,11 @@ typedef struct blockingState {
  * also called ready_keys in every structure representing a Redis database,
  * where we make sure to remember if a given key was already added in the
  * server.ready_keys list. */
-/**
- * 下面的结构表示 server.ready_keys 列表中的一个节点，我们在其中累积所有让客户端被阻塞操作（例如 B[LR]POP）阻塞，
+/**下面的结构表示 server.ready_keys 列表中的一个节点，我们在其中累积所有让客户端被阻塞操作（例如 B[LR]POP）阻塞，
  * 但在最后执行的命令的上下文中接收到新数据的键。
  * 在执行每个命令或脚本之后，我们运行这个列表来检查我们是否应该将数据提供给被阻塞的客户端，解除阻塞。
  * 请注意，server.ready_keys 不会有重复项，因为在代表 Redis 数据库的每个结构中，
- * 字典也称为 ready_keys，我们确保记住给定键是否已添加到 server.ready_keys 列表中。
- * */
+ * 字典也称为 ready_keys，我们确保记住给定键是否已添加到 server.ready_keys 列表中。*/
 typedef struct readyList {
     redisDb *db;
     robj *key;
@@ -1185,10 +1181,8 @@ typedef struct readyList {
 /* This structure represents a Redis user. This is useful for ACLs, the
  * user is associated to the connection after the connection is authenticated.
  * If there is no associated user, the connection uses the default user. */
-/**
- * 这个结构代表一个 Redis 用户。这对 ACL 很有用，用户在连接通过身份验证后与连接相关联。
- * 如果没有关联用户，则连接使用默认用户。
- * */
+/**这个结构代表一个 Redis 用户。这对 ACL 很有用，用户在连接通过身份验证后与连接相关联。
+ * 如果没有关联用户，则连接使用默认用户。*/
 #define USER_COMMAND_BITS_COUNT 1024    /* The total number of command bits
                                            in the user structure. The last valid
                                            command ID we can set in the user
@@ -1243,11 +1237,9 @@ typedef struct {
  * it would cost much time to search replication offset on partial resync, so
  * we use one rax tree to index some blocks every REPL_BACKLOG_INDEX_PER_BLOCKS
  * to make searching offset from replication buffer blocks list faster. */
-/**
- * 复制积压不是单独的内存，它只是全局复制缓冲区的一个消费者。该结构记录了复制缓冲区的引用。
+/**复制积压不是单独的内存，它只是全局复制缓冲区的一个消费者。该结构记录了复制缓冲区的引用。
  * 由于复制缓冲区块列表可能很长，在部分重新同步时搜索复制偏移量会花费大量时间，
- * 因此我们使用一棵 rax 树索引每个 REPL_BACKLOG_INDEX_PER_BLOCKS 的一些块，以更快地从复制缓冲区块列表中搜索偏移量。
- * */
+ * 因此我们使用一棵 rax 树索引每个 REPL_BACKLOG_INDEX_PER_BLOCKS 的一些块，以更快地从复制缓冲区块列表中搜索偏移量。*/
 typedef struct replBacklog {
     listNode *ref_repl_buf_node; /* Referenced node of replication buffer blocks,
                                   * see the definition of replBufBlock.
@@ -1320,52 +1312,58 @@ typedef struct client {
     long long read_reploff; /* Read replication offset if this is a master. 如果这是主服务器，则读取复制偏移量。*/
     long long reploff;      /* Applied replication offset if this is a master. 如果这是主服务器，则应用复制偏移量。*/
     long long repl_applied; /* Applied replication data count in querybuf, if this is a replica. querybuf 中应用的复制数据计数，如果这是一个副本。*/
-    long long repl_ack_off; /* Replication ack offset, if this is a slave. */
-    long long repl_ack_time;/* Replication ack time, if this is a slave. */
-    long long repl_last_partial_write; /* The last time the server did a partial write from the RDB child pipe to this replica  */
+    long long repl_ack_off; /* Replication ack offset, if this is a slave. 复制确认偏移量，如果这是slave。*/
+    long long repl_ack_time;/* Replication ack time, if this is a slave. 复制确认时间，如果这是slave。*/
+    long long repl_last_partial_write; /* The last time the server did a partial write from the RDB child pipe to this replica  服务器上一次从 RDB 子管道向这个副本进行部分写入*/
     long long psync_initial_offset; /* FULLRESYNC reply offset other slaves
                                        copying this slave output buffer
-                                       should use. */
-    char replid[CONFIG_RUN_ID_SIZE+1]; /* Master replication ID (if master). */
-    int slave_listening_port; /* As configured with: REPLCONF listening-port */
-    char *slave_addr;       /* Optionally given by REPLCONF ip-address */
-    int slave_capa;         /* Slave capabilities: SLAVE_CAPA_* bitwise OR. */
-    int slave_req;          /* Slave requirements: SLAVE_REQ_* */
+                                       should use.    FULLRESYNC 复制此从属输出缓冲区的其他从属应使用的回复偏移量。*/
+    char replid[CONFIG_RUN_ID_SIZE+1]; /* Master replication ID (if master). master复制 ID（如果是master）。*/
+    int slave_listening_port; /* As configured with: REPLCONF listening-port 配置为：REPLCONF 监听端口*/
+    char *slave_addr;       /* Optionally given by REPLCONF ip-address 可选地由 REPLCONF ip-address 给出*/
+    int slave_capa;         /* Slave capabilities: SLAVE_CAPA_* bitwise OR. slave能力：SLAVE_CAPA_按位或。*/
+    int slave_req;          /* Slave requirements: SLAVE_REQ_*  slave要求：SLAVE_REQ_*/
     multiState mstate;      /* MULTI/EXEC state */
-    int btype;              /* Type of blocking op if CLIENT_BLOCKED. */
+    int btype;              /* Type of blocking op if CLIENT_BLOCKED. CLIENT_BLOCKED 的阻塞操作类型。*/
     blockingState bpop;     /* blocking state */
-    long long woff;         /* Last write global replication offset. */
+    long long woff;         /* Last write global replication offset. 最后写入全局复制偏移量。*/
     list *watched_keys;     /* Keys WATCHED for MULTI/EXEC CAS */
-    dict *pubsub_channels;  /* channels a client is interested in (SUBSCRIBE) */
-    list *pubsub_patterns;  /* patterns a client is interested in (SUBSCRIBE) */
-    dict *pubsubshard_channels;  /* shard level channels a client is interested in (SSUBSCRIBE) */
+    dict *pubsub_channels;  /* channels a client is interested in (SUBSCRIBE) 客户感兴趣的频道（订阅）*/
+    list *pubsub_patterns;  /* patterns a client is interested in (SUBSCRIBE) 客户感兴趣的模式（订阅）*/
+    dict *pubsubshard_channels;  /* shard level channels a client is interested in (SSUBSCRIBE) 客户感兴趣的分片级频道（订阅）*/
     sds peerid;             /* Cached peer ID. */
     sds sockname;           /* Cached connection target address. */
-    listNode *client_list_node; /* list node in client list */
-    listNode *postponed_list_node; /* list node within the postponed list */
-    listNode *pending_read_list_node; /* list node in clients pending read list */
+    listNode *client_list_node; /* list node in client list 在客户端列表中列出节点*/
+    listNode *postponed_list_node; /* list node within the postponed list 延迟列表中的列表节点*/
+    listNode *pending_read_list_node; /* list node in clients pending read list 在客户端挂起读取列表中列出节点*/
     RedisModuleUserChangedFunc auth_callback; /* Module callback to execute
                                                * when the authenticated user
-                                               * changes. */
+                                               * changes. 当经过身份验证的用户更改时执行的模块回调。*/
     void *auth_callback_privdata; /* Private data that is passed when the auth
                                    * changed callback is executed. Opaque for
-                                   * Redis Core. */
+                                   * Redis Core. 执行 auth changed 回调时传递的私有数据。 Redis 核心不透明。*/
     void *auth_module;      /* The module that owns the callback, which is used
                              * to disconnect the client if the module is
-                             * unloaded for cleanup. Opaque for Redis Core.*/
+                             * unloaded for cleanup. Opaque for Redis Core.
+                             * 拥有回调的模块，用于在卸载模块进行清理时断开客户端。 Redis 核心不透明。*/
 
     /* If this client is in tracking mode and this field is non zero,
      * invalidation messages for keys fetched by this client will be send to
      * the specified client ID. */
+    /**如果此客户端处于跟踪模式并且此字段不为零，则此客户端获取的密钥的无效消息将发送到指定的客户端 ID。*/
     uint64_t client_tracking_redirection;
     rax *client_tracking_prefixes; /* A dictionary of prefixes we are already
                                       subscribed to in BCAST mode, in the
-                                      context of client side caching. */
+                                      context of client side caching.
+                                      在客户端缓存的上下文中，我们已经在 BCAST 模式下订阅了前缀字典。*/
+
     /* In updateClientMemUsage() we track the memory usage of
      * each client and add it to the sum of all the clients of a given type,
      * however we need to remember what was the old contribution of each
      * client, and in which category the client was, in order to remove it
      * before adding it the new value. */
+    /**在 updateClientMemUsage() 中，我们跟踪每个客户端的内存使用情况并将其添加到给定类型的所有客户端的总和中，
+     * 但是我们需要记住每个客户端的旧贡献是什么，以及客户端属于哪个类别，在在添加新值之前将其删除。*/
     size_t last_memory_usage;
     int last_memory_type;
 
@@ -1373,15 +1371,17 @@ typedef struct client {
     clientMemUsageBucket *mem_usage_bucket;
 
     listNode *ref_repl_buf_node; /* Referenced node of replication buffer blocks,
-                                  * see the definition of replBufBlock. */
+                                  * see the definition of replBufBlock.
+                                  * 复制缓冲块的引用节点，见replBufBlock的定义。*/
     size_t ref_block_pos;        /* Access position of referenced buffer block,
-                                  * i.e. the next offset to send. */
+                                  * i.e. the next offset to send.
+                                  * 引用缓冲区块的访问位置，即要发送的下一个偏移量。*/
 
     /* Response buffer */
-    size_t buf_peak; /* Peak used size of buffer in last 5 sec interval. */
-    mstime_t buf_peak_last_reset_time; /* keeps the last time the buffer peak value was reset */
+    size_t buf_peak; /* Peak used size of buffer in last 5 sec interval. 过去 5 秒间隔内使用的缓冲区大小峰值。*/
+    mstime_t buf_peak_last_reset_time; /* keeps the last time the buffer peak value was reset 保留上次重置缓冲区峰值的时间*/
     int bufpos;
-    size_t buf_usable_size; /* Usable size of buffer. */
+    size_t buf_usable_size; /* Usable size of buffer. 缓冲区的可用大小。*/
     char *buf;
 } client;
 
@@ -1471,10 +1471,9 @@ extern clientBufferLimitsConfig clientBufferLimitsDefaults[CLIENT_TYPE_OBUF_COUN
  *
  * Currently only used to additionally propagate more commands to AOF/Replication
  * after the propagation of the executed command. */
-/**
- * redisOp 结构定义了一个 Redis 操作，它是一个带有参数向量、数据库 ID、传播目标 (PROPAGATE_) 和命令指针的命令实例。
- * 目前只用于在执行的命令传播之后，额外传播更多的命令到 AOFReplication。
- * */
+/**redisOp 结构定义了一个 Redis 操作，它是一个带有参数向量、数据库 ID、传播目标 (PROPAGATE_) 和命令指针的命令实例。
+ *
+ * 目前只用于在执行的命令传播之后，额外传播更多的命令到 AOFReplication。*/
 typedef struct redisOp {
     robj **argv;
     int argc, dbid, target;
@@ -1549,17 +1548,16 @@ typedef enum {
  * replication in order to make sure that chained slaves (slaves of slaves)
  * select the correct DB and are able to accept the stream coming from the
  * top-level master. */
-/**
- * 通过将元数据存储和加载到 RDB 文件，可以选择将此结构传递给 RDB 保存加载函数，以实现其他功能。
- * 例如，在加载时使用 select a DB，这在复制中很有用，以确保链接的从属（从属的从属）选择正确的 DB 并能够接受来自顶级主控的流。
- * */
+/**通过将元数据存储和加载到 RDB 文件，可以选择将此结构传递给 RDB 保存加载函数，以实现其他功能。
+ *
+ * 例如，在加载时使用 select a DB，这在复制中很有用，以确保链接的从属（从属的从属）选择正确的 DB 并能够接受来自顶级主控的流。*/
 typedef struct rdbSaveInfo {
-    /* Used saving and loading. */
-    int repl_stream_db;  /* DB to select in server.master client. */
+    /* Used saving and loading. 使用保存和加载。*/
+    int repl_stream_db;  /* DB to select in server.master client. 要在 server.master 客户端中选择的数据库。*/
 
-    /* Used only loading. */
-    int repl_id_is_set;  /* True if repl_id field is set. */
-    char repl_id[CONFIG_RUN_ID_SIZE+1];     /* Replication ID. */
+    /* Used only loading. 仅用于加载。*/
+    int repl_id_is_set;  /* True if repl_id field is set. 如果设置了 repl_id 字段，则为真。*/
+    char repl_id[CONFIG_RUN_ID_SIZE+1];     /* Replication ID. 复制 ID。*/
     long long repl_offset;                  /* Replication offset. */
 } rdbSaveInfo;
 
@@ -1583,12 +1581,12 @@ typedef struct socketFds {
  *----------------------------------------------------------------------------*/
 
 typedef struct redisTLSContextConfig {
-    char *cert_file;                /* Server side and optionally client side cert file name */
-    char *key_file;                 /* Private key filename for cert_file */
-    char *key_file_pass;            /* Optional password for key_file */
-    char *client_cert_file;         /* Certificate to use as a client; if none, use cert_file */
-    char *client_key_file;          /* Private key filename for client_cert_file */
-    char *client_key_file_pass;     /* Optional password for client_key_file */
+    char *cert_file;                /* Server side and optionally client side cert file name 服务器端和可选的客户端证书文件名*/
+    char *key_file;                 /* Private key filename for cert_file cert_file 的私钥文件名*/
+    char *key_file_pass;            /* Optional password for key_file key_file 的可选密码*/
+    char *client_cert_file;         /* Certificate to use as a client; if none, use cert_file 用作客户端的证书；如果没有，请使用 cert_file*/
+    char *client_key_file;          /* Private key filename for client_cert_file       client_cert_file 的私钥文件名*/
+    char *client_key_file_pass;     /* Optional password for client_key_file client_key_file 的可选密码*/
     char *dh_params_file;
     char *ca_cert_file;
     char *ca_cert_dir;
@@ -1617,15 +1615,18 @@ typedef struct {
 } aofInfo;
 
 typedef struct {
-    aofInfo     *base_aof_info;       /* BASE file information. NULL if there is no BASE file. */
-    list        *incr_aof_list;       /* INCR AOFs list. We may have multiple INCR AOF when rewrite fails. */
+    aofInfo     *base_aof_info;       /* BASE file information. NULL if there is no BASE file. 基本文件信息。如果没有 BASE 文件，则为 NULL。*/
+    list        *incr_aof_list;       /* INCR AOFs list. We may have multiple INCR AOF when rewrite fails. INCR AOF 列表。当重写失败时，我们可能有多个 INCR AOF。*/
     list        *history_aof_list;    /* HISTORY AOF list. When the AOFRW success, The aofInfo contained in
                                          `base_aof_info` and `incr_aof_list` will be moved to this list. We
-                                         will delete these AOF files when AOFRW finish. */
-    long long   curr_base_file_seq;   /* The sequence number used by the current BASE file. */
-    long long   curr_incr_file_seq;   /* The sequence number used by the current INCR file. */
+                                         will delete these AOF files when AOFRW finish.
+                                         历史 AOF 列表。当 AOFRW 成功时，`base_aof_info` 和 `incr_aof_list` 中包含的 aofInfo 将被移动到这个列表中。
+                                         当 AOFRW 完成时，我们将删除这些 AOF 文件。*/
+    long long   curr_base_file_seq;   /* The sequence number used by the current BASE file. 当前 BASE 文件使用的序列号。*/
+    long long   curr_incr_file_seq;   /* The sequence number used by the current INCR file. 当前 INCR 文件使用的序列号。*/
     int         dirty;                /* 1 Indicates that the aofManifest in the memory is inconsistent with
-                                         disk, we need to persist it immediately. */
+                                         disk, we need to persist it immediately.
+                                         1 表示内存中的aofManifest与磁盘不一致，我们需要立即持久化。*/
 } aofManifest;
 
 /*-----------------------------------------------------------------------------
@@ -1893,30 +1894,31 @@ struct redisServer {
                                         default no. (for testings). */
 
     /* RDB persistence */
-    long long dirty;                /* Changes to DB from the last save */
-    long long dirty_before_bgsave;  /* Used to restore dirty on failed BGSAVE */
-    long long rdb_last_load_keys_expired;  /* number of expired keys when loading RDB */
-    long long rdb_last_load_keys_loaded;   /* number of loaded keys when loading RDB */
+    long long dirty;                /* Changes to DB from the last save 上次保存后对 DB 的更改*/
+    long long dirty_before_bgsave;  /* Used to restore dirty on failed BGSAVE 用于在失败的 BGSAVE 上恢复脏*/
+    long long rdb_last_load_keys_expired;  /* number of expired keys when loading RDB 加载 RDB 时过期键的数量*/
+    long long rdb_last_load_keys_loaded;   /* number of loaded keys when loading RDB 加载 RDB 时加载的键数*/
     struct saveparam *saveparams;   /* Save points array for RDB */
-    int saveparamslen;              /* Number of saving points */
+    int saveparamslen;              /* Number of saving points 保存点数*/
     char *rdb_filename;             /* Name of RDB file */
     int rdb_compression;            /* Use compression in RDB? */
     int rdb_checksum;               /* Use RDB checksum? */
     int rdb_del_sync_files;         /* Remove RDB files used only for SYNC if
-                                       the instance does not use persistence. */
-    time_t lastsave;                /* Unix time of last successful save */
-    time_t lastbgsave_try;          /* Unix time of last attempted bgsave */
-    time_t rdb_save_time_last;      /* Time used by last RDB save run. */
-    time_t rdb_save_time_start;     /* Current RDB save start time. */
-    int rdb_bgsave_scheduled;       /* BGSAVE when possible if true. */
-    int rdb_child_type;             /* Type of save by active child. */
+                                       the instance does not use persistence.
+                                       如果实例不使用持久性，则删除仅用于 SYNC 的 RDB 文件。*/
+    time_t lastsave;                /* Unix time of last successful save 上次成功保存的 Unix 时间*/
+    time_t lastbgsave_try;          /* Unix time of last attempted bgsave 上次尝试 bgsave 的 Unix 时间*/
+    time_t rdb_save_time_last;      /* Time used by last RDB save run. 上次 RDB 保存运行所用的时间。*/
+    time_t rdb_save_time_start;     /* Current RDB save start time.当前 RDB 保存开始时间。 */
+    int rdb_bgsave_scheduled;       /* BGSAVE when possible if true. 如果为真，则尽可能 BGSAVE。*/
+    int rdb_child_type;             /* Type of save by active child. 活动孩子的保存类型。*/
     int lastbgsave_status;          /* C_OK or C_ERR */
-    int stop_writes_on_bgsave_err;  /* Don't allow writes if can't BGSAVE */
-    int rdb_pipe_read;              /* RDB pipe used to transfer the rdb data */
-                                    /* to the parent process in diskless repl. */
-    int rdb_child_exit_pipe;        /* Used by the diskless parent allow child exit. */
-    connection **rdb_pipe_conns;    /* Connections which are currently the */
-    int rdb_pipe_numconns;          /* target of diskless rdb fork child. */
+    int stop_writes_on_bgsave_err;  /* Don't allow writes if can't BGSAVE 如果不能 BGSAVE，则不允许写入*/
+    int rdb_pipe_read;              /* RDB pipe used to transfer the rdb data 用于传输 rdb 数据的 RDB 管道*/
+                                    /* to the parent process in diskless repl. 到无盘repl中的父进程。*/
+    int rdb_child_exit_pipe;        /* Used by the diskless parent allow child exit. 由无盘父级使用，允许子级退出。*/
+    connection **rdb_pipe_conns;    /* Connections which are currently the 当前的连接*/
+    int rdb_pipe_numconns;          /* target of diskless rdb fork child. 无盘 rdb fork child 的目标。*/
     int rdb_pipe_numconns_writing;  /* Number of rdb conns with pending writes. 具有挂起写入的 rdb conns 数。*/
     char *rdb_pipe_buff;            /* In diskless replication, this buffer holds data 在无盘复制中，此缓冲区保存数据*/
     int rdb_pipe_bufflen;           /* that was read from the rdb pipe. 这是从 rdb 管道中读取的。*/

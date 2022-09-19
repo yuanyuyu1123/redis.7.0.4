@@ -177,10 +177,8 @@ void activeExpireCycle(int type) {
          * for time limit, unless the percentage of estimated stale keys is
          * too high. Also never repeat a fast cycle for the same period
          * as the fast cycle total duration itself. */
-        /**
-         * 如果前一个循环没有退出时间限制，则不要启动快速循环，除非估计的陈旧密钥的百分比太高。
-         * 也不要在与快速循环总持续时间本身相同的周期内重复快速循环。
-         * */
+        /** 如果前一个循环没有退出时间限制，则不要启动快速循环，除非估计的陈旧密钥的百分比太高。
+         * 也不要在与快速循环总持续时间本身相同的周期内重复快速循环。*/
         if (!timelimit_exit &&
             server.stat_expired_stale_perc < config_cycle_acceptable_stale)
             return;
@@ -211,10 +209,8 @@ void activeExpireCycle(int type) {
      * time per iteration. Since this function gets called with a frequency of
      * server.hz times per second, the following is the max amount of
      * microseconds we can spend in this function. */
-    /**
-     * 我们可以使用每次迭代 CPU 时间的最大“config_cycle_slow_time_perc”百分比。
-     * 由于此函数以每秒 server.hz 次的频率调用，因此以下是我们可以在此函数中花费的最大微秒数。
-     * */
+    /**我们可以使用每次迭代 CPU 时间的最大“config_cycle_slow_time_perc”百分比。
+     * 由于此函数以每秒 server.hz 次的频率调用，因此以下是我们可以在此函数中花费的最大微秒数。*/
     timelimit = config_cycle_slow_time_perc*1000000/server.hz/100;
     timelimit_exit = 0;
     if (timelimit <= 0) timelimit = 1;
@@ -253,10 +249,8 @@ void activeExpireCycle(int type) {
          * a big percentage of keys to expire, compared to the number of keys
          * we scanned. The percentage, stored in config_cycle_acceptable_stale
          * is not fixed, but depends on the Redis configured "expire effort". */
-        /**
-         * 如果与我们扫描的密钥数量相比，在循环结束时仍有很大比例的密钥过期，则继续过期。
-         * 存储在 config_cycle_acceptable_stale 中的百分比不是固定的，而是取决于 Redis 配置的“过期工作量”。
-         * */
+        /**如果与我们扫描的密钥数量相比，在循环结束时仍有很大比例的密钥过期，则继续过期。
+         * 存储在 config_cycle_acceptable_stale 中的百分比不是固定的，而是取决于 Redis 配置的“过期工作量”。*/
         do {
             unsigned long num, slots;
             long long now, ttl_sum;
@@ -300,11 +294,9 @@ void activeExpireCycle(int type) {
              * is very fast: we are in the cache line scanning a sequential
              * array of NULL pointers, so we can scan a lot more buckets
              * than keys in the same time. */
-            /**
-             * 在这里，出于速度考虑，我们访问哈希表的低级表示：这使得这段代码与 dict.c 耦合，但十年来几乎没有改变。
+            /**在这里，出于速度考虑，我们访问哈希表的低级表示：这使得这段代码与 dict.c 耦合，但十年来几乎没有改变。
              * 请注意，哈希表的某些位置可能是空的，因此我们还需要一个关于我们扫描的桶数的停止条件。
-             * 然而，扫描空闲桶非常快：我们在缓存行中扫描空指针的顺序数组，因此我们可以同时扫描比键多得多的桶。
-             * */
+             * 然而，扫描空闲桶非常快：我们在缓存行中扫描空指针的顺序数组，因此我们可以同时扫描比键多得多的桶。*/
             long max_buckets = num*20;
             long checked_buckets = 0;
 
@@ -443,13 +435,11 @@ void activeExpireCycle(int type) {
  * with a DB id > 63 are not expired, but a trivial fix is to set the bitmap
  * to the max 64 bit unsigned value when we know there is a key with a DB
  * ID greater than 63, and check all the configured DBs in such a case. */
-/**
- * 我们记住键名和数据库 ID 的字典，我们可能希望从从站过期。由于这个函数不经常使用，我们甚至不需要在启动时初始化数据库。
+/**我们记住键名和数据库 ID 的字典，我们可能希望从从站过期。由于这个函数不经常使用，我们甚至不需要在启动时初始化数据库。
  * 我们将在第一次使用该功能时执行此操作，即在调用 rememberSlaveKeyWithExpire() 时。
  * 字典有一个 SDS 字符串，表示作为哈希表键的键，而值是一个 64 位无符号整数，对应于可能存在键的 DB 的位设置为 1。
  * 目前使用 DB id > 63 创建的键没有过期，但一个简单的解决方法是，当我们知道有一个 DB ID 大于 63 的键时，
- * 将位图设置为最大 64 位无符号值，并在这种情况下检查所有配置的 DB。
- * */
+ * 将位图设置为最大 64 位无符号值，并在这种情况下检查所有配置的 DB。*/
 dict *slaveKeysWithExpire = NULL;
 
 /* Check the set of keys created by the master with an expire set in order to
@@ -487,10 +477,8 @@ void expireSlaveKeys(void) {
                  * corresponding bit in the new bitmap we set as value.
                  * At the end of the loop if the bitmap is zero, it means we
                  * no longer need to keep track of this key. */
-                /**
-                 * 如果这个 DB 中的 key 没有过期，我们需要在我们设置为 value 的新位图中设置相应的位。
-                 * 在循环结束时，如果位图为零，这意味着我们不再需要跟踪这个键。
-                 * */
+                /**如果这个 DB 中的 key 没有过期，我们需要在我们设置为 value 的新位图中设置相应的位。
+                 * 在循环结束时，如果位图为零，这意味着我们不再需要跟踪这个键。*/
                 if (expire && !expired) {
                     noexpire++;
                     new_dbids |= (uint64_t)1 << dbid;
@@ -542,10 +530,8 @@ void rememberSlaveKeyWithExpire(redisDb *db, robj *key) {
      * representing the key: we don't want to need to take those keys
      * in sync with the main DB. The keys will be removed by expireSlaveKeys()
      * as it scans to find keys to remove. */
-    /**
-     * 如果条目刚刚创建，请将其设置为代表密钥的 SDS 字符串的副本：我们不希望将这些密钥与主数据库同步。
-     * expireSlaveKeys() 将在扫描以查找要删除的密钥时删除密钥。
-     * */
+    /**如果条目刚刚创建，请将其设置为代表密钥的 SDS 字符串的副本：我们不希望将这些密钥与主数据库同步。
+     * expireSlaveKeys() 将在扫描以查找要删除的密钥时删除密钥。*/
     if (de->key == key->ptr) {
         de->key = sdsdup(key->ptr);
         dictSetUnsignedIntegerVal(de,0);
@@ -571,12 +557,10 @@ size_t getSlaveKeyWithExpireCount(void) {
  * but it is not worth it since anyway race conditions using the same set
  * of key names in a writable slave and in its master will lead to
  * inconsistencies. This is just a best-effort thing we do. */
-/**
- * 删除哈希表中的键。当数据从服务器刷新时，我们需要这样做。
+/**删除哈希表中的键。当数据从服务器刷新时，我们需要这样做。
  * 我们可能会从 master 收到具有相同 namedb 的新密钥，让它们过期不再是一个好主意。
  * 注意：从技术上讲，我们应该处理单个数据库被刷新的情况，但这不值得，
- * 因为无论如何在可写从属和其主控中使用相同的键名集的竞争条件会导致不一致。这只是我们尽力而为的事情。
- * */
+ * 因为无论如何在可写从属和其主控中使用相同的键名集的竞争条件会导致不一致。这只是我们尽力而为的事情。*/
 void flushSlaveKeysWithExpireList(void) {
     if (slaveKeysWithExpire) {
         dictRelease(slaveKeysWithExpire);
@@ -591,10 +575,8 @@ int checkAlreadyExpired(long long when) {
      *
      * Instead we add the already expired key to the database with expire time
      * (possibly in the past) and wait for an explicit DEL from the master. */
-    /**
-     * 在加载 AOF 或在从属实例的上下文中时，不应将带有负 TTL 的 EXPIRE 或带有过去时间戳的 EXPIREAT 作为 DEL 执行。
-     * 相反，我们将已经过期的密钥添加到具有过期时间（可能是过去）的数据库中，并等待来自主服务器的显式 DEL。
-     * */
+    /**在加载 AOF 或在从属实例的上下文中时，不应将带有负 TTL 的 EXPIRE 或带有过去时间戳的 EXPIREAT 作为 DEL 执行。
+     * 相反，我们将已经过期的密钥添加到具有过期时间（可能是过去）的数据库中，并等待来自主服务器的显式 DEL。*/
     return (when <= mstime() && !server.loading && !server.masterhost);
 }
 
@@ -668,13 +650,11 @@ int parseExtendedExpireArgumentsOrReply(client *c, int *flags) {
  * the argv[2] parameter. The basetime is always specified in milliseconds.
  *
  * Additional flags are supported and parsed via parseExtendedExpireArguments */
-/**
- * 这是 EXPIRE、PEXPIRE、EXPIREAT 和 PEXPIREAT 的通用命令实现。
+/** 这是 EXPIRE、PEXPIRE、EXPIREAT 和 PEXPIREAT 的通用命令实现。
  * 因为命令的第二个参数可能是相对的或绝对的，所以“basetime”参数用于指示基准时间是什么
  * （命令的 AT 变体为 0，或者相对到期的当前时间）。
  * unit 是 UNIT_SECONDS 或 UNIT_MILLISECONDS，仅用于 argv[2] 参数。基准时间始终以毫秒为单位。
- * 通过 parseExtendedExpireArguments 支持和解析其他标志
- * */
+ * 通过 parseExtendedExpireArguments 支持和解析其他标志*/
 void expireGenericCommand(client *c, long long basetime, int unit) {
     robj *key = c->argv[1], *param = c->argv[2];
     long long when; /* unix time in milliseconds when the key will expire. 密钥到期时的 unix 时间（以毫秒为单位）。*/

@@ -548,7 +548,9 @@ void hashTypeConvert(robj *o, int enc) {
  * has the same encoding as the original one.
  *
  * The resulting object always has refcount set to 1 */
-//这是 COPY 命令的辅助函数。复制一个哈希对象，并保证返回的对象与原始对象具有相同的编码。结果对象始终将 refcount 设置为 1
+/**这是 COPY 命令的辅助函数。复制一个哈希对象，并保证返回的对象与原始对象具有相同的编码。
+
+* 结果对象始终将 refcount 设置为 1*/
 robj *hashTypeDup(robj *o) {
     robj *hobj;
     hashTypeIterator *hi;
@@ -571,12 +573,14 @@ robj *hashTypeDup(robj *o) {
             sds field, value;
             sds newfield, newvalue;
             /* Extract a field-value pair from an original hash object.*/
+            /**从原始哈希对象中提取字段值对。*/
             field = hashTypeCurrentFromHashTable(hi, OBJ_HASH_KEY);
             value = hashTypeCurrentFromHashTable(hi, OBJ_HASH_VALUE);
             newfield = sdsdup(field);
             newvalue = sdsdup(value);
 
             /* Add a field-value pair to a new hash object. */
+            /**将字段值对添加到新的哈希对象。*/
             dictAdd(d,newfield,newvalue);
         }
         hashTypeReleaseIterator(hi);
@@ -665,6 +669,7 @@ void hsetCommand(client *c) {
         created += !hashTypeSet(o,c->argv[i]->ptr,c->argv[i+1]->ptr,HASH_SET_COPY);
 
     /* HMSET (deprecated) and HSET return value is different. */
+    /**HMSET（已弃用）和 HSET 返回值不同。*/
     char *cmdname = c->argv[0]->ptr;
     if (cmdname[1] == 's' || cmdname[1] == 'S') {
         /* HSET */
@@ -754,6 +759,8 @@ void hincrbyfloatCommand(client *c) {
     /* Always replicate HINCRBYFLOAT as an HSET command with the final value
      * in order to make sure that differences in float precision or formatting
      * will not create differences in replicas or after an AOF restart. */
+    /**始终将 HINCRBYFLOAT 作为具有最终值的 HSET 命令复制，以确保浮点精度或格式的差异
+     * 不会在副本中或在 AOF 重新启动后造成差异。*/
     robj *newobj;
     newobj = createRawStringObject(buf,len);
     rewriteClientCommandArgument(c,0,shared.hset);
@@ -797,6 +804,7 @@ void hmgetCommand(client *c) {
 
     /* Don't abort when the key cannot be found. Non-existing keys are empty
      * hashes, where HMGET should respond with a series of null bulks. */
+    /**找不到密钥时不要中止。不存在的键是空散列，HMGET 应该以一系列空块响应。*/
     o = lookupKeyRead(c->db, c->argv[1]);
     if (checkType(c,o,OBJ_HASH)) return;
 
@@ -882,6 +890,7 @@ void genericHgetallCommand(client *c, int flags) {
 
     /* We return a map if the user requested keys and values, like in the
      * HGETALL case. Otherwise to use a flat array makes more sense. */
+    /**如果用户请求键和值，我们会返回一个映射，就像在 HGETALL 的情况下一样。否则使用平面数组更有意义。*/
     length = hashTypeLength(o);
     if (flags & OBJ_HASH_KEY && flags & OBJ_HASH_VALUE) {
         addReplyMapLen(c, length);
@@ -904,6 +913,7 @@ void genericHgetallCommand(client *c, int flags) {
     hashTypeReleaseIterator(hi);
 
     /* Make sure we returned the right number of elements. */
+    /**确保我们返回了正确数量的元素。*/
     if (flags & OBJ_HASH_KEY && flags & OBJ_HASH_VALUE) count /= 2;
     serverAssert(count == length);
 }
@@ -984,6 +994,7 @@ void hrandfieldWithCountCommand(client *c, long l, int withvalues) {
     }
 
     /* If count is zero, serve it ASAP to avoid special cases later. */
+    /**如果计数为零，请尽快提供，以避免以后出现特殊情况。*/
     if (count == 0) {
         addReply(c,shared.emptyarray);
         return;
@@ -994,6 +1005,9 @@ void hrandfieldWithCountCommand(client *c, long l, int withvalues) {
      * This case is trivial and can be served without auxiliary data
      * structures. This case is the only one that also needs to return the
      * elements in random order. */
+    /**CASE 1：计数为负，所以提取方法就是：“返回N个随机元素”每次对整个集合进行采样。
+     * 这种情况很简单，可以在没有辅助数据结构的情况下提供服务。
+     * 这种情况是唯一需要以随机顺序返回元素的情况。*/
     if (!uniq || count == 1) {
         if (withvalues && c->resp == 2)
             addReplyArrayLen(c, count*2);
@@ -1032,6 +1046,7 @@ void hrandfieldWithCountCommand(client *c, long l, int withvalues) {
     }
 
     /* Initiate reply count, RESP3 responds with nested array, RESP2 with flat one. */
+    /**启动回复计数，RESP3 以嵌套数组响应，RESP2 以平面数组响应。*/
     long reply_size = count < size ? count : size;
     if (withvalues && c->resp == 2)
         addReplyArrayLen(c, reply_size*2);
@@ -1041,6 +1056,7 @@ void hrandfieldWithCountCommand(client *c, long l, int withvalues) {
     /* CASE 2:
     * The number of requested elements is greater than the number of
     * elements inside the hash: simply return the whole hash. */
+    /**情况 2：请求的元素数大于散列内的元素数：只需返回整个散列即可。*/
     if(count >= size) {
         hashTypeIterator *hi = hashTypeInitIterator(hash);
         while (hashTypeNext(hi) != C_ERR) {
@@ -1059,16 +1075,20 @@ void hrandfieldWithCountCommand(client *c, long l, int withvalues) {
      * HRANDFIELD_SUB_STRATEGY_MUL times the number of requested elements.
      * In this case we create a hash from scratch with all the elements, and
      * subtract random elements to reach the requested number of elements.
+     * CASE 3：哈希内的元素数量不大于 HRANDFIELD_SUB_STRATEGY_MUL 乘以请求的元素数量。
+     * 在这种情况下，我们从头开始创建包含所有元素的哈希，并减去随机元素以达到请求的元素数量。
      *
      * This is done because if the number of requested elements is just
      * a bit less than the number of elements in the hash, the natural approach
-     * used into CASE 4 is highly inefficient. */
+     * used into CASE 4 is highly inefficient.
+     * 这样做是因为如果请求的元素数量仅比散列中的元素数量少一点，那么 CASE 4 中使用的自然方法效率非常低。*/
     if (count*HRANDFIELD_SUB_STRATEGY_MUL > size) {
         dict *d = dictCreate(&sdsReplyDictType);
         dictExpand(d, size);
         hashTypeIterator *hi = hashTypeInitIterator(hash);
 
         /* Add all the elements into the temporary dictionary. */
+        /**将所有元素添加到临时字典中。*/
         while ((hashTypeNext(hi)) != C_ERR) {
             int ret = DICT_ERR;
             sds key, value = NULL;
@@ -1084,6 +1104,7 @@ void hrandfieldWithCountCommand(client *c, long l, int withvalues) {
         hashTypeReleaseIterator(hi);
 
         /* Remove random elements to reach the right count. */
+        /**删除随机元素以达到正确的计数。*/
         while (size > count) {
             dictEntry *de;
             de = dictGetFairRandomKey(d);
@@ -1095,6 +1116,7 @@ void hrandfieldWithCountCommand(client *c, long l, int withvalues) {
         }
 
         /* Reply with what's in the dict and release memory */
+        /**回复字典中的内容并释放内存*/
         dictIterator *di;
         dictEntry *de;
         di = dictGetIterator(d);
@@ -1116,10 +1138,13 @@ void hrandfieldWithCountCommand(client *c, long l, int withvalues) {
      * In this case we can simply get random elements from the hash and add
      * to the temporary hash, trying to eventually get enough unique elements
      * to reach the specified count. */
+    /**案例 4：与请求的元素数量相比，我们的哈希值很大。
+     * 在这种情况下，我们可以简单地从哈希中获取随机元素并添加到临时哈希中，尝试最终获得足够的唯一元素以达到指定的计数。*/
     else {
         if (hash->encoding == OBJ_ENCODING_LISTPACK) {
             /* it is inefficient to repeatedly pick one random element from a
              * listpack. so we use this instead: */
+            /**从列表包中重复选择一个随机元素是低效的。所以我们改用这个：*/
             listpackEntry *keys, *vals = NULL;
             keys = zmalloc(sizeof(listpackEntry)*count);
             if (withvalues)
@@ -1142,6 +1167,7 @@ void hrandfieldWithCountCommand(client *c, long l, int withvalues) {
             /* Try to add the object to the dictionary. If it already exists
             * free it, otherwise increment the number of objects we have
             * in the result dictionary. */
+            /**尝试将对象添加到字典中。如果它已经存在释放它，否则增加我们在结果字典中的对象数量。*/
             sds skey = hashSdsFromListpackEntry(&key);
             if (dictAdd(d,skey,NULL) != DICT_OK) {
                 sdsfree(skey);
@@ -1150,6 +1176,7 @@ void hrandfieldWithCountCommand(client *c, long l, int withvalues) {
             added++;
 
             /* We can reply right away, so that we don't need to store the value in the dict. */
+            /**我们可以立即回复，这样我们就不需要将值存储在 dict 中。*/
             if (withvalues && c->resp > 2)
                 addReplyArrayLen(c,2);
             hashReplyFromListpackEntry(c, &key);
@@ -1181,6 +1208,7 @@ void hrandfieldCommand(client *c) {
     }
 
     /* Handle variant without <count> argument. Reply with simple bulk string */
+    /**处理没有 <count> 参数的变体。用简单的批量字符串回复*/
     if ((hash = lookupKeyReadOrReply(c,c->argv[1],shared.null[c->resp]))== NULL ||
         checkType(c,hash,OBJ_HASH)) {
         return;

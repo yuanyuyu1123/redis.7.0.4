@@ -60,13 +60,11 @@ static int checkStringLength(client *c, long long size) {
  *
  * If ok_reply is NULL "+OK" is used.
  * If abort_reply is NULL, "$-1" is used. */
-/**
- * setGenericCommand() 函数使用不同的选项和变体实现 SET 操作。
+/**setGenericCommand() 函数使用不同的选项和变体实现 SET 操作。
  * 调用此函数是为了实现以下命令：SET、SETEX、PSETEX、SETNX、GETSET。
  * 'flags' 改变命令的行为（NX、XX 或 GET，见下文）。 'expire' 表示要以用户传递的 Redis 对象的形式设置的过期时间。
  * 它根据指定的“单位”进行解释。 'ok_reply' 和 'abort_reply' 是函数在执行操作或不是因为 NX 或 XX 标志时回复客户端的内容。
- * 如果 ok_reply 为 NULL，则使用“+OK”。如果 abort_reply 为 NULL，则使用“-1”。
- * */
+ * 如果 ok_reply 为 NULL，则使用“+OK”。如果 abort_reply 为 NULL，则使用“-1”。*/
 
 #define OBJ_NO_FLAGS 0
 #define OBJ_SET_NX (1<<0)          /* Set if key not exists. */
@@ -486,12 +484,14 @@ void setrangeCommand(client *c) {
     o = lookupKeyWrite(c->db,c->argv[1]);
     if (o == NULL) {
         /* Return 0 when setting nothing on a non-existing string */
+        /**在不存在的字符串上不设置任何内容时返回 0*/
         if (sdslen(value) == 0) {
             addReply(c,shared.czero);
             return;
         }
 
         /* Return when the resulting string exceeds allowed size */
+        /**当结果字符串超过允许的大小时返回*/
         if (checkStringLength(c,offset+sdslen(value)) != C_OK)
             return;
 
@@ -500,11 +500,12 @@ void setrangeCommand(client *c) {
     } else {
         size_t olen;
 
-        /* Key exists, check type */
+        /* Key exists, check type 密钥存在，检查类型*/
         if (checkType(c,o,OBJ_STRING))
             return;
 
         /* Return existing string length when setting nothing */
+        /**什么都不设置时返回现有的字符串长度*/
         olen = stringObjectLen(o);
         if (sdslen(value) == 0) {
             addReplyLongLong(c,olen);
@@ -512,10 +513,12 @@ void setrangeCommand(client *c) {
         }
 
         /* Return when the resulting string exceeds allowed size */
+        /**当结果字符串超过允许的大小时返回*/
         if (checkStringLength(c,offset+sdslen(value)) != C_OK)
             return;
 
         /* Create a copy when the object is shared or encoded. */
+        /**当对象被共享或编码时创建一个副本。*/
         o = dbUnshareStringValue(c->db,c->argv[1],o);
     }
 
@@ -551,7 +554,7 @@ void getrangeCommand(client *c) {
         strlen = sdslen(str);
     }
 
-    /* Convert negative indexes */
+    /* Convert negative indexes  转换负索引*/
     if (start < 0 && end < 0 && start > end) {
         addReply(c,shared.emptybulk);
         return;
@@ -564,6 +567,7 @@ void getrangeCommand(client *c) {
 
     /* Precondition: end >= 0 && end < strlen, so the only condition where
      * nothing can be returned is: start > end. */
+    /**前提条件：end >= 0 && end < strlen，所以唯一不能返回什么的条件是：start > end。*/
     if (start > end || strlen == 0) {
         addReply(c,shared.emptybulk);
     } else {
@@ -599,6 +603,7 @@ void msetGenericCommand(client *c, int nx) {
 
     /* Handle the NX flag. The MSETNX semantic is to return zero and don't
      * set anything if at least one key already exists. */
+    /**处理 NX 标志。 MSETNX 语义是返回零，如果至少一个键已经存在，则不设置任何内容。*/
     if (nx) {
         for (j = 1; j < c->argc; j += 2) {
             if (lookupKeyWrite(c->db,c->argv[j]) != NULL) {
@@ -681,6 +686,7 @@ void decrbyCommand(client *c) {
 
     if (getLongLongFromObjectOrReply(c, c->argv[2], &incr, NULL) != C_OK) return;
     /* Overflow check: negating LLONG_MIN will cause an overflow */
+    /**溢出检查：否定 LLONG_MIN 将导致溢出*/
     if (incr == LLONG_MIN) {
         addReplyError(c, "decrement would overflow");
         return;
@@ -716,6 +722,7 @@ void incrbyfloatCommand(client *c) {
     /* Always replicate INCRBYFLOAT as a SET command with the final value
      * in order to make sure that differences in float precision or formatting
      * will not create differences in replicas or after an AOF restart. */
+    /**始终将 INCRBYFLOAT 作为带有最终值的 SET 命令复制，以确保浮点精度或格式的差异不会在副本中或在 AOF 重新启动后造成差异。*/
     rewriteClientCommandArgument(c,0,shared.set);
     rewriteClientCommandArgument(c,2,new);
     rewriteClientCommandArgument(c,3,shared.keepttl);
@@ -737,7 +744,7 @@ void appendCommand(client *c) {
         if (checkType(c,o,OBJ_STRING))
             return;
 
-        /* "append" is an argument, so always an sds */
+        /* "append" is an argument, so always an sds     "append"是一个参数，所以总是一个 sds*/
         append = c->argv[2];
         totlen = stringObjectLen(o)+sdslen(append->ptr);
         if (checkStringLength(c,totlen) != C_OK)
@@ -778,6 +785,7 @@ void lcsCommand(client *c) {
             "The specified keys must contain string values");
         /* Don't cleanup the objects, we need to do that
          * only after calling getDecodedObject(). */
+        /**不要清理对象，我们需要在调用 getDecodedObject() 之后才这样做。*/
         obja = NULL;
         objb = NULL;
         goto cleanup;
@@ -809,6 +817,7 @@ void lcsCommand(client *c) {
     }
 
     /* Complain if the user passed ambiguous parameters. */
+    /**投诉用户是否传递了不明确的参数。*/
     if (getlen && getidx) {
         addReplyError(c,
             "If you want both the length and indexes, please just use IDX.");
@@ -816,6 +825,7 @@ void lcsCommand(client *c) {
     }
 
     /* Detect string truncation or later overflows. */
+    /**检测字符串截断或以后的溢出。*/
     if (sdslen(a) >= UINT32_MAX-1 || sdslen(b) >= UINT32_MAX-1) {
         addReplyError(c, "String too long for LCS");
         goto cleanup;
@@ -823,16 +833,20 @@ void lcsCommand(client *c) {
 
     /* Compute the LCS using the vanilla dynamic programming technique of
      * building a table of LCS(x,y) substrings. */
+    /**使用构建 LCS(x,y) 子字符串表的 vanilla 动态编程技术计算 LCS。*/
     uint32_t alen = sdslen(a);
     uint32_t blen = sdslen(b);
 
     /* Setup an uint32_t array to store at LCS[i,j] the length of the
      * LCS A0..i-1, B0..j-1. Note that we have a linear array here, so
      * we index it as LCS[j+(blen+1)*i] */
+    /**设置一个 uint32_t 数组以在 LCS[i,j] 处存储 LCS A0..i-1、B0..j-1 的长度。
+     * 请注意，我们这里有一个线性数组，因此我们将其索引为 LCS[j+(blen+1)i]*/
     #define LCS(A,B) lcs[(B)+((A)*(blen+1))]
 
     /* Try to allocate the LCS table, and abort on overflow or insufficient memory. */
-    unsigned long long lcssize = (unsigned long long)(alen+1)*(blen+1); /* Can't overflow due to the size limits above. */
+    /**尝试分配 LCS 表，并在溢出或内存不足时中止。*/
+    unsigned long long lcssize = (unsigned long long)(alen+1)*(blen+1); /* Can't overflow due to the size limits above. 由于上述大小限制，无法溢出。*/
     unsigned long long lcsalloc = lcssize * sizeof(uint32_t);
     uint32_t *lcs = NULL;
     if (lcsalloc < SIZE_MAX && lcsalloc / lcssize == sizeof(uint32_t)) {
@@ -847,23 +861,25 @@ void lcsCommand(client *c) {
         goto cleanup;
     }
 
-    /* Start building the LCS table. */
+    /* Start building the LCS table. 开始构建 LCS 表。*/
     for (uint32_t i = 0; i <= alen; i++) {
         for (uint32_t j = 0; j <= blen; j++) {
             if (i == 0 || j == 0) {
                 /* If one substring has length of zero, the
-                 * LCS length is zero. */
+                 * LCS length is zero. 如果一个子串的长度为零，则 LCS 长度为零。*/
                 LCS(i,j) = 0;
             } else if (a[i-1] == b[j-1]) {
                 /* The len LCS (and the LCS itself) of two
                  * sequences with the same final character, is the
                  * LCS of the two sequences without the last char
                  * plus that last char. */
+                /**具有相同最终字符的两个序列的 len LCS（和 LCS 本身）是没有最后一个字符加上最后一个字符的两个序列的 LCS。*/
                 LCS(i,j) = LCS(i-1,j-1)+1;
             } else {
                 /* If the last character is different, take the longest
                  * between the LCS of the first string and the second
                  * minus the last char, and the reverse. */
+                /**如果最后一个字符不同，则取第一个字符串和第二个字符串的 LCS 之间的最长值减去最后一个字符，反之亦然。*/
                 uint32_t lcs1 = LCS(i-1,j);
                 uint32_t lcs2 = LCS(i,j-1);
                 LCS(i,j) = lcs1 > lcs2 ? lcs1 : lcs2;
@@ -873,20 +889,23 @@ void lcsCommand(client *c) {
 
     /* Store the actual LCS string in "result" if needed. We create
      * it backward, but the length is already known, we store it into idx. */
+    /**如果需要，将实际的 LCS 字符串存储在“结果”中。我们向后创建它，但长度是已知的，我们将它存储到 idx 中。*/
     uint32_t idx = LCS(alen,blen);
-    sds result = NULL;        /* Resulting LCS string. */
-    void *arraylenptr = NULL; /* Deferred length of the array for IDX. */
-    uint32_t arange_start = alen, /* alen signals that values are not set. */
+    sds result = NULL;        /* Resulting LCS string. 生成的 LCS 字符串。*/
+    void *arraylenptr = NULL; /* Deferred length of the array for IDX.IDX 数组的延迟长度。 */
+    uint32_t arange_start = alen, /* alen signals that values are not set. alen 表示未设置值。*/
              arange_end = 0,
              brange_start = 0,
              brange_end = 0;
 
     /* Do we need to compute the actual LCS string? Allocate it in that case. */
+    /**我们需要计算实际的 LCS 字符串吗？在这种情况下分配它。*/
     int computelcs = getidx || !getlen;
     if (computelcs) result = sdsnewlen(SDS_NOINIT,idx);
 
     /* Start with a deferred array if we have to emit the ranges. */
-    uint32_t arraylen = 0;  /* Number of ranges emitted in the array. */
+    /**如果我们必须发出范围，则从延迟数组开始。*/
+    uint32_t arraylen = 0;  /* Number of ranges emitted in the array. 数组中发出的范围数。*/
     if (getidx) {
         addReplyMapLen(c,2);
         addReplyBulkCString(c,"matches");
@@ -899,9 +918,10 @@ void lcsCommand(client *c) {
         if (a[i-1] == b[j-1]) {
             /* If there is a match, store the character and reduce
              * the indexes to look for a new match. */
+            /**如果有匹配，则存储字符并减少索引以查找新匹配。*/
             result[idx-1] = a[i-1];
 
-            /* Track the current range. */
+            /* Track the current range. 跟踪当前范围。*/
             if (arange_start == alen) {
                 arange_start = i-1;
                 arange_end = i-1;
@@ -910,6 +930,7 @@ void lcsCommand(client *c) {
             } else {
                 /* Let's see if we can extend the range backward since
                  * it is contiguous. */
+                /**让我们看看我们是否可以向后扩展范围，因为它是连续的。*/
                 if (arange_start == i && brange_start == j) {
                     arange_start--;
                     brange_start--;
@@ -919,11 +940,13 @@ void lcsCommand(client *c) {
             }
             /* Emit the range if we matched with the first byte of
              * one of the two strings. We'll exit the loop ASAP. */
+            /**如果我们与两个字符串之一的第一个字节匹配，则发出范围。我们将尽快退出循环。*/
             if (arange_start == 0 || brange_start == 0) emit_range = 1;
             idx--; i--; j--;
         } else {
             /* Otherwise reduce i and j depending on the largest
              * LCS between, to understand what direction we need to go. */
+            /**否则根据之间最大的 LCS 减少 i 和 j，以了解我们需要走的方向。*/
             uint32_t lcs1 = LCS(i-1,j);
             uint32_t lcs2 = LCS(i,j-1);
             if (lcs1 > lcs2)
@@ -933,7 +956,7 @@ void lcsCommand(client *c) {
             if (arange_start != alen) emit_range = 1;
         }
 
-        /* Emit the current range if needed. */
+        /* Emit the current range if needed. 如果需要，发出当前范围。*/
         uint32_t match_len = arange_end - arange_start + 1;
         if (emit_range) {
             if (minmatchlen == 0 || match_len >= minmatchlen) {
@@ -949,13 +972,13 @@ void lcsCommand(client *c) {
                     arraylen++;
                 }
             }
-            arange_start = alen; /* Restart at the next match. */
+            arange_start = alen; /* Restart at the next match. 下一此匹配重新开始。*/
         }
     }
 
-    /* Signal modified key, increment dirty, ... */
+    /* Signal modified key, increment dirty, ...  信号修改键，增加脏，...*/
 
-    /* Reply depending on the given options. */
+    /* Reply depending on the given options. 根据给定的选项回复。*/
     if (arraylenptr) {
         addReplyBulkCString(c,"len");
         addReplyLongLong(c,LCS(alen,blen));

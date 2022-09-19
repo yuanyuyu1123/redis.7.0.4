@@ -78,8 +78,7 @@
  * in the zipmap and *not* the number of bytes needed to represent the zipmap.
  * This lowers the constant times considerably.
  */
-/**
- * zipmap 的内存布局，
+/**zipmap 的内存布局，
  * map "foo" => "bar", "hello" => "world":
  * <zmlen><len>"foo"<len><free>"bar"<len>"hello "<len><free>"world"
  * <zmlen> 是 1 字节长度，用于保存 zipmap 的当前大小。
@@ -93,8 +92,7 @@
  * <free> 始终是一个无符号的 8 位数字，因为如果在更新操作后有多个空闲字节，则会重新分配 zipmap 以确保它尽可能小。
  * 上面两个元素hash最简洁的表示其实是："\x02\x03foo\x03\x00bar\x05hello\x05\x00world\xff"
  * 注意因为key和value都是前缀长度为“objects”的，所以查找需要O( N) 其中 N 是 zipmap 中的元素数，而不是表示 zipmap 所需的字节数。
- * 这大大降低了恒定时间。
- * */
+ * 这大大降低了恒定时间。*/
 
 #include <stdio.h>
 #include <string.h>
@@ -164,11 +162,10 @@ static unsigned int zipmapEncodeLength(unsigned char *p, unsigned int len) {
  * If NULL is returned, and totlen is not NULL, it is set to the entire
  * size of the zipmap, so that the calling function will be able to
  * reallocate the original zipmap to make room for more entries. */
-/**
- * 搜索匹配的键，返回指向 zipmap 中条目的指针。
- * 如果未找到密钥，则返回 NULL。如果返回 NULL，并且 totlen 不为 NULL，
- * 则将其设置为 zipmap 的整个大小，以便调用函数能够重新分配原始 zipmap 为更多条目腾出空间。
- * */
+/**搜索匹配的键，返回指向 zipmap 中条目的指针。如果未找到密钥，则返回 NULL。
+ *
+ * 如果返回 NULL，并且 totlen 不为 NULL，
+ * 则将其设置为 zipmap 的整个大小，以便调用函数能够重新分配原始 zipmap 为更多条目腾出空间。*/
 static unsigned char *zipmapLookupRaw(unsigned char *zm, unsigned char *key, unsigned int klen, unsigned int *totlen) {
     unsigned char *p = zm+1, *k = NULL;
     unsigned int l,llen;
@@ -194,7 +191,7 @@ static unsigned char *zipmapLookupRaw(unsigned char *zm, unsigned char *key, uns
         l = zipmapDecodeLength(p);
         p += zipmapEncodeLength(NULL,l);
         free = p[0];
-        p += l+1+free; /* +1 to skip the free byte */
+        p += l+1+free; /* +1 to skip the free byte  +1 跳过空闲字节*/
     }
     if (totlen != NULL) *totlen = (unsigned int)(p-zm)+1;
     return k;
@@ -292,10 +289,8 @@ unsigned char *zipmapSet(unsigned char *zm, unsigned char *key, unsigned int kle
      * be written. If there is too much free space, move the tail
      * of the zipmap a few bytes to the front and shrink the zipmap,
      * as we want zipmaps to be very space efficient. */
-    /**
-     * 我们现在有一个合适的块，可以在其中写入键值条目。
-     * 如果可用空间过多，请将 zipmap 的尾部移到前面几个字节并缩小 zipmap，因为我们希望 zipmap 非常节省空间。
-     * */
+    /**我们现在有一个合适的块，可以在其中写入键值条目。
+     * 如果可用空间过多，请将 zipmap 的尾部移到前面几个字节并缩小 zipmap，因为我们希望 zipmap 非常节省空间。*/
     empty = freelen-reqlen;
     if (empty >= ZIPMAP_VALUE_MAX_FREE) {
         /* First, move the tail <empty> bytes to the front, then resize
@@ -311,7 +306,7 @@ unsigned char *zipmapSet(unsigned char *zm, unsigned char *key, unsigned int kle
         vempty = empty;
     }
 
-    /* Just write the key + value and we are done. */
+    /* Just write the key + value and we are done. 只需编写键+值，我们就完成了。*/
     /* Key: */
     p += zipmapEncodeLength(p,klen);
     memcpy(p,key,klen);
@@ -334,7 +329,7 @@ unsigned char *zipmapDel(unsigned char *zm, unsigned char *key, unsigned int kle
         memmove(p, p+freelen, zmlen-((p-zm)+freelen+1));
         zm = zipmapResize(zm, zmlen-freelen);
 
-        /* Decrease zipmap length */
+        /* Decrease zipmap length 减少 zipmap 长度*/
         if (zm[0] < ZIPMAP_BIGLEN) zm[0]--;
 
         if (deleted) *deleted = 1;
@@ -428,11 +423,9 @@ size_t zipmapBlobLen(unsigned char *zm) {
 /* Validate the integrity of the data structure.
  * when `deep` is 0, only the integrity of the header is validated.
  * when `deep` is 1, we scan all the entries one by one. */
-/**
- * 验证数据结构的完整性。
+/**验证数据结构的完整性。
  * 当 `deep` 为 0 时，仅验证标头的完整性。
- * 当 `deep` 为 1 时，我们一一扫描所有条目。
- * */
+ * 当 `deep` 为 1 时，我们一一扫描所有条目。*/
 int zipmapValidateIntegrity(unsigned char *zm, size_t size, int deep) {
 #define OUT_OF_RANGE(p) ( \
         (p) < zm + 2 || \
@@ -463,9 +456,9 @@ int zipmapValidateIntegrity(unsigned char *zm, size_t size, int deep) {
         if (OUT_OF_RANGE(p+s))
             return 0;
 
-        /* read the field name length */
+        /* read the field name length 读取字段名称长度*/
         l = zipmapDecodeLength(p);
-        p += s; /* skip the encoded field size */
+        p += s; /* skip the encoded field size 跳过编码字段大小*/
         p += l; /* skip the field */
 
         /* make sure the entry doesn't reach outside the edge of the zipmap */
@@ -473,25 +466,27 @@ int zipmapValidateIntegrity(unsigned char *zm, size_t size, int deep) {
         if (OUT_OF_RANGE(p))
             return 0;
 
-        /* read the value length encoding type */
+        /* read the value length encoding type 读取值长度编码类型*/
         s = zipmapGetEncodedLengthSize(p);
         /* make sure the entry length doesn't reach outside the edge of the zipmap */
+        /**确保条目长度没有超出 zipmap 的边缘*/
         if (OUT_OF_RANGE(p+s))
             return 0;
 
-        /* read the value length */
+        /* read the value length 读取值长度*/
         l = zipmapDecodeLength(p);
-        p += s; /* skip the encoded value size*/
-        e = *p++; /* skip the encoded free space (always encoded in one byte) */
-        p += l+e; /* skip the value and free space */
+        p += s; /* skip the encoded value size 跳过编码值大小*/
+        e = *p++; /* skip the encoded free space (always encoded in one byte) 跳过已编码的可用空间（始终以一个字节编码）*/
+        p += l+e; /* skip the value and free space 跳过值和可用空间*/
         count++;
 
         /* make sure the entry doesn't reach outside the edge of the zipmap */
+        /**确保条目没有超出 zipmap 的边缘*/
         if (OUT_OF_RANGE(p))
             return 0;
     }
 
-    /* check that the zipmap is not empty. */
+    /* check that the zipmap is not empty. 检查 zipmap 是否为空。*/
     if (count == 0) return 0;
 
     /* check that the count in the header is correct */

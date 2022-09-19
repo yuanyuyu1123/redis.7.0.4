@@ -314,7 +314,7 @@ void linsertCommand(client *c) {
     if ((subject = lookupKeyWriteOrReply(c,c->argv[1],shared.czero)) == NULL ||
         checkType(c,subject,OBJ_LIST)) return;
 
-    /* Seek pivot from head to tail */
+    /* Seek pivot from head to tail 从头到尾寻找支点*/
     iter = listTypeInitIterator(subject,0,LIST_TAIL);
     while (listTypeNext(iter,&entry)) {
         if (listTypeEqual(&entry,c->argv[3])) {
@@ -331,7 +331,7 @@ void linsertCommand(client *c) {
                             c->argv[1],c->db->id);
         server.dirty++;
     } else {
-        /* Notify client of a failed insert */
+        /* Notify client of a failed insert 通知客户插入失败*/
         addReplyLongLong(c,-1);
         return;
     }
@@ -428,13 +428,14 @@ void listPopRangeAndReplyWithKey(client *c, robj *o, robj *key, int where, long 
     int reverse = (where == LIST_HEAD) ? 0 : 1;
 
     /* We return key-name just once, and an array of elements */
+    /**我们只返回一次键名和一个元素数组*/
     addReplyArrayLen(c, 2);
     addReplyBulk(c, key);
     addListRangeReply(c, o, rangestart, rangeend, reverse);
 
     /* Pop these elements. */
     listTypeDelRange(o, rangestart, rangelen);
-    /* Maintain the notifications and dirty. */
+    /* Maintain the notifications and dirty. 保持通知和脏。*/
     listElementsRemoved(c, key, where, o, rangelen, deleted);
 }
 
@@ -443,11 +444,9 @@ void listPopRangeAndReplyWithKey(client *c, robj *o, robj *key, int where, long 
  * must be less than end or an empty array is returned. When the reverse
  * argument is set to a non-zero value, the reply is reversed so that elements
  * are returned from end to start. */
-/**
- * 一个帮助器，用于将包含开始和结束索引之间的列表范围作为多批量回复，并支持负索引。
+/**一个帮助器，用于将包含开始和结束索引之间的列表范围作为多批量回复，并支持负索引。
  * 注意 start 必须小于 end 否则返回一个空数组。
- * 当 reverse 参数设置为非零值时，回复将反转，以便从 end 到 start 返回元素。
- * */
+ * 当 reverse 参数设置为非零值时，回复将反转，以便从 end 到 start 返回元素。 */
 void addListRangeReply(client *c, robj *o, long start, long end, int reverse) {
     long rangelen, llen = listTypeLength(o);
 
@@ -458,6 +457,7 @@ void addListRangeReply(client *c, robj *o, long start, long end, int reverse) {
 
     /* Invariant: start >= 0, so this test will be true when end < 0.
      * The range is empty when start > end or start >= length. */
+    /**不变量：start >= 0，因此当 end < 0 时该测试为真。当 start > end 或 start >= length 时范围为空。*/
     if (start > end || start >= llen) {
         addReply(c,shared.emptyarray);
         return;
@@ -466,6 +466,7 @@ void addListRangeReply(client *c, robj *o, long start, long end, int reverse) {
     rangelen = (end-start)+1;
 
     /* Return the result in form of a multi-bulk reply */
+    /**以多批回复的形式返回结果*/
     addReplyArrayLen(c,rangelen);
     if (o->encoding == OBJ_ENCODING_QUICKLIST) {
         int from = reverse ? end : start;
@@ -492,7 +493,8 @@ void addListRangeReply(client *c, robj *o, long start, long end, int reverse) {
  *
  * 'deleted' is an optional output argument to get an indication
  * if the key got deleted by this function. */
-//列表元素弹出任务的管家助手。 'deleted' 是一个可选的输出参数，用于指示键是否被此函数删除。
+//列表元素弹出任务的管家助手。
+// 'deleted' 是一个可选的输出参数，用于指示键是否被此函数删除。
 void listElementsRemoved(client *c, robj *key, int where, robj *o, long count, int *deleted) {
     char *event = (where == LIST_HEAD) ? "lpop" : "rpop";
 
@@ -513,7 +515,9 @@ void listElementsRemoved(client *c, robj *key, int where, robj *o, long count, i
  * The where argument specifies which end of the list is operated on. An
  * optional count may be provided as the third argument of the client's
  * command. */
-//实现 LPOPRPOP 的通用列表弹出操作。 where 参数指定操作列表的哪一端。可以提供一个可选的计数作为客户端命令的第三个参数。
+//实现 LPOPRPOP 的通用列表弹出操作。
+// where 参数指定操作列表的哪一端。
+// 可以提供一个可选的计数作为客户端命令的第三个参数。
 void popGenericCommand(client *c, int where) {
     int hascount = (c->argc == 3);
     long count = 0;
@@ -523,7 +527,7 @@ void popGenericCommand(client *c, int where) {
         addReplyErrorArity(c);
         return;
     } else if (hascount) {
-        /* Parse the optional count argument. */
+        /* Parse the optional count argument. 解析可选的计数参数。*/
         if (getPositiveLongFromObjectOrReply(c,c->argv[2],&count,NULL) != C_OK) 
             return;
     }
@@ -541,6 +545,7 @@ void popGenericCommand(client *c, int where) {
     if (!count) {
         /* Pop a single element. This is POP's original behavior that replies
          * with a bulk string. */
+        /**弹出单个元素。这是 POP 的原始行为，它使用批量字符串进行回复。*/
         value = listTypePop(o,where);
         serverAssert(value != NULL);
         addReplyBulk(c,value);
@@ -549,6 +554,7 @@ void popGenericCommand(client *c, int where) {
     } else {
         /* Pop a range of elements. An addition to the original POP command,
          *  which replies with a multi-bulk. */
+        /**弹出一系列元素。对原始 POP 命令的补充，它以多批量回复。*/
         long llen = listTypeLength(o);
         long rangelen = (count > llen) ? llen : count;
         long rangestart = (where == LIST_HEAD) ? 0 : -rangelen;
@@ -568,10 +574,12 @@ void popGenericCommand(client *c, int where) {
  * 'count' is the number of elements requested to pop.
  *
  * Always reply with array. */
-/**
- * 与 popGenericCommand 类似，但可以使用多个键。获取多个键并从一个键返回多个元素。
- * 'numkeys' 键的数量。 'count' 是请求弹出的元素数。总是用数组回复。
- * */
+/**与 popGenericCommand 类似，但可以使用多个键。获取多个键并从一个键返回多个元素。
+ *
+ *   'numkeys' 键的数量。
+ *   'count' 是请求弹出的元素数。
+ *
+ * 总是用数组回复。*/
 void mpopGenericCommand(client *c, robj **keys, int numkeys, int where, long count) {
     int j;
     robj *o;
@@ -591,6 +599,7 @@ void mpopGenericCommand(client *c, robj **keys, int numkeys, int where, long cou
         if (llen == 0) continue;
 
         /* Pop a range of elements in a nested arrays way. */
+        /**以嵌套数组的方式弹出一系列元素。*/
         listPopRangeAndReplyWithKey(c, o, key, where, count, NULL);
 
         /* Replicate it as [LR]POP COUNT. */
@@ -603,6 +612,7 @@ void mpopGenericCommand(client *c, robj **keys, int numkeys, int where, long cou
     }
 
     /* Look like we are not able to pop up any elements. */
+    /**看起来我们无法弹出任何元素。*/
     addReplyNullArray(c);
 }
 
@@ -651,6 +661,7 @@ void ltrimCommand(client *c) {
      * The range is empty when start > end or start >= length. */
     if (start > end || start >= llen) {
         /* Out of range start or start > end result in empty list */
+        /**超出范围开始或开始>结束导致空列表*/
         ltrim = llen;
         rtrim = 0;
     } else {
@@ -694,14 +705,12 @@ void ltrimCommand(client *c) {
  *
  * The returned elements indexes are always referring to what LINDEX
  * would return. So first element from head is 0, and so forth. */
-/**
- * LPOS key element [RANK rank] [COUNT num-matches] [MAXLEN len] “rank”是匹配的位置，所以如果是1，
+/**LPOS key element [RANK rank] [COUNT num-matches] [MAXLEN len] “rank”是匹配的位置，所以如果是1，
  * 返回第一个匹配，如果是2，返回第二个匹配等等。默认为 1。如果否定具有相同的含义，但从列表末尾开始执行搜索。
  * 如果给出了 COUNT，则不返回单个元素，而是返回直到“num-matches”的所有匹配元素的列表。
  * COUNT 可以与 RANK 结合使用，以便仅返回从第 N 个开始的元素。如果 COUNT 为零，则返回所有匹配的元素。
  * MAXLEN 告诉命令扫描最大 len 个元素。如果为零（默认值），则在需要时扫描列表中的所有元素。
- * 返回的元素索引始终指的是 LINDEX 将返回的内容。所以 head 的第一个元素是 0，依此类推。
- * */
+ * 返回的元素索引始终指的是 LINDEX 将返回的内容。所以 head 的第一个元素是 0，依此类推。*/
 void lposCommand(client *c) {
     robj *o, *ele;
     ele = c->argv[2];
@@ -740,6 +749,7 @@ void lposCommand(client *c) {
     }
 
     /* A negative rank means start from the tail. */
+    /**负排名意味着从尾部开始。*/
     if (rank < 0) {
         rank = -rank;
         direction = LIST_HEAD;
@@ -747,6 +757,7 @@ void lposCommand(client *c) {
 
     /* We return NULL or an empty array if there is no such key (or
      * if we find no matches, depending on the presence of the COUNT option. */
+    /**如果没有这样的键（或者如果我们没有找到匹配项，取决于 COUNT 选项的存在，我们将返回 NULL 或空数组。*/
     if ((o = lookupKeyRead(c->db,c->argv[1])) == NULL) {
         if (count != -1)
             addReply(c,shared.emptyarray);
@@ -757,6 +768,7 @@ void lposCommand(client *c) {
     if (checkType(c,o,OBJ_LIST)) return;
 
     /* If we got the COUNT option, prepare to emit an array. */
+    /**如果我们有 COUNT 选项，准备发射一个数组。*/
     void *arraylenptr = NULL;
     if (count != -1) arraylenptr = addReplyDeferredLen(c);
 
@@ -781,7 +793,7 @@ void lposCommand(client *c) {
             }
         }
         index++;
-        matchindex = -1; /* Remember if we exit the loop without a match. */
+        matchindex = -1; /* Remember if we exit the loop without a match.  请记住，如果我们在没有匹配的情况下退出循环。*/
     }
     listTypeReleaseIterator(li);
 
@@ -845,6 +857,7 @@ void lremCommand(client *c) {
 void lmoveHandlePush(client *c, robj *dstkey, robj *dstobj, robj *value,
                      int where) {
     /* Create the list if the key does not exist */
+    /**如果密钥不存在，则创建列表*/
     if (!dstobj) {
         dstobj = createQuicklistObject();
         quicklistSetOptions(dstobj->ptr, server.list_max_listpack_size,
@@ -858,6 +871,7 @@ void lmoveHandlePush(client *c, robj *dstkey, robj *dstobj, robj *value,
                         dstkey,
                         c->db->id);
     /* Always send the pushed value to the client. */
+    /**始终将推送的值发送给客户端。*/
     addReplyBulk(c,value);
 }
 
@@ -890,6 +904,7 @@ void lmoveGenericCommand(client *c, int wherefrom, int whereto) {
     if (listTypeLength(sobj) == 0) {
         /* This may only happen after loading very old RDB files. Recent
          * versions of Redis delete keys of empty lists. */
+        /**这可能仅在加载非常旧的 RDB 文件后才会发生。 Redis 的最新版本删除了空列表的键。*/
         addReplyNull(c);
     } else {
         robj *dobj = lookupKeyWrite(c->db,c->argv[2]);
@@ -897,13 +912,14 @@ void lmoveGenericCommand(client *c, int wherefrom, int whereto) {
 
         if (checkType(c,dobj,OBJ_LIST)) return;
         value = listTypePop(sobj,wherefrom);
-        serverAssert(value); /* assertion for valgrind (avoid NPD) */
+        serverAssert(value); /* assertion for valgrind        valgrind 的断言（避免 NPD） */
         lmoveHandlePush(c,c->argv[2],dobj,value,whereto);
 
         /* listTypePop returns an object with its refcount incremented */
+        /**listTypePop 返回一个对象，其引用计数递增*/
         decrRefCount(value);
 
-        /* Delete the source list when it is empty */
+        /* Delete the source list when it is empty 源列表为空时删除*/
         notifyKeyspaceEvent(NOTIFY_LIST,
                             wherefrom == LIST_HEAD ? "lpop" : "rpop",
                             touchedkey,
