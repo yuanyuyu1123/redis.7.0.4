@@ -4,6 +4,6 @@ redis7.0.4
 
 编译：
 
-./dep/jemalloc/autogen.sh
+./deps/jemalloc/autogen.sh
 
 make CFLAGS="-march=x86-64"
