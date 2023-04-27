@@ -58,15 +58,13 @@ redisSortOperation *createSortOperation(int type, robj *pattern) {
  *
  * The returned object will always have its refcount increased by 1
  * when it is non-NULL. */
-/**
- * 返回与使用以下规则获得的名称的键关联的值：
+/**返回与使用以下规则获得的名称的键关联的值：
  *   1) 'pattern' 中第一次出现的 '' 被替换为 'subst'。
  *   2) 如果 'pattern' 匹配 "->" 字符串，则箭头左侧的所有内容都被视为散列字段的名称，左侧的部分作为包含散列的键名。
  *      返回指定字段的值。
  *   3) 如果 'pattern' 等于 ""，该函数简单地返回 'subst' 本身，这样 SORT 命令可以像这样使用：
  *      SORT key GET 直接检索 SetList 元素。
- * 返回的对象在非 NULL 时，其引用计数将始终增加 1。
- * */
+ * 返回的对象在非 NULL 时，其引用计数将始终增加 1。*/
 robj *lookupKeyByPattern(redisDb *db, robj *pattern, robj *subst) {
     char *p, *f, *k;
     sds spat, ssub;

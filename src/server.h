@@ -146,20 +146,16 @@ typedef long long ustime_t; /* microsecond time type. 微秒时间类型。*/
  * write protection that is normally turned on on write errors.
  * Usually children that are terminated with SIGUSR1 will exit with this
  * special code. */
-/**
- * 子进程将退出并带有此状态码以表示进程终止而没有错误：
+/**子进程将退出并带有此状态码以表示进程终止而没有错误：
  * 这对于杀死正在保存的子进程（RDB 或 AOF 之一）很有用，而不会在父进程中触发通常在写入时打开的写保护错误。
- * 通常，以 SIGUSR1 终止的子进程将使用此特殊代码退出。
- * */
+ * 通常，以 SIGUSR1 终止的子进程将使用此特殊代码退出。*/
 #define SERVER_CHILD_NOERROR_RETVAL    255
 
 /* Reading copy-on-write info is sometimes expensive and may slow down child
  * processes that report it continuously. We measure the cost of obtaining it
  * and hold back additional reading based on this factor. */
-/**
- * 读取写时复制信息有时会很昂贵，并且可能会减慢连续报告它的子进程。
- * 我们衡量获得它的成本，并根据这个因素阻止额外的阅读。
- * */
+/**读取写时复制信息有时会很昂贵，并且可能会减慢连续报告它的子进程。
+ * 我们衡量获得它的成本，并根据这个因素阻止额外的阅读。*/
 #define CHILD_COW_DUTY_CYCLE           100
 
 /* Instantaneous metrics tracking. 即时指标跟踪。*/
@@ -187,11 +183,9 @@ typedef long long ustime_t; /* microsecond time type. 微秒时间类型。*/
  * of file descriptors we can handle are server.maxclients + RESERVED_FDS +
  * a few more to stay safe. Since RESERVED_FDS defaults to 32, we add 96
  * in order to make sure of not over provisioning more than 128 fds. */
-/**
- * 在配置服务器事件循环时，我们对其进行设置，以便我们可以处理的文件描述符总数为
+/**在配置服务器事件循环时，我们对其进行设置，以便我们可以处理的文件描述符总数为
  * server.maxclients + RESERVED_FDS + 更多以保持安全。
- * 由于 RESERVED_FDS 默认为 32，我们添加 96 以确保不会过度配置超过 128 个 fd。
- * */
+ * 由于 RESERVED_FDS 默认为 32，我们添加 96 以确保不会过度配置超过 128 个 fd。*/
 #define CONFIG_FDSET_INCR (CONFIG_MIN_RESERVED_FDS+96)
 
 /* OOM Score Adjustment classes. OOM 分数调整分类。*/
@@ -270,11 +264,9 @@ extern int configOOMScoreAdjValuesDefaults[CONFIG_OOM_COUNT];
  * of the key, and not necessarily the user data or how it affects it.
  * Each key-spec may must have exactly one of these. Any operation that's not
  * distinctly deletion, overwrite or read-only would be marked as RW. */
-/**
- * Key-spec flags --------------
+/**Key-spec flags --------------
  * 以下是指命令对键的值或我所做的实际操作，而不一定是用户数据或它如何影响它。
- * 每个关键规范可能必须恰好具有其中之一。任何明显删除、覆盖或只读的操作都将被标记为 RW。
- * */
+ * 每个关键规范可能必须恰好具有其中之一。任何明显删除、覆盖或只读的操作都将被标记为 RW。*/
 #define CMD_KEY_RO (1ULL<<0)     /* Read-Only - Reads the value of the key, but
                                   * doesn't necessarily returns it.只读 - 读取 k 的值不一定会返回它。 */
 #define CMD_KEY_RW (1ULL<<1)     /* Read-Write - Modifies the data stored in the
@@ -288,13 +280,11 @@ extern int configOOMScoreAdjValuesDefaults[CONFIG_OOM_COUNT];
  * It doesn't refer to modification or returning of metadata (like type, count,
  * presence of data). Any write that's not INSERT or DELETE, would be an UPDATE.
  * Each key-spec may have one of the writes with or without access, or none: */
-/**
- * 以下是指键值内的用户数据，而不是 LRU、类型、基数之类的元数据。
+/**以下是指键值内的用户数据，而不是 LRU、类型、基数之类的元数据。
  * 它是指对用户数据（实际输入字符串TTL）的逻辑操作，被使用返回复制更改，
  * 它不是指修改或返回元数据（如类型，计数，数据存在）。
  * 任何不是 INSERT 或 DELETE 的写入都将是 UPDATE。
- * 每个 key-spec 可能有一个有或没有访问权限的写入，或者没有：
- * */
+ * 每个 key-spec 可能有一个有或没有访问权限的写入，或者没有：*/
 #define CMD_KEY_ACCESS (1ULL<<4) /* Returns, copies or uses the user data from
                                   * the value of the key.返回、复制或使用键的值。 */
 #define CMD_KEY_UPDATE (1ULL<<5) /* Updates data to the value, new value may
@@ -476,11 +466,9 @@ typedef enum {
  * In SEND_BULK and ONLINE state the slave receives new updates
  * in its output queue. In the WAIT_BGSAVE states instead the server is waiting
  * to start the next background saving in order to send updates to it. */
-/**
- * 来自master的 POV 的slaves状态。在客户端->replstate 中使用。
+/**来自master的 POV 的slaves状态。在客户端->replstate 中使用。
  * 在 SEND_BULK 和 ONLINE 状态下，slave 在其输出队列中接收新的更新。
- * 相反，在 WAIT_BGSAVE 状态下，服务器正在等待开始下一次后台保存，以便向其发送更新。
- * */
+ * 相反，在 WAIT_BGSAVE 状态下，服务器正在等待开始下一次后台保存，以便向其发送更新。*/
 #define SLAVE_STATE_WAIT_BGSAVE_START 6 /* We need to produce a new RDB file. 我们需要生成一个新的 RDB 文件。*/
 #define SLAVE_STATE_WAIT_BGSAVE_END 7 /* Waiting RDB file creation to finish. 等待 RDB 文件创建完成。*/
 #define SLAVE_STATE_SEND_BULK 8 /* Sending RDB file to slave.将 RDB 文件发送到从站。 */
@@ -578,9 +566,7 @@ typedef enum {
 /* Redis maxmemory strategies. Instead of using just incremental number
  * for this defines, we use a set of flags so that testing for certain
  * properties common to multiple policies is faster. */
-/**
- * Redis 最大内存策略。我们使用一组标志而不是仅使用增量数字来定义，以便更快地测试多个策略共有的某些属性。
- * */
+/**Redis 最大内存策略。我们使用一组标志而不是仅使用增量数字来定义，以便更快地测试多个策略共有的某些属性。*/
 #define MAXMEMORY_FLAG_LRU (1<<0)
 #define MAXMEMORY_FLAG_LFU (1<<1)
 #define MAXMEMORY_FLAG_ALLKEYS (1<<2)
@@ -687,9 +673,7 @@ typedef enum {
 /* Using the following macro you can run code inside serverCron() with the
  * specified period, specified in milliseconds.
  * The actual resolution depends on server.hz. */
-/**
- * 使用以下宏，您可以在 serverCron() 中以指定的时间段（以毫秒为单位）运行代码。实际分辨率取决于 server.hz。
- * */
+/**使用以下宏，您可以在 serverCron() 中以指定的时间段（以毫秒为单位）运行代码。实际分辨率取决于 server.hz。*/
 #define run_with_period(_ms_) if ((_ms_ <= 1000/server.hz) || !(server.cronloops%((_ms_)/(1000/server.hz))))
 
 /* We can print the stacktrace, so our assert is defined this way: */
@@ -737,13 +721,11 @@ typedef enum {
  * by a 64 bit module type ID, which has a 54 bits module-specific signature
  * in order to dispatch the loading to the right module, plus a 10 bits
  * encoding version. */
-/**
- * “模块”对象类型是一种特殊的对象类型，它表明该对象是由 Redis 模块直接管理的对象。
+/**"module"对象类型是一种特殊的对象类型，它表明该对象是由 Redis 模块直接管理的对象。
  * 在这种情况下，值指向一个 moduleValue 结构，该结构包含对象值（仅由模块本身处理）和 RedisModuleType 结构，
  * 该结构列出了函数指针，以便序列化、反序列化、AOF 重写和释放对象。
  * 在 RDB 文件中，模块类型编码为 OBJ_MODULE 后跟 64 位模块类型 ID，它具有 54 位模块特定签名，
- * 以便将加载分派到正确的模块，加上 10 位编码版本。
- * */
+ * 以便将加载分派到正确的模块，加上 10 位编码版本。*/
 #define OBJ_MODULE 5    /* Module object. */
 #define OBJ_STREAM 6    /* Stream object. */
 
@@ -773,10 +755,8 @@ struct RedisModuleCommand;
  * to serialize and deserialize the value in the RDB file, rewrite the AOF
  * log, create the digest for "DEBUG DIGEST", and free the value when a key
  * is deleted. */
-/**
- * 每个模块类型实现都应该导出一组方法，以便序列化和反序列化 RDB 文件中的值，重写 AOF 日志，
- * 为“DEBUG DIGEST”创建摘要，并在删除键时释放值。
- * */
+/**每个模块类型实现都应该导出一组方法，以便序列化和反序列化 RDB 文件中的值，重写 AOF 日志，
+ * 为“DEBUG DIGEST”创建摘要，并在删除键时释放值。*/
 typedef void *(*moduleTypeLoadFunc)(struct RedisModuleIO *io, int encver);
 typedef void (*moduleTypeSaveFunc)(struct RedisModuleIO *io, void *value);
 typedef int (*moduleTypeAuxLoadFunc)(struct RedisModuleIO *rdb, int encver, int when);
@@ -801,10 +781,8 @@ typedef void *(*moduleTypeCopyFunc2)(struct RedisModuleKeyOptCtx *ctx, const voi
  * a user authenticated via the module API is associated with a different
  * user or gets disconnected. This needs to be exposed since you can't cast
  * a function pointer to (void *). */
-/**
- * 每次通过模块 API 进行身份验证的用户与不同的用户关联或断开连接时，都会调用此回调类型。
- * 这需要公开，因为您不能将函数指针强制转换为 (void )。
- * */
+/**每次通过模块 API 进行身份验证的用户与不同的用户关联或断开连接时，都会调用此回调类型。
+ * 这需要公开，因为您不能将函数指针强制转换为 (void )。*/
 typedef void (*RedisModuleUserChangedFunc) (uint64_t client_id, void *privdata);
 
 
@@ -923,11 +901,9 @@ typedef struct RedisModuleIO {
  * a data structure, so that a digest can be created in a way that correctly
  * reflects the values. See the DEBUG DIGEST command implementation for more
  * background. */
-/**
- * 这是一种用于将 DEBUG DIGEST 功能导出到 Redis 模块的结构。
+/**这是一种用于将 DEBUG DIGEST 功能导出到 Redis 模块的结构。
  * 我们希望捕获数据结构的有序和无序元素，以便可以以正确反映值的方式创建摘要。
- * 有关更多背景信息，请参阅 DEBUG DIGEST 命令实现。
- * */
+ * 有关更多背景信息，请参阅 DEBUG DIGEST 命令实现。*/
 typedef struct RedisModuleDigest {
     unsigned char o[20];    /* Ordered elements. 有序元素。*/
     unsigned char x[20];    /* Xored elements. 异或元素。*/
@@ -944,9 +920,7 @@ typedef struct RedisModuleDigest {
 /* Objects encoding. Some kind of objects like Strings and Hashes can be
  * internally represented in multiple ways. The 'encoding' field of the object
  * is set to one of this fields for this object. */
-/**
- * 对象编码。某些类型的对象（如字符串和哈希）可以在内部以多种方式表示。对象的“编码”字段设置为此对象的此字段之一。
- * */
+/**对象编码。某些类型的对象（如字符串和哈希）可以在内部以多种方式表示。对象的“编码”字段设置为此对象的此字段之一。*/
 #define OBJ_ENCODING_RAW 0     /* Raw representation 原始表示*/
 #define OBJ_ENCODING_INT 1     /* Encoded as integer 编码为整数*/
 #define OBJ_ENCODING_HT 2      /* Encoded as hash table 编码为哈希表*/
@@ -981,20 +955,16 @@ typedef struct redisObject {
 /* The a string name for an object's type as listed above
  * Native types are checked against the OBJ_STRING, OBJ_LIST, OBJ_* defines,
  * and Module types have their registered name returned. */
-/**
- * 上面列出的对象类型的字符串名称根据 OBJ_STRING、OBJ_LIST、OBJ_ 定义检查本机类型，并返回模块类型的注册名称。
- * */
+/**上面列出的对象类型的字符串名称根据 OBJ_STRING、OBJ_LIST、OBJ_*定义检查本机类型，并返回模块类型的注册名称。*/
 char *getObjectTypeName(robj*);
 
 /* Macro used to initialize a Redis object allocated on the stack.
  * Note that this macro is taken near the structure definition to make sure
  * we'll update it when the structure is changed, to avoid bugs like
  * bug #85 introduced exactly in this way. */
-/**
- * 用于初始化分配在堆栈上的 Redis 对象的宏。
+/**用于初始化分配在堆栈上的 Redis 对象的宏。
  * 请注意，这个宏是在结构定义附近使用的，以确保我们在结构更改时更新它，
- * 以避免像错误 85 这样的错误正是以这种方式引入的。
- * */
+ * 以避免像错误 85 这样的错误正是以这种方式引入的。*/
 #define initStaticStringObject(_var,_ptr) do { \
     _var.refcount = OBJ_STATIC_REFCOUNT; \
     _var.type = OBJ_STRING; \
@@ -1043,8 +1013,7 @@ typedef struct clientReplyBlock {
 每个副本或复制积压仅增加它指向的“ref_repl_buf_node”的引用计数。
  所以replica走到下一个节点的时候，应该先增加下一个节点的refcount，当我们修剪replication buffer节点时，
  总是从头节点中移除refcount为0的节点。如果头节点的refcount不为0 ，我们必须停止修剪并且永远不要迭代下一个节点。
- 与“clientReplyBlock”类似，它用于所有副本客户端和复制积压之间的共享缓冲区。
- * */
+ 与“clientReplyBlock”类似，它用于所有副本客户端和复制积压之间的共享缓冲区。*/
 typedef struct replBufBlock {
     int refcount;           /* Number of replicas or repl backlog using. 使用的副本数或 repl backlog。*/
     long long id;           /* The unique incremental number. 唯一的增量编号。*/

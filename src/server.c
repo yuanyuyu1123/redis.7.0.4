@@ -77,10 +77,7 @@ struct sharedObjectsStruct shared;
 /* Global vars that are actually used as constants. The following double
  * values are used for double on-disk serialization, and are initialized
  * at runtime to avoid strange compiler optimizations. */
-/**
- * 实际用作常量的全局变量。以下双精度值用于双磁盘序列化，并在运行时初始化以避免奇怪的编译器优化。
- * */
-
+/**实际用作常量的全局变量。以下双精度值用于双磁盘序列化，并在运行时初始化以避免奇怪的编译器优化。*/
 double R_Zero, R_PosInf, R_NegInf, R_Nan;
 
 /*================================= Globals ================================= */
@@ -169,11 +166,9 @@ void _serverLog(int level, const char *fmt, ...) {
  * We actually use this only for signals that are not fatal from the point
  * of view of Redis. Signals that are going to kill the server anyway and
  * where we need printf-alike features are served by serverLog(). */
-/**
- * 以从信号处理程序安全调用的方式记录没有类似 printf 功能的固定消息。
+/**以从信号处理程序安全调用的方式记录没有类似 printf 功能的固定消息。
  * 我们实际上只将它用于从 Redis 的角度来看不是致命的信号。
- * 无论如何都会杀死服务器的信号以及我们需要类似 printf 功能的地方由 serverLog() 提供。
- * */
+ * 无论如何都会杀死服务器的信号以及我们需要类似 printf 功能的地方由 serverLog() 提供。*/
 void serverLogFromHandler(int level, const char *msg) {
     int fd;
     int log_to_stdout = server.logfile[0] == '\0';
@@ -216,10 +211,8 @@ mstime_t mstime(void) {
  * exit(), because the latter may interact with the same file objects used by
  * the parent process. However if we are testing the coverage normal exit() is
  * used in order to obtain the right coverage information. */
-/**
- * 在 RDB 转储或 AOF 重写之后，我们使用 _exit() 而不是 exit() 从子进程中退出，因为后者可能与父进程使用的相同文件对象交互。
- * 但是，如果我们正在测试覆盖率，则使用普通 exit() 以获得正确的覆盖率信息。
- * */
+/**在 RDB 转储或 AOF 重写之后，我们使用 _exit() 而不是 exit() 从子进程中退出，因为后者可能与父进程使用的相同文件对象交互。
+ * 但是，如果我们正在测试覆盖率，则使用普通 exit() 以获得正确的覆盖率信息。*/
 void exitFromChild(int retcode) {
 #ifdef COVERAGE_TEST
     exit(retcode);
@@ -233,9 +226,7 @@ void exitFromChild(int retcode) {
 /* This is a hash table type that uses the SDS dynamic strings library as
  * keys and redis objects as values (objects can hold SDS strings,
  * lists, sets). */
-/**
- * 这是一种哈希表类型，使用 SDS 动态字符串库作为键，使用 redis 对象作为值（对象可以保存 SDS 字符串、列表、集合）。
- * */
+/**这是一种哈希表类型，使用 SDS 动态字符串库作为键，使用 redis 对象作为值（对象可以保存 SDS 字符串、列表、集合）。*/
 
 void dictVanillaFree(dict *d, void *val)
 {
@@ -352,10 +343,8 @@ int dictEncObjKeyCompare(dict *d, const void *key1, const void *key2)
      * good reasons, because it would incrRefCount() the object, which
      * is invalid. So we check to make sure dictFind() works with static
      * objects as well. */
-    /**
-     * 由于 OBJ_STATIC_REFCOUNT，我们避免在没有充分理由的情况下调用 getDecodedObject()，因为它会增加无效的对象。
-     * 所以我们检查以确保 dictFind() 也适用于静态对象。
-     * */
+    /**由于 OBJ_STATIC_REFCOUNT，我们避免在没有充分理由的情况下调用 getDecodedObject()，因为它会增加无效的对象。
+     * 所以我们检查以确保 dictFind() 也适用于静态对象。*/
     if (o1->refcount != OBJ_STATIC_REFCOUNT) o1 = getDecodedObject(o1);
     if (o2->refcount != OBJ_STATIC_REFCOUNT) o2 = getDecodedObject(o2);
     cmp = dictSdsKeyCompare(d,o1->ptr,o2->ptr);
@@ -386,11 +375,9 @@ uint64_t dictEncObjHash(const void *key) {
  * provisionally if used memory will be over maxmemory after dict expands,
  * but to guarantee the performance of redis, we still allow dict to expand
  * if dict load factor exceeds HASHTABLE_MAX_LOAD_FACTOR. */
-/**
- * 如果当前我们允许 dict 扩展，则返回 1。 dict扩展时，dict可能会分配巨大的内存来容纳hash bucket，
+/**如果当前我们允许 dict 扩展，则返回 1。 dict扩展时，dict可能会分配巨大的内存来容纳hash bucket，
  * 这可能导致redis拒绝用户的请求或驱逐一些key，如果dict扩展后使用的内存超过maxmemory，
- * 我们可以暂时停止dict扩展，但为了保证redis的性能，如果dict加载因子超过HASHTABLE_MAX_LOAD_FACTOR，我们仍然允许dict扩展。
- * */
+ * 我们可以暂时停止dict扩展，但为了保证redis的性能，如果dict加载因子超过HASHTABLE_MAX_LOAD_FACTOR，我们仍然允许dict扩展。*/
 int dictExpandAllowed(size_t moreMem, double usedRatio) {
     if (usedRatio <= HASHTABLE_MAX_LOAD_FACTOR) {
         return !overMaxmemoryAfterAlloc(moreMem);
@@ -402,18 +389,14 @@ int dictExpandAllowed(size_t moreMem, double usedRatio) {
 /* Returns the size of the DB dict entry metadata in bytes. In cluster mode, the
  * metadata is used for constructing a doubly linked list of the dict entries
  * belonging to the same cluster slot. See the Slot to Key API in cluster.c. */
-/**
- * 返回 DB dict 条目元数据的大小（以字节为单位）。在集群模式下，元数据用于构建属于同一集群槽的字典条目的双向链表。
- * 请参阅 cluster.c 中的 Slot to Key API。
- * */
+/**返回 DB dict 条目元数据的大小（以字节为单位）。在集群模式下，元数据用于构建属于同一集群槽的字典条目的双向链表。
+ * 请参阅 cluster.c 中的 Slot to Key API。*/
 size_t dictEntryMetadataSize(dict *d) {
     UNUSED(d);
     /* NOTICE: this also affects overhead_ht_slot_to_keys in getMemoryOverheadData.
      * If we ever add non-cluster related data here, that code must be modified too. */
-    /**
-     * 注意：这也会影响 getMemoryOverheadData 中的overhead_ht_slot_to_keys。
-     * 如果我们在这里添加非集群相关的数据，那么也必须修改该代码。
-     * */
+    /**注意：这也会影响 getMemoryOverheadData 中的overhead_ht_slot_to_keys。
+     * 如果我们在这里添加非集群相关的数据，那么也必须修改该代码。*/
     return server.cluster_enabled ? sizeof(clusterDictEntryMetadata) : 0;
 }
 

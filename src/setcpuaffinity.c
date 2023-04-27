@@ -47,6 +47,7 @@
 #include "config.h"
 
 #ifdef USE_SETCPUAFFINITY
+//获得q位于sep后的一个字符
 static const char *next_token(const char *q,  int sep) {
     if (q)
         q = strchr(q, sep);
@@ -56,6 +57,7 @@ static const char *next_token(const char *q,  int sep) {
     return q;
 }
 
+//从字符串中获得一个数字
 static int next_num(const char *str, char **end, int *result) {
     if (!str || *str == '\0' || !isdigit(*str))
         return -1;
